@@ -1,9 +1,9 @@
 #pragma once
-#include "Ecs.hpp"
-#include "Particles.hpp"
 #include <fstream>
 #include <thread>
 #include <chrono>
+#include "Particles.hpp"
+#include "VectorEngine.hpp"
 
 namespace ParticlesScripts {
 

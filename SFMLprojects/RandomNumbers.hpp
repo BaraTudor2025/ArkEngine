@@ -28,8 +28,8 @@ static T RandomNumber(Distribution<T> dist) {
 
 	if constexpr (std::is_integral_v<T>) {
 		if (dist.type == DistributionType::uniform) {
-				std::uniform_int_distribution<T> dist(a, b);
-				return dist(_Private_Rng_);
+			std::uniform_int_distribution<T> dist(a, b);
+			return dist(_Private_Rng_);
 		}
 	}
 }

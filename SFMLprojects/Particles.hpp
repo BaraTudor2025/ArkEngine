@@ -6,7 +6,7 @@
 #include <functional>
 #include "RandomNumbers.hpp"
 #include "gsl.hpp"
-#include "Ecs.hpp"
+#include "VectorEngine.hpp"
 
 static inline constexpr auto PI = 3.14f;
 
@@ -23,7 +23,7 @@ struct Particles final : public Data {
 	{
 		// daca e dist::uniform atunci prima emitere are efect de artificii
 		if (ltd == DistributionType::uniform)
-			lifeTimeDistribution = { { 0, lifeTime.asMilliseconds() }, ltd };
+			lifeTimeDistribution = { { lifeTime.asMilliseconds() / 4, lifeTime.asMilliseconds() }, ltd };
 		else
 			lifeTimeDistribution = { { lifeTime.asMilliseconds() / 2,  lifeTime.asMilliseconds() / 2 }, ltd };
 	}
@@ -46,7 +46,7 @@ private:
 
 };
 
-class ParticleSystem final : public System, public NonCopyable, public NonMovable {
+class ParticleSystem final : public System {
 public:
 
 	static inline sf::Vector2f gravityVector{0.f, 0.f};

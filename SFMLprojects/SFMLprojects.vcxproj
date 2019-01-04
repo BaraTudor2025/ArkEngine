@@ -165,7 +165,6 @@
     <ClCompile Include="VectorEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Ecs.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="gsl.hpp" />
     <ClInclude Include="Particles.hpp" />

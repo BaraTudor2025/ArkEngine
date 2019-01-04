@@ -10,175 +10,12 @@
 #include <thread>
 #include "Particles.hpp"
 #include "Util.hpp"
-#include "VectorEngine.hpp"
-#include "Ecs.hpp"
 #include "ParticleScripts.hpp"
 #include "RandomNumbers.hpp"
+#include "VectorEngine.hpp"
 using namespace std::literals;
 
-/*
-void dontShowConsoleOnRelease()
-{
-	HWND hWnd = GetConsoleWindow();
-#ifdef NDEBUG
-	ShowWindow(hWnd, SW_HIDE);
-#else
-	ShowWindow(hWnd, SW_SHOW);
-#endif
-}
-*/
-
-#if 0
-
-enum class Direction {
-	Up, Down, Left, Right, Nop
-};
-
-struct VectorApp {
-
-	VectorApp(sf::VideoMode vm, std::string title, uint32_t antialiasingLevel = 16)
-	{
-		sf::ContextSettings settings;
-		settings.antialiasingLevel = antialiasingLevel;
-		window.create(vm, title, sf::Style::Default, settings);
-		window.setVerticalSyncEnabled(true);
-	}
-
-	void gameLoop(std::function<void(sf::RenderWindow&, Direction)> draw)
-	{	
-		while (window.isOpen())
-		{
-			sf::Event event;
-			while (window.pollEvent(event))
-			{
-				if (event.type == sf::Event::Closed) {
-					window.close();
-					std::exit(EXIT_SUCCESS);
-				}
-				if (event.type == sf::Event::KeyPressed)
-					if (event.key.code == sf::Keyboard::Escape)
-						std::cout<<"ai apasat esc\n";
-			}
-			window.clear(sf::Color::Black);		
-
-			for (const auto& cs : this->controlScheme)
-				if (sf::Keyboard::isKeyPressed(cs.first))
-					draw(window, cs.second);
-
-			draw(window, Direction::Nop);
-			window.display();
-			/*
-			if(sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-				draw(window, Direction::Up);
-			if(sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-				draw(window, Direction::Down);
-			if(sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-				draw(window, Direction::Left);
-			if(sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-				draw(window, Direction::Right);
-			*/
-
-		}
-	}
-	sf::RenderWindow window;
-	std::vector<std::pair<sf::Keyboard::Key, Direction>> controlScheme;
-};
-
-sf::VertexArray getQuad()
-{
-	sf::VertexArray quad(sf::Quads, 4);
-
-	// define it as a rectangle, located at (10, 10) and with size 100x100
-	quad[0].position = sf::Vector2f(10.f, 10.f);
-	quad[1].position = sf::Vector2f(110.f, 10.f);
-	quad[2].position = sf::Vector2f(110.f, 110.f);
-	quad[3].position = sf::Vector2f(10.f, 110.f);
-
-	// define its texture area to be a 25x50 rectangle starting at (0, 0)
-	quad[0].texCoords = sf::Vector2f(0.f, 0.f);
-	quad[1].texCoords = sf::Vector2f(25.f, 0.f);
-	quad[2].texCoords = sf::Vector2f(25.f, 50.f);
-	quad[3].texCoords = sf::Vector2f(0.f, 50.f);
-
-	return quad;
-}
-
-sf::VertexArray getTriangle()
-{
-	sf::VertexArray triangle(sf::Lines, 3);
-
-	// define the position of the triangle's points
-	triangle[0].position = sf::Vector2f(10.f, 10.f);
-	triangle[1].position = sf::Vector2f(200.f, 10.f);
-	triangle[2].position = sf::Vector2f(200.f, 400.f);
-	
-	// define the color of the triangle's points
-	triangle[0].color = sf::Color::Red;
-	triangle[1].color = sf::Color::Blue;
-	triangle[2].color = sf::Color::Green;
-
-	return triangle;
-}
-
-// ECS: Entities - Components - Systems
-int main2()
-{		
-	VectorApp app(sf::VideoMode(800, 600), "SFML works!");
-	app.controlScheme = { 
-		{sf::Keyboard::W, Direction::Up },
-		{sf::Keyboard::A, Direction::Left },
-		{sf::Keyboard::S, Direction::Down },
-		{sf::Keyboard::D, Direction::Right }
-	};
-
-	auto texture = load<sf::Texture>("imags/toaleta.jpg");
-	auto quad = getQuad();
-	auto triangle = getTriangle();
-
-	sf::RectangleShape player(sf::Vector2f(100, 100));
-	player.setFillColor(sf::Color::Blue);
-	sf::RenderTexture tr;
-
-	float speed = 2;
-	std::thread readThread([&]() {
-		while (true) {
-			printf("\ninsert speed\n>>");
-			float newSpeed;
-			std::cin >> newSpeed;
-			speed = newSpeed;
-		}
-	});
-
-	app.gameLoop([&](sf::RenderWindow& window, Direction dir) {
-		switch (dir)
-		{
-		case Direction::Nop:
-			window.draw(player);
-			break;
-		case Direction::Up:
-			player.move(0, -speed);
-			break;
-		case Direction::Down:
-			player.move(0, speed);
-			break;
-		case Direction::Left:
-			player.move(-speed, 0);
-			break;
-		case Direction::Right:
-			player.move(speed, 0);
-			break;
-		default:
-			break;
-		}
-		//window.draw(triangle);
-		//window.draw(quad, &texture);
-	});
-
-	return 0;
-}
-#endif
-
-std::unique_ptr<Entity> makeFireWorksEntity(int count, const Particles& particlesTemplate)
+Entity makeFireWorksEntity(int count, const Particles& particlesTemplate)
 {
 	std::vector<Particles> fireWorks(count, particlesTemplate);
 	
@@ -193,8 +30,8 @@ std::unique_ptr<Entity> makeFireWorksEntity(int count, const Particles& particle
 		fw.speedDistribution.type = DistributionType::uniform;
 	}
 
-	auto fireWorksEntity = std::make_unique<Entity>();
-	fireWorksEntity->addComponents(fireWorks);
+	Entity fireWorksEntity;
+	fireWorksEntity.addComponents(fireWorks);
 	return fireWorksEntity;
 }
 
@@ -220,8 +57,8 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 
 	Entity letterM{ true }, letterU{ true }, letterI{ true }, letterE{ true };
 
-	letterM.addComponent<Particles>(whiteParticles);
-	letterU.addComponent<Particles>(whiteParticles);
+	letterM.addComponentCopy(whiteParticles);
+	letterU.addComponentCopy(whiteParticles);
 	letterI.addComponent<Particles>(whiteParticles);
 	letterE.addComponent<Particles>(whiteParticles);
 
@@ -231,7 +68,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	letterI.addScript<PlayModel>("./res/litere/letterI.txt");
 	letterE.addScript<PlayModel>("./res/litere/letterE.txt");
 
-	Entity rainbow{true};
+	Entity rainbow{ true };
 	rainbow.addComponent<Particles>(rainbowParticles);
 	rainbow.addScript<SpawnOnRightClick>();
 	rainbow.addScript<EmittFromMouse>();
@@ -243,13 +80,14 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	
 	// TODO: de parametrizat sistemele
 
-	Entity trail{true};
+	Entity trail{ false };
+	trail.Register();
 	trail.addComponent<Particles>(whiteParticles);
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
 	trail.addScript<EmittFromMouse>();
 
-	auto fireWorksEntity = makeFireWorksEntity(30, rainbowParticles);
+	auto fireWorksEntity = std::make_unique<Entity>(makeFireWorksEntity(30, rainbowParticles));
 	fireWorksEntity->addScript<SpawnLater>(5);
 	fireWorksEntity->Register();
 
@@ -266,6 +104,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//});
 	//modifyVarsThread.detach();
 
+	game.addSystem(&ParticleSystem::instance);
 	game.run();
 	
 	return 0;

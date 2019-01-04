@@ -35,9 +35,6 @@
     <ClInclude Include="Particles.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Ecs.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ElipseShape.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

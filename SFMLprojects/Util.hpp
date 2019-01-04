@@ -1,0 +1,89 @@
+#pragma once
+
+#include <type_traits>
+#include <SFML/System/Vector2.hpp>
+
+#define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
+#define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
+
+#define log_err_impl(fmt, ...) do { log(fmt, __VA_ARGS__); std::exit(EXIT_FAILURE); } while(false)
+#define log_err(fmt, ...) log_err_impl(fmt, __VA_ARGS__)
+
+#define INSTANCE(type) type type::instance;
+#define INLINE_INSTANCE(type) inline type type::instance;
+
+struct NonCopyable {
+	NonCopyable() = default;
+	NonCopyable(const NonCopyable&) = delete;
+	NonCopyable& operator=(const NonCopyable&) = delete;
+};
+
+struct NonMovable {
+	NonMovable() = default;
+	NonMovable(NonMovable&&) = delete;
+	NonMovable& operator=(NonMovable&&) = delete;
+};
+
+template <typename T, typename U>
+void erase(T& range, U elem)
+{
+	range.erase(std::remove(range.begin(), range.end(), elem), range.end());
+}
+
+template <typename T, typename F>
+void erase_if(T& range, F predicate)
+{
+	range.erase(std::remove_if(range.begin(), range.end(), predicate), range.end());
+}
+
+struct PolarVector {
+	float magnitude;
+	float angle;
+};
+
+inline float toRadians(float deg)
+{
+	return deg / 180 * 3.14159f;
+}
+
+inline float toDegrees(float rad)
+{
+	return rad / 3.14159f * 180;
+}
+
+inline PolarVector toPolar(sf::Vector2f vec)
+{
+	auto[x, y] = vec;
+	auto magnitude = std::sqrt(x * x + y * y);
+	auto angle = std::atan2(y, x);
+	return { magnitude, angle};
+}
+
+inline sf::Vector2f toCartesian(PolarVector vec)
+{
+	auto[r, fi] = vec;
+	auto x = r * std::cos(fi);
+	auto y = r * std::sin(fi);
+	return { x, y };
+}
+
+//static const std::string dataPath("C:\\Users\\tudor\\Documents\\Visual Studio 2017\\Projects\\SFMLprojects\\res\\");
+
+#if false
+template <typename R, typename... Args>
+std::function<R(Args...)> memo(R(*fn)(Args...))
+{
+	std::map<std::tuple<Args...>, R> table;
+	return [fn, table](Args... args) mutable -> R {
+		auto argt = std::make_tuple(args...);
+		auto memoized = table.find(argt);
+		if (memoized == table.end()) {
+			auto result = fn(args...);
+			table[argt] = result;
+			return result;
+		} else {
+			return memoized->second;
+		}
+	};
+}
+#endif

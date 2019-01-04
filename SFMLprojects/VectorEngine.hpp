@@ -17,15 +17,6 @@ protected:
 
 
 class Script : public NonCopyable {
-	static inline std::vector<Script*> scripts;
-	friend class VectorEngine;
-	friend class Entity;
-	void Register() { registered = true; scripts.push_back(this); }
-	Entity* entity = nullptr;
-	bool registered = false;
-
-protected:
-	void unRegister();
 
 public:
 	Script() { }
@@ -46,24 +37,23 @@ public:
 	template <typename T> std::vector<T*> getComponents();
 
 	template <typename T> T* getScript();
+
+protected:
+	void unRegister();
+
+private:
+	static inline std::vector<Script*> scripts;
+	friend class VectorEngine;
+	friend class Entity;
+	void Register() { registered = true; scripts.push_back(this); }
+	Entity* entity = nullptr;
+	bool registered = false;
 };
 
 
 class Entity final : public NonCopyable {
-	static inline size_t tagCounter = 1;
-	static inline std::vector<Entity*> entities;
-	friend class VectorEngine;
-	friend class Script;
-	// poate in viitor scot unique_ptr
-	std::vector<std::unique_ptr<Data>> components;
-	std::vector<std::unique_ptr<Script>> scripts;
-	bool registered;
-	int tag_;
 
 public:
-
-	int tag() { return tag_; }
-
 	explicit Entity(bool registered = false);
 
 	Entity(Entity&& other)
@@ -76,6 +66,8 @@ public:
 	~Entity();
 
 	void Register();
+
+	int tag() { return tag_; }
 
 	// prima componenta de tip T gasita este returnata
 	template <typename T>
@@ -114,23 +106,42 @@ public:
 	}
 
 	void addScript(std::unique_ptr<Script> s);
+
+private:
+	friend class VectorEngine;
+	friend class Script;
+
+	std::vector<std::unique_ptr<Data>> components;
+	std::vector<std::unique_ptr<Script>> scripts;
+	bool registered;
+	int tag_;
+
+	static inline size_t tagCounter = 1;
+	static inline std::vector<Entity*> entities;
+	// poate in viitor scot unique_ptr
 };
 
 
 // fiecare sistem ar trebui sa aiba o singura instanta
 class System : public NonCopyable, public NonMovable {
-private:
-	friend class VectorEngine;
+
 public:
 	System() = default;
+
 	virtual void init() { }
+
 	virtual void update(sf::Time, sf::Vector2f) = 0;
+
 	virtual void draw(sf::RenderWindow&) = 0;
+
 	virtual void add(Data*) = 0;
+
+	friend class VectorEngine;
 };
 
 
 class VectorEngine : public NonCopyable, public NonMovable {
+
 public:
 	VectorEngine(sf::VideoMode vm, std::string name);
 

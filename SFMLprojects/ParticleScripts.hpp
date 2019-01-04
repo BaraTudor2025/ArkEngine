@@ -22,6 +22,8 @@ namespace ParticlesScripts {
 
 	class TraillingEffect : public Script {
 		sf::Vector2f prevMousePos;
+		Particles* traillingParticles;
+		bool spawn = true;
 	public:
 		void init()
 		{
@@ -42,9 +44,6 @@ namespace ParticlesScripts {
 				prevMousePos = mousePos;
 			}
 		}
-
-		Particles* traillingParticles;
-		bool spawn = true;
 	};
 
 	class RegisterMousePath : public Script {
@@ -76,6 +75,7 @@ namespace ParticlesScripts {
 		std::vector<sf::Vector2f> model;
 		std::vector<sf::Vector2f>::iterator curr;
 		std::string file;
+		Particles* p;
 	public:
 
 		PlayModel(std::string file) : file(file) { }
@@ -107,7 +107,6 @@ namespace ParticlesScripts {
 			else
 				p->spawn = false;
 		}
-		Particles* p;
 	};
 
 	class SpawnLater : public Script {

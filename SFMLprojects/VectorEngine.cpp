@@ -8,27 +8,30 @@
 #define ecs_log(fmt, ...)
 #endif
 
-static sf::Vector2f mouseCoords(sf::RenderWindow& window)
-{
-	sf::Vector2i mouse = sf::Mouse::getPosition(window);
-	return window.mapPixelToCoords(mouse);
+void Script::Register()
+{ 
+	if(!this->registered)
+		scripts.push_back(this);
+	registered = true; 
 }
 
-void Script::unRegister() {
-	if (!entity)
-		return;
+void Script::unRegister() 
+{
+	if (this->registered)
+		erase(scripts, this);
 	registered = false;
-	ecs_log("tag: %d", entity->tag);
-	erase(scripts, this);
-	ecs_log("am sters din scripts\n");
-	erase_if(entity->scripts, [&](auto& s) { return s.get() == this; });
-	ecs_log("am sters din entitate\n");
+}
+
+struct SeppukuException { Script* script; };
+
+void Script::seppuku()
+{
+	throw SeppukuException{this};
 }
 
 Script::~Script()
 {
-	if (entity && registered)
-		unRegister();
+	unRegister();
 }
 
 Entity::Entity(bool registered) : tag_(tagCounter++), registered(registered)
@@ -39,11 +42,9 @@ Entity::Entity(bool registered) : tag_(tagCounter++), registered(registered)
 
 Entity::~Entity()
 {
-	ecs_log("sterg entitatea: %d", tag);
 	for (auto& s : scripts)
 		s->entity = nullptr;
-	erase(entities, this);
-	ecs_log("am sters entitatea");
+	this->unRegister();
 }
 
 Entity& Entity::operator=(Entity&& other)
@@ -58,6 +59,7 @@ Entity& Entity::operator=(Entity&& other)
 		}
 		if (other.registered) {
 			erase(entities, &other);
+			other.registered = false;
 			entities.push_back(this);
 			this->registered = true;
 		} else
@@ -68,47 +70,124 @@ Entity& Entity::operator=(Entity&& other)
 
 void Entity::Register()
 {
-	if (!registered)
+	if (!registered) {
 		entities.push_back(this);
+		for (auto& c : components)
+			c->Register();
+		for (auto& s : scripts) {
+			s->entity = this;
+			s->Register();
+		}
+		if (VectorEngine::running())
+			for (auto& s : scripts)
+				s->init();
+	}
 	registered = true;
+}
+
+void Entity::unRegister()
+{
+	if (!this->registered)
+		return;
+	for (auto& s : scripts) {
+		s->unRegister();
+	}
+	for (auto& c : components) {
+		c->unRegister();
+	}
+	this->registered = false;
+	erase(entities, this);
+}
+
+void Entity::addComponent(std::unique_ptr<Component> c)
+{
+	if (this->registered)
+		c->Register();
+	components.push_back(std::move(c));
 }
 
 void Entity::addScript(std::unique_ptr<Script> s)
 {
-	s->entity = this;
-	s->Register();
-	if (VectorEngine::appStarted)
+	if (this->registered) {
+		s->entity = this;
+		s->Register();
+	}
+	if (VectorEngine::running())
 		s->init();
 	scripts.push_back(std::move(s));
 }
 
-VectorEngine::VectorEngine(sf::VideoMode vm, std::string name)
-	: width(vm.width), height(vm.height),
-	view(sf::Vector2f(0, 0), sf::Vector2f(vm.width, vm.height))
+void VectorEngine::create(sf::VideoMode vm, std::string name)
 {
-	window.create(sf::VideoMode(800, 600), "Articifii!", sf::Style::Close | sf::Style::Resize);
+	width = vm.width;
+	height = vm.height;
+	view.setSize(vm.width, vm.height);
+	view.setCenter(0, 0);
+	window.create(vm, name, sf::Style::Close | sf::Style::Resize);
 }
 
-// TODO: luat systemele ca parametrii
+void VectorEngine::addSystem(System* s)
+{
+	systems.push_back(s);
+}
+
+template <typename F, typename...Args>
+void VectorEngine::forEachScript(F f, Args&&...args)
+{
+	for (auto it = Script::scripts.begin(); it != Script::scripts.end();) {
+		try {
+			std::invoke(f, *it, std::forward<Args>(args)...);
+			//(*it)->init();
+			it++;
+		} catch (const SeppukuException& exp) {
+			exp.script->unRegister();
+			erase_if(exp.script->entity->scripts, [&](auto& s) { return s.get() == exp.script; });
+			//std::cout << "SEPPUKU\n";
+		}
+	}
+}
+
 void VectorEngine::run()
 {
-	for (auto& s : this->systems)
+	for (auto& s : systems)
 		s->init();
+	
+	forEachScript(&Script::init);
 
-	for (auto& e : Entity::entities)
-		for (auto& c : e->components)
-			c->addThisToSystem();
+	//for (auto& s : Script::scripts)
+	//	s->init();
 
-	for (auto& s : Script::scripts)
-		s->init();
+	//for (auto it = Script::scripts.begin(); it != Script::scripts.end();) {
+	//	try {
+	//		(*it)->init();
+	//		it++;
+	//	} catch (const SeppukuException& exp) {
+	//		exp.script->unRegister();
+	//		erase_if(exp.script->entity->scripts, [&](auto& s) { return s.get() == exp.script; });
+	//		std::cout << "SEPPUKU\n";
+	//	}
+	//}
 
-	appStarted = true;
+	// TODO: maybe use exceptions to signal seppuku?
+	//auto& scripts = Script::scripts;
+	//int size = scripts.size();
+	//log("scripts num %d", size);
+	//for (int i = 0; i < size;) {
+	//	scripts[i]->init();
+	//	if (scripts.size() < size) // seppuku
+	//		size--;
+	//	else
+	//		i++;
+	//}
+	//log("scripts num %d", scripts.size());
+
+
+	running_ = true;
 
 	sf::Clock clock;
 	while (window.isOpen()) {
 		sf::Event ev;
 		while (window.pollEvent(ev)) {
-			sf::Vector2f mousePos = mouseCoords(window);
 			switch (ev.type) {
 			case sf::Event::Closed:
 				window.close();
@@ -121,19 +200,15 @@ void VectorEngine::run()
 				break;
 			case sf::Event::MouseButtonPressed:
 				if (ev.mouseButton.button == sf::Mouse::Left)
-					for (auto& s : Script::scripts)
-						s->onMouseLeftPress(mousePos);
+					forEachScript(&Script::onMouseLeftPress);
 				if (ev.mouseButton.button == sf::Mouse::Right)
-					for (auto& s : Script::scripts)
-						s->onMouseRightPress(mousePos);
+					forEachScript(&Script::onMouseRightPress);
 				break;
 			case sf::Event::MouseButtonReleased:
 				if (ev.mouseButton.button == sf::Mouse::Left)
-					for (auto& s : Script::scripts)
-						s->onMouseLeftRelease();
+					forEachScript(&Script::onMouseLeftRelease);
 				if (ev.mouseButton.button == sf::Mouse::Right)
-					for (auto& s : Script::scripts)
-						s->onMouseRightRelease();
+					forEachScript(&Script::onMouseRightRelease);
 				break;
 			default:
 				break;
@@ -144,20 +219,16 @@ void VectorEngine::run()
 
 		sf::Time deltaTime = clock.restart();
 
-		for (auto& script : Script::scripts)
-			script->update(deltaTime, mousePos);
+		forEachScript(&Script::update, deltaTime);
 
-		for (auto system : this->systems)
-			system->update(deltaTime, mousePos);
+		deltaTime += clock.getElapsedTime();
 
-		for (auto system : this->systems)
-			system->draw(window);
+		for (auto system : systems)
+			system->update(deltaTime);
+
+		for (auto system : systems)
+			system->render(window);
 
 		window.display();
 	}
-}
-
-void VectorEngine::addSystem(System * s)
-{
-	this->systems.push_back(s);
 }

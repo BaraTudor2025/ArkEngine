@@ -2,33 +2,58 @@
 
 #include <SFML/Graphics.hpp>
 #include <functional>
+#include <deque>
 #include "Util.hpp"
 
-class Entity;
 
-struct Data {
+struct Component {
 
-	virtual ~Data() { }
+public:
+	virtual ~Component() = default;
 
-protected:
-	friend class VectorEngine;
-	virtual void addThisToSystem() = 0;
+private:
+	virtual void Register() = 0;
+	virtual void unRegister() = 0;
+	friend class Entity;
 };
 
+class System;
+
+// TODO: movable?
+template <typename T>
+struct Data : Component {
+
+public:
+	virtual ~Data() { unRegister();  }
+
+protected:
+	static inline System* system;
+	static inline std::deque<T*> components;
+
+private:
+	void Register() override;
+
+	void unRegister() override;
+
+	bool registered = false;
+};
+
+
+class Entity;
 
 class Script : public NonCopyable {
 
 public:
-	Script() { }
-
+	Script() = default;
 	virtual ~Script();
 
+protected:
 	virtual void init() { }
 
-	virtual void update(sf::Time deltaTime, sf::Vector2f mousePos) { }
+	virtual void update(sf::Time deltaTime) { }
 
-	virtual void onMouseLeftPress(sf::Vector2f) { }
-	virtual void onMouseRightPress(sf::Vector2f) { }
+	virtual void onMouseLeftPress() { }
+	virtual void onMouseRightPress() { }
 	virtual void onMouseLeftRelease() { }
 	virtual void onMouseRightRelease() { }
 
@@ -38,16 +63,18 @@ public:
 
 	template <typename T> T* getScript();
 
-protected:
-	void unRegister();
+	// unRegister() si il scoate din Entitate
+	// poate fi apelat in orice functie virtuala overriden
+	void seppuku();
 
 private:
+	void Register();
+	void unRegister();
+	Entity* entity = nullptr;
+	bool registered = false;
 	static inline std::vector<Script*> scripts;
 	friend class VectorEngine;
 	friend class Entity;
-	void Register() { registered = true; scripts.push_back(this); }
-	Entity* entity = nullptr;
-	bool registered = false;
 };
 
 
@@ -65,6 +92,9 @@ public:
 
 	~Entity();
 
+	// TODO: poate dau Register la Scripts doar in vectorii locali
+	// si engine-ul depinde de entitati si nu std::vector<> Script::scripts
+	// dar cum fac cu Data si Systems?
 	void Register();
 
 	int tag() { return tag_; }
@@ -72,7 +102,7 @@ public:
 	// prima componenta de tip T gasita este returnata
 	template <typename T>
 	T* getComponent(); 
-
+ 
 	template <typename T>
 	std::vector<T*> getComponents();
 
@@ -94,10 +124,7 @@ public:
 		addComponent(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
-	void addComponent(std::unique_ptr<Data> c)
-	{
-		components.push_back(std::move(c));
-	}
+	void addComponent(std::unique_ptr<Component> c);
 
 	template <typename T, typename... Args>
 	void addScript(Args&&... args)
@@ -105,20 +132,23 @@ public:
 		addScript(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
+	// ordinea in care sunt adaugate conteaza daca in init() apelezi getScript<WhateverScript>()
+	// data WhateverScript::init() nu a fost apelat atunci varibilele sunt undefined 
 	void addScript(std::unique_ptr<Script> s);
 
 private:
-	friend class VectorEngine;
-	friend class Script;
+	void unRegister();
 
-	std::vector<std::unique_ptr<Data>> components;
+	std::vector<std::unique_ptr<Component>> components;
 	std::vector<std::unique_ptr<Script>> scripts;
 	bool registered;
 	int tag_;
 
-	static inline size_t tagCounter = 1;
-	static inline std::vector<Entity*> entities;
-	// poate in viitor scot unique_ptr
+	static inline int tagCounter = 1;
+	static inline std::list<Entity*> entities;
+
+	friend class VectorEngine;
+	friend class Script;
 };
 
 
@@ -128,54 +158,85 @@ class System : public NonCopyable, public NonMovable {
 public:
 	System() = default;
 
-	virtual void init() { }
-
-	virtual void update(sf::Time, sf::Vector2f) = 0;
-
-	virtual void draw(sf::RenderWindow&) = 0;
-
-	virtual void add(Data*) = 0;
-
-	friend class VectorEngine;
-};
-
-
-class VectorEngine : public NonCopyable, public NonMovable {
-
-public:
-	VectorEngine(sf::VideoMode vm, std::string name);
-
-	void run();
-
-	void addSystem(System* s);
+protected:
+	template <typename Comp>
+	void initWith() {
+		for (Comp* c : Comp::components) {
+			this->add(c);
+			c->system = this;
+		}
+	}
 
 private:
-	sf::RenderWindow window;
-	sf::View view;
-	uint32_t width, height;
+	virtual void init() { }
 
-	static inline std::vector<System*> systems;
+	virtual void update(sf::Time) = 0;
 
-	friend class Entity;
-	static inline bool appStarted = false;
+	virtual void render(sf::RenderWindow&) = 0;
+
+	virtual void add(Component*) = 0;
+
+	virtual void remove(Component*) = 0;
+
+	friend class VectorEngine;
+
+	template <typename T>
+	friend struct Data;
 };
 
 
-// implementare
+class VectorEngine final : public NonCopyable, public NonMovable {
+
+public:
+	static void create(sf::VideoMode vm, std::string name);
+
+	static void addSystem(System* s);
+
+	static void run();
+
+	static sf::Vector2f mousePositon()
+	{
+		return mouseCoords(window);
+	}
+
+	static bool running() { return running_; }
+	
+private:
+	static sf::Vector2f mouseCoords(sf::RenderWindow& window)
+	{
+		sf::Vector2i mouse = sf::Mouse::getPosition(window);
+		return window.mapPixelToCoords(mouse);
+	}
+
+	template <class F, class...Args>
+	static void forEachScript(F, Args&&...);
+
+	static inline sf::RenderWindow window;
+	static inline sf::View view;
+	static inline uint32_t width, height;
+	static inline bool running_ = false;
+
+	static inline std::vector<System*> systems;
+};
+
+
+/*********************************/
+/******** IMPLEMENTATION *********/
+/*********************************/
 template <typename T>
-T* Script::getComponent()
+inline T* Script::getComponent()
 {
 	return entity->getComponent<T>();
 }
 
 template <typename T>
-std::vector<T*> Script::getComponents()
+inline std::vector<T*> Script::getComponents()
 {
 	return entity->getComponents<T>();
 }
 
 template <typename T>
-T* Script::getScript()
+inline T* Script::getScript()
 {
 	return entity->getScript<T>();
 }
@@ -193,7 +254,7 @@ T* Entity::getComponent()
 }
 
 template<typename T>
-std::vector<T*> Entity::getComponents() // toate componentele gasite de tip T sunt returnate
+std::vector<T*> Entity::getComponents()
 {
 	std::vector<T*> comps;
 	for (auto& c : components) {
@@ -222,10 +283,30 @@ template<typename Range>
 void Entity::addComponents(Range& range)
 {
 	using elem_type = std::decay_t<decltype(*std::begin(range))>;
-	if constexpr (std::is_convertible_v<elem_type, std::unique_ptr<Data>>)
+	if constexpr (std::is_convertible_v<elem_type, std::unique_ptr<Component>>)
 		for (auto& c : range)
 			addComponent(std::move(c));
 	else
 		for (auto& c : range)
 			addComponent(std::make_unique<elem_type>(c));
+}
+
+template<typename T>
+inline void Data<T>::Register()
+{
+	if (!this->registered)
+		components.push_back(static_cast<T*>(this));
+	if (VectorEngine::running())
+		system->add(this);
+	this->registered = true;
+}
+
+template<typename T>
+inline void Data<T>::unRegister()
+{
+	if (this->registered) {
+		system->remove(this);
+		erase(components, this);
+		this->registered = false;
+	}
 }

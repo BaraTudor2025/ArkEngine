@@ -10,7 +10,7 @@
 
 static inline constexpr auto PI = 3.14f;
 
-struct Particles final : public Data {
+struct Particles final : public Data<Particles> {
 
 	Particles(size_t count, sf::Time lifeTime,
 			 std::pair<float, float> speedArgs,
@@ -28,6 +28,8 @@ struct Particles final : public Data {
 			lifeTimeDistribution = { { lifeTime.asMilliseconds() / 2,  lifeTime.asMilliseconds() / 2 }, ltd };
 	}
 
+	COPYABLE(Particles)
+
 	size_t count;
 	sf::Time lifeTime;
 
@@ -41,26 +43,70 @@ struct Particles final : public Data {
 
 	sf::Color(*getColor)() = []() { return sf::Color::White; };
 
-private:
-	void addThisToSystem() override;
-
+	friend class ParticleSystem;
 };
 
-class ParticleSystem final : public System {
-public:
+// templates
 
+inline Particles getFireParticles() 
+{
+	Particles fireParticles(1'000, sf::seconds(2), { 2, 100 }, { 0, 2 * PI }, DistributionType::uniform);
+	fireParticles.speedDistribution.type = DistributionType::uniform;
+	fireParticles.getColor = []() {
+		auto green = RandomNumber<uint32_t>(0, 150);
+		return sf::Color(255, green, 0);
+	}; 
+	return fireParticles;
+}
+
+inline Particles getWhiteParticles()
+{
+	Particles whiteParticles(1000, sf::seconds(6), { 0, 5 });
+	whiteParticles.speedDistribution.type = DistributionType::uniform;
+	whiteParticles.angleDistribution.type = DistributionType::uniform;
+
+	return whiteParticles;
+}
+
+inline Particles getRainbowParticles()
+{
+	Particles rainbowParticles(2000, sf::seconds(3), { 0, 100 }, { 0,2 * PI }, DistributionType::uniform);
+	rainbowParticles.getColor = []() {
+		return sf::Color(RandomNumber<uint32_t>(0x000000ff, 0xffffffff));
+	};
+	return rainbowParticles;
+}
+
+inline Particles getGreenParticles()
+{
+	auto greenParticles = getFireParticles();
+	greenParticles.getColor = []() {
+		auto red = RandomNumber<uint32_t>(0, 150);
+		return sf::Color(red, 255, 0);
+	};
+	return greenParticles;
+}
+
+class ParticleSystem final : public System {
+
+public:
 	static inline sf::Vector2f gravityVector{0.f, 0.f};
 
 	static ParticleSystem instance;
 
-	void update(sf::Time deltaTime, sf::Vector2f mousePos) override;
+	void init() override {
+		initWith<Particles>();
+	}
 
-	void add(Data*) override;
+	void update(sf::Time deltaTime) override;
 
-	void draw(sf::RenderWindow& target) override;
+	void add(Component*) override;
+
+	void remove(Component*) override;
+
+	void render(sf::RenderWindow& target) override;
 
 private:
-
 	void updateBatch(sf::Time, const Particles&, gsl::span<sf::Vertex>, gsl::span<sf::Vector2f>, gsl::span<sf::Time>);
 
 	void respawnParticle(const Particles&, sf::Vertex&, sf::Vector2f&, sf::Time&);
@@ -70,5 +116,5 @@ private:
 	std::vector<sf::Vector2f> velocities;
 	std::vector<sf::Time> lifeTimes;
 
-	std::vector<Particles*> particlesInfos;
+	std::vector<Particles*> particlesData;
 };

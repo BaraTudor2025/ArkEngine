@@ -9,51 +9,104 @@
 #include <cmath>
 #include <thread>
 #include "Particles.hpp"
-#include "Util.hpp"
 #include "ParticleScripts.hpp"
 #include "RandomNumbers.hpp"
 #include "VectorEngine.hpp"
+#include "Util.hpp"
 using namespace std::literals;
 
-Entity makeFireWorksEntity(int count, const Particles& particlesTemplate)
+struct Animation : public Data<Animation> {
+	int row;
+	int columns;
+	std::string fileName;
+};
+
+class AnimationSystem : public System {
+
+public:
+	void init() override {
+		
+	}
+	void update(sf::Time dt) override
+	{
+
+	}
+
+	void add(Component*) override
+	{
+
+	}
+
+	virtual void render(sf::RenderWindow &) override
+	{
+	}
+
+	virtual void remove(Component *) override
+	{
+	}
+
+private:
+	std::vector<Animation*> animationData;
+};
+
+
+struct Mesh : public Data<Mesh> {
+	std::string fileName;
+};
+
+class MeshRendered : public System {
+
+public:
+	virtual void update(sf::Time) override
+	{
+	}
+	virtual void render(sf::RenderWindow &) override
+	{
+	}
+	virtual void add(Component *) override
+	{
+	}
+	virtual void remove(Component *) override
+	{
+	}
+
+private:
+	std::vector<Mesh*> meshData;
+};
+
+std::vector<Entity> makeFireWorksEntity(int count, const Particles& templateParticles)
 {
-	std::vector<Particles> fireWorks(count, particlesTemplate);
-	
+	std::vector<std::unique_ptr<Particles>> fireWorks;
+	constructVector(fireWorks, count, templateParticles);
+
 	for (auto& fw : fireWorks) {
 		auto x = RandomNumber<float>(50, 750);
 		auto y = RandomNumber<float>(50, 550);
-		fw.count = 1000;
-		fw.emitter = { x,y };
-		fw.fireworks = true;
-		fw.lifeTime = sf::seconds(RandomNumber<float>(2, 8));
-		fw.speedDistribution.values = { 0, RandomNumber<int>(40, 70) };
-		fw.speedDistribution.type = DistributionType::uniform;
+		fw->count = 1;
+		fw->emitter = { x,y };
+		fw->fireworks = true;
+		fw->lifeTime = sf::seconds(RandomNumber<float>(1, 4));
+		fw->speedDistribution.values = { 0, RandomNumber<int>(40, 70) };
+		fw->speedDistribution.type = DistributionType::uniform;
 	}
 
-	Entity fireWorksEntity;
-	fireWorksEntity.addComponents(fireWorks);
-	return fireWorksEntity;
+	std::vector<Entity> entities(count);
+	for (auto i : range(0, count))
+		entities[i].addComponent(std::move(fireWorks[i]));
+	return entities;
 }
 
+// TODO: de optimizat RandomNumber?
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
-	VectorEngine game(sf::VideoMode(800, 600), "Articifii!");
+	VectorEngine::create(sf::VideoMode(800, 600), "Articifii!");
 
-	Particles fireParticles(1'000, sf::seconds(2), { 2, 100 }, { 0, 2 * PI }, DistributionType::uniform);
-	fireParticles.speedDistribution.type = DistributionType::uniform;
-	fireParticles.getColor = []() {
-		auto green = RandomNumber<uint32_t>(0, 150);
-		return sf::Color(255, green, 0);
-	};
+	auto rainbowParticles = getRainbowParticles();
+	auto whiteParticles = getWhiteParticles();
+	auto fireParticles = getFireParticles();
+	auto greenParticles = getGreenParticles();
 
-	Particles whiteParticles(1000, sf::seconds(6), { 0, 5 });
-	whiteParticles.speedDistribution.type = DistributionType::uniform;
-	whiteParticles.angleDistribution.type = DistributionType::uniform;
-
-	Particles rainbowParticles(2000, sf::seconds(3), { 0, 100 }, {0,2*PI}, DistributionType::uniform);
-	rainbowParticles.getColor = []() {
-		return sf::Color(RandomNumber<uint32_t>(0x000000ff, 0xffffffff));
-	};
+	using namespace ParticlesScripts;
 
 	Entity letterM{ true }, letterU{ true }, letterI{ true }, letterE{ true };
 
@@ -62,7 +115,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	letterI.addComponent<Particles>(whiteParticles);
 	letterE.addComponent<Particles>(whiteParticles);
 
-	using namespace ParticlesScripts;
 	letterM.addScript<PlayModel>("./res/litere/letterM.txt");
 	letterU.addScript<PlayModel>("./res/litere/letterU.txt");
 	letterI.addScript<PlayModel>("./res/litere/letterI.txt");
@@ -77,21 +129,30 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	fire.addComponent<Particles>(fireParticles);
 	fire.addScript<SpawnOnLeftClick>();
 	fire.addScript<EmittFromMouse>();
-	
-	// TODO: de parametrizat sistemele
+
+	Entity grass{ false };
+	greenParticles.spawn = true;
+	grass.Register();
+	grass.addComponent<Particles>(greenParticles);
+	grass.addScript<DeSpawnOnMouseClick<>>();
+	grass.addScript<EmittFromMouse>();
 
 	Entity trail{ false };
-	trail.Register();
 	trail.addComponent<Particles>(whiteParticles);
+	trail.addScript<EmittFromMouse>();
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
-	trail.addScript<EmittFromMouse>();
+	trail.Register();
 
-	auto fireWorksEntity = std::make_unique<Entity>(makeFireWorksEntity(30, rainbowParticles));
-	fireWorksEntity->addScript<SpawnLater>(5);
-	fireWorksEntity->Register();
+	auto fwEntities = makeFireWorksEntity(1000, rainbowParticles);
+	for (auto& e : fwEntities) {
+		e.addScript<SpawnLater>(5);
+		e.Register();
+	}
 
 	ParticleSystem::gravityVector = { 0, 0 };
+
+	bool reg = true;
 
 	//std::thread modifyVarsThread([&]() {
 	//	auto&[x, y] = ParticleSystem::gravityVector;
@@ -99,13 +160,19 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//		std::cout << "enter gravity x and y: ";
 	//		std::cin >> x >> y;
 	//		std::cout << std::endl;
-	//		//fireWorksEntity->addScript<SpawnParticlesLater>(5);
+	//		//fireWorksEntity->addScript<SpawnLater>(5);
+	//		if (reg)
+	//			grass.unRegister();
+	//		else
+	//			grass.Register();
+	//		reg = !reg;
 	//	}
 	//});
 	//modifyVarsThread.detach();
+	//ParticleSystem particle_system;
 
-	game.addSystem(&ParticleSystem::instance);
-	game.run();
+	VectorEngine::addSystem(&ParticleSystem::instance);
+	VectorEngine::run();
 	
 	return 0;
 }

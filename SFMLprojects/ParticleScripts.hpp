@@ -5,42 +5,51 @@
 #include "Particles.hpp"
 #include "VectorEngine.hpp"
 
+#if 0
+#define log_init() log("")
+#else
+#define log_init()
+#endif
+
 namespace ParticlesScripts {
 
 	class EmittFromMouse : public Script {
 		Particles* p;
 	public:
-		void init()
+		void init() override
 		{
+			log_init();
 			p = getComponent<Particles>();
 		}
-		void update(sf::Time, sf::Vector2f mousePos) override
+		void update(sf::Time) override
 		{
-			p->emitter = mousePos;
+			p->emitter = VectorEngine::mousePositon();
 		}
 	};
 
 	class TraillingEffect : public Script {
 		sf::Vector2f prevMousePos;
 		Particles* traillingParticles;
-		bool spawn = true;
 	public:
+		bool spawn = true;
 		void init()
 		{
+			log_init();
 			traillingParticles = getComponent<Particles>();
 		}
-		void update(sf::Time, sf::Vector2f mousePos) override
+		void update(sf::Time) override
 		{
 			if (spawn) {
+				auto mousePos = VectorEngine::mousePositon();
 				auto dv = mousePos - prevMousePos;
 				auto[speed, angle] = toPolar(-dv);
 				if (speed != 0) {
 					traillingParticles->spawn = true;
-					speed = std::clamp<float>(speed, 0, 4);
+					speed = std::clamp<float>(speed, 0, 5);
 				} else
 					traillingParticles->spawn = false;
 				traillingParticles->angleDistribution.values = { angle - PI / 6, angle + PI / 6 };
-				traillingParticles->speedDistribution.values = { 20 * speed, 30 * speed };
+				traillingParticles->speedDistribution.values = { 5 * speed , 20 * speed };
 				prevMousePos = mousePos;
 			}
 		}
@@ -51,15 +60,15 @@ namespace ParticlesScripts {
 		std::string file;
 	public:
 		RegisterMousePath(std::string file) : file(file) { }
-		void update(sf::Time, sf::Vector2f mousePos)
+		void update(sf::Time)
 		{
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
-				path.push_back(mousePos);
+				path.push_back(VectorEngine::mousePositon());
 		}
 
 		void write()
 		{
-			unRegister();
+			//unRegister();
 		}
 
 		~RegisterMousePath()
@@ -82,6 +91,7 @@ namespace ParticlesScripts {
 
 		void init()
 		{
+			log_init();
 			p = getComponent<Particles>();
 			std::ifstream fin(file);
 			if (!fin.is_open()) {
@@ -98,7 +108,7 @@ namespace ParticlesScripts {
 			p->spawn = false;
 		}
 
-		void update(sf::Time, sf::Vector2f)
+		void update(sf::Time)
 		{
 			if (curr == model.begin())
 				p->spawn = true;
@@ -110,24 +120,25 @@ namespace ParticlesScripts {
 	};
 
 	class SpawnLater : public Script {
-		std::vector<Particles*> particles;
 		int seconds;
+		Particles* p;
 	public:
 		SpawnLater(int seconds) : seconds(seconds) { }
 
 		void init()
 		{
-			particles = getComponents<Particles>();
-			for (auto& p : particles)
-				p->spawn = false;
+			static int i = 1;
+			log_init("%d", i++);
+			p = getComponent<Particles>();
+			p->spawn = false;
 
-			std::thread waitToSpawn([sec = seconds, ps = std::move(particles)]() {
+			std::thread waitToSpawn([pp = p, sec = seconds]() {
 				std::this_thread::sleep_for(std::chrono::seconds(sec));
-				for (auto& p : ps)
-					p->spawn = true;
+				pp->spawn = true;
 			});
 			waitToSpawn.detach();
-			this->unRegister();
+
+			this->seppuku();
 		}
 	};
 
@@ -135,14 +146,15 @@ namespace ParticlesScripts {
 	class DeSpawnOnMouseClick : public Script {
 		T* p = nullptr;
 	public:
-		void init()
+		void init() override
 		{
-			if constexpr (std::is_base_of_v<Script, T>)
+			log_init();
+			if (std::is_base_of_v<Script, T>)
 				p = getScript<T>();
-			else if constexpr (std::is_base_of_v<Data, T>)
+			if (std::is_same_v<Particles, T>)
 				p = getComponent<T>();
 		}
-		void onMouseLeftPress(sf::Vector2f) override
+		void onMouseLeftPress() override
 		{
 			p->spawn = false;
 		}
@@ -150,7 +162,7 @@ namespace ParticlesScripts {
 		{
 			p->spawn = true;
 		}
-		void onMouseRightPress(sf::Vector2f) override
+		void onMouseRightPress() override
 		{
 			p->spawn = false;
 		}
@@ -165,9 +177,10 @@ namespace ParticlesScripts {
 	public:
 		void init()
 		{
+			log_init();
 			p = getComponent<Particles>();
 		}
-		void onMouseRightPress(sf::Vector2f) override
+		void onMouseRightPress() override
 		{
 			p->spawn = true;
 		}
@@ -182,9 +195,10 @@ namespace ParticlesScripts {
 	public:
 		void init()
 		{
+			log_init();
 			p = getComponent<Particles>();
 		}
-		void onMouseLeftPress(sf::Vector2f) override
+		void onMouseLeftPress() override
 		{
 			p->spawn = true;
 		}

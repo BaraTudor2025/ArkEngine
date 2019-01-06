@@ -1,7 +1,9 @@
 #pragma once
 
-#include <type_traits>
 #include <SFML/System/Vector2.hpp>
+#include <type_traits>
+#include <mutex>
+#include <experimental/generator>
 
 #define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
 #define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
@@ -11,6 +13,28 @@
 
 #define INSTANCE(type) type type::instance;
 #define INLINE_INSTANCE(type) inline type type::instance;
+
+#define COPYABLE(type) \
+	type() = default; \
+	type(const type&) = default; \
+	type& operator=(const type&) = default;
+
+#define MOVABLE(type) \
+	type() = default; \
+	type(type&&) = default; \
+	type& operator=(type&&) = default;
+
+//struct Copyable {
+//	Copyable() = default;
+//	Copyable(const Copyable&) = default;
+//	Copyable& operator=(const Copyable&) = default;
+//};
+
+//struct Movable {
+//	Movable() = default;
+//	Movable(Movable&&) = default;
+//	Movable& operator=(Movable&&) = default;
+//};
 
 struct NonCopyable {
 	NonCopyable() = default;
@@ -23,6 +47,20 @@ struct NonMovable {
 	NonMovable(NonMovable&&) = delete;
 	NonMovable& operator=(NonMovable&&) = delete;
 };
+
+template <typename T, typename...Args>
+void constructVector(std::vector<std::unique_ptr<T>>& range, int n, Args&&...args)
+{
+	range.reserve(n);
+	for (int i = 0; i < n; i++)
+		range.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+}
+
+inline std::experimental::generator<int> range(int begin, int end)
+{
+	for (int i = 0; i < end; i++)
+		co_yield i;
+}
 
 template <typename T, typename U>
 void erase(T& range, U elem)
@@ -56,7 +94,7 @@ inline PolarVector toPolar(sf::Vector2f vec)
 	auto[x, y] = vec;
 	auto magnitude = std::sqrt(x * x + y * y);
 	auto angle = std::atan2(y, x);
-	return { magnitude, angle};
+	return { magnitude, angle };
 }
 
 inline sf::Vector2f toCartesian(PolarVector vec)
@@ -66,6 +104,29 @@ inline sf::Vector2f toCartesian(PolarVector vec)
 	auto y = r * std::sin(fi);
 	return { x, y };
 }
+
+template <typename T>
+class Sync {
+
+public:
+	template <typename... Args>
+	Sync(Args&&... args) : var(std::forward<Args>(args)...) {  }
+
+	T& var() { return var_; }
+
+	T& operator->()
+	{
+		std::lock_guard<std::mutex> lk();
+		return var_;
+	}
+
+	void lock() { mtx.lock(); }
+	void unlock() { mtx.unlock(); }
+
+private:
+	std::mutex mtx;
+	T var_;
+};
 
 //static const std::string dataPath("C:\\Users\\tudor\\Documents\\Visual Studio 2017\\Projects\\SFMLprojects\\res\\");
 

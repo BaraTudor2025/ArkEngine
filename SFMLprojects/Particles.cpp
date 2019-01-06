@@ -3,10 +3,10 @@
 
 ParticleSystem ParticleSystem::instance;
 
-void ParticleSystem::update(sf::Time deltaTime, sf::Vector2f mousePos)
+void ParticleSystem::update(sf::Time deltaTime)
 {
-	int pos = 0;
-	for (Particles* p : this->particlesInfos) {
+	size_t pos = 0;
+	for (Particles* p : this->particlesData) {
 		this->updateBatch(
 			deltaTime, *p,
 			{ this->vertices.data() + pos, p->count },
@@ -16,24 +16,30 @@ void ParticleSystem::update(sf::Time deltaTime, sf::Vector2f mousePos)
 	}
 }
 
-void ParticleSystem::add(Data* data)
+void ParticleSystem::add(Component* data)
 {
 	auto ps = dynamic_cast<Particles*>(data);
 	auto addSize = [&](auto& range) { range.resize(range.size() + ps->count); };
 	addSize(this->velocities);
 	addSize(this->vertices);
 	addSize(this->lifeTimes);
-	this->particlesInfos.push_back(ps);
+	this->particlesData.push_back(ps);
 }
 
-inline void ParticleSystem::draw(sf::RenderWindow & target)
+void ParticleSystem::remove(Component* c)
+{
+	auto p = dynamic_cast<Particles*>(c);
+	erase(this->particlesData, p);
+}
+
+inline void ParticleSystem::render(sf::RenderWindow& target)
 {
 	target.draw(this->vertices.data(), this->vertices.size(), sf::Points);
 }
 
 void ParticleSystem::updateBatch(
 	sf::Time deltaTime, 
-	const Particles & ps, 
+	const Particles& ps, 
 	gsl::span<sf::Vertex> vertices, 
 	gsl::span<sf::Vector2f> velocities, 
 	gsl::span<sf::Time> lifeTimes)
@@ -53,7 +59,7 @@ void ParticleSystem::updateBatch(
 	}
 }
 
-void ParticleSystem::respawnParticle(const Particles & ps, sf::Vertex & vertex, sf::Vector2f & velocity, sf::Time & lifeTime)
+void ParticleSystem::respawnParticle(const Particles& ps, sf::Vertex& vertex, sf::Vector2f& velocity, sf::Time& lifeTime)
 {
 	float angle = RandomNumber(ps.angleDistribution);
 	float speed = RandomNumber(ps.speedDistribution);
@@ -75,9 +81,3 @@ void ParticleSystem::respawnParticle(const Particles & ps, sf::Vertex & vertex, 
 	} else
 		lifeTime = sf::milliseconds(static_cast<int>(time));
 }
-
-void Particles::addThisToSystem()
-{
-	ParticleSystem::instance.add(this);
-}
-

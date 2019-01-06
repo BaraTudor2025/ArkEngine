@@ -24,18 +24,6 @@
 	type(type&&) = default; \
 	type& operator=(type&&) = default;
 
-//struct Copyable {
-//	Copyable() = default;
-//	Copyable(const Copyable&) = default;
-//	Copyable& operator=(const Copyable&) = default;
-//};
-
-//struct Movable {
-//	Movable() = default;
-//	Movable(Movable&&) = default;
-//	Movable& operator=(Movable&&) = default;
-//};
-
 struct NonCopyable {
 	NonCopyable() = default;
 	NonCopyable(const NonCopyable&) = delete;
@@ -49,11 +37,11 @@ struct NonMovable {
 };
 
 template <typename T, typename...Args>
-void constructVector(std::vector<std::unique_ptr<T>>& range, int n, Args&&...args)
+void constructVector(std::vector<std::unique_ptr<T>>& range, int n, const Args&...args)
 {
 	range.reserve(n);
 	for (int i = 0; i < n; i++)
-		range.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+		range.emplace_back(std::make_unique<T>(args...));
 }
 
 inline std::experimental::generator<int> range(int begin, int end)

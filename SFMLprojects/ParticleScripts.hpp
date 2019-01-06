@@ -66,11 +66,6 @@ namespace ParticlesScripts {
 				path.push_back(VectorEngine::mousePositon());
 		}
 
-		void write()
-		{
-			//unRegister();
-		}
-
 		~RegisterMousePath()
 		{
 			std::ofstream fout(file);
@@ -116,6 +111,60 @@ namespace ParticlesScripts {
 				p->emitter = *curr++;
 			else
 				p->spawn = false;
+		}
+	};
+
+	class ModifyColorsFromFile : public Script {
+		Particles* p;
+		std::string fileName;
+	public:
+
+		ModifyColorsFromFile(std::string fileName) : fileName(fileName) { }
+
+		void init()
+		{
+			p = getComponent<Particles>();
+			std::thread t([&](){
+				while (true) {
+					std::cout << "press enter to read colors from: " + fileName;
+					std::cin.get();
+					std::ifstream fin(fileName);
+					int r1, r2, g1, g2, b1, b2;
+					fin >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
+					p->getColor = [=]() {
+						auto r = RandomNumber<int>(r1, r2);
+						auto g = RandomNumber<int>(g1, g2);
+						auto b = RandomNumber<int>(b1, b2);
+						return sf::Color(r, g, b);
+					};
+					fin.close();
+				}
+			});
+			t.detach();
+		}
+	};
+
+	class ModifyColorsFromConsole : public Script {
+		Particles* p;
+	public:
+		void init()
+		{
+			p = getComponent<Particles>();
+			std::thread t([&]() {
+				while (true) {
+					std::cout << "enter rgb low and high: ";
+					int r1, r2, g1, g2, b1, b2;
+					std::cin >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
+					std::cout << std::endl;
+					p->getColor = [=]() {
+						auto r = RandomNumber<int>(r1, r2);
+						auto g = RandomNumber<int>(g1, g2);
+						auto b = RandomNumber<int>(b1, b2);
+						return sf::Color(r, g, b);
+					};
+				}
+			});
+			t.detach();
 		}
 	};
 

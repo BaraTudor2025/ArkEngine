@@ -98,7 +98,13 @@ std::vector<Entity> makeFireWorksEntity(int count, const Particles& templatePart
 	return entities;
 }
 
-// TODO: de optimizat RandomNumber?
+/* 
+ * TODO: Refactoring
+ * Entity won't be the owner of components and scripts
+ * Components and scripts manage themselves in their private static vectors
+ * Entity has indexes to components and scripts
+*/
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	VectorEngine::create(sf::VideoMode(800, 600), "Articifii!");
@@ -137,6 +143,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	grass.Register();
 	grass.addComponent<Particles>(greenParticles);
 	grass.addScript<DeSpawnOnMouseClick<>>();
+	grass.addScript<ModifyColorsFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail{ false };
@@ -156,22 +163,26 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 
 	bool reg = true;
 
+	//std::ifstream fin("./res/colors.txt");
+	//if (!fin.is_open())
+	//	throw std::runtime_error("");
+	//auto grassP = grass.getComponent<Particles>();
 	//std::thread modifyVarsThread([&]() {
-	//	auto&[x, y] = ParticleSystem::gravityVector;
 	//	while (true) {
-	//		std::cout << "enter gravity x and y: ";
-	//		std::cin >> x >> y;
-	//		std::cout << std::endl;
-	//		//fireWorksEntity->addScript<SpawnLater>(5);
-	//		if (reg)
-	//			grass.unRegister();
-	//		else
-	//			grass.Register();
-	//		reg = !reg;
+	//		std::cin.get();
+	//		grassP->getColor = []() { return sf::Color::White; };
+	//		//std::cout << " mama";
+	//		//int r1, r2, g1, g2, b1, b2;
+	//		//fin >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
+	//		//greenParticles.getColor = [=]() {
+	//		//	auto r = RandomNumber<int>(r1, r2);
+	//		//	auto g = RandomNumber<int>(g1, g2);
+	//		//	auto b = RandomNumber<int>(b1, b2);
+	//		//	return sf::Color::White;
+	//		//};
 	//	}
 	//});
 	//modifyVarsThread.detach();
-	//ParticleSystem particle_system;
 
 	VectorEngine::addSystem(&ParticleSystem::instance);
 	VectorEngine::run();

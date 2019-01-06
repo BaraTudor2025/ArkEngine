@@ -12,6 +12,8 @@ static inline constexpr auto PI = 3.14f;
 
 struct Particles final : public Data<Particles> {
 
+	COPYABLE(Particles)
+
 	Particles(size_t count, sf::Time lifeTime,
 			 std::pair<float, float> speedArgs,
 			 std::pair<float, float> angleArgs = { 0.f, 2 * PI },
@@ -28,8 +30,6 @@ struct Particles final : public Data<Particles> {
 			lifeTimeDistribution = { { lifeTime.asMilliseconds() / 2,  lifeTime.asMilliseconds() / 2 }, ltd };
 	}
 
-	COPYABLE(Particles)
-
 	size_t count;
 	sf::Time lifeTime;
 
@@ -41,7 +41,7 @@ struct Particles final : public Data<Particles> {
 	bool spawn = false;
 	bool fireworks = false;
 
-	sf::Color(*getColor)() = []() { return sf::Color::White; };
+	std::function<sf::Color()> getColor = [](){ return sf::Color::White; };
 
 	friend class ParticleSystem;
 };

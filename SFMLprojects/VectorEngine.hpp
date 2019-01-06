@@ -194,16 +194,9 @@ public:
 
 	static void run();
 
-	static sf::Vector2f mousePositon()
-	{
-		sf::Vector2i mouse = sf::Mouse::getPosition(window);
-		return window.mapPixelToCoords(mouse);
-	}
+	static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
 
-	static sf::Time deltaTime()
-	{
-		return delta_time + clock.getElapsedTime();
-	}
+	static sf::Time deltaTime() { return delta_time + clock.getElapsedTime(); }
 
 	static bool running() { return running_; }
 	

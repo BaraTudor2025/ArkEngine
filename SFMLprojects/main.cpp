@@ -15,6 +15,7 @@
 #include "Util.hpp"
 using namespace std::literals;
 
+#if 0
 struct Animation : public Data<Animation> {
 	int row;
 	int columns;
@@ -27,7 +28,7 @@ public:
 	void init() override {
 		
 	}
-	void update(sf::Time dt) override
+	void update() override
 	{
 
 	}
@@ -57,7 +58,7 @@ struct Mesh : public Data<Mesh> {
 class MeshRendered : public System {
 
 public:
-	virtual void update(sf::Time) override
+	virtual void update() override
 	{
 	}
 	virtual void render(sf::RenderWindow &) override
@@ -73,6 +74,7 @@ public:
 private:
 	std::vector<Mesh*> meshData;
 };
+#endif
 
 std::vector<Entity> makeFireWorksEntity(int count, const Particles& templateParticles)
 {
@@ -82,10 +84,10 @@ std::vector<Entity> makeFireWorksEntity(int count, const Particles& templatePart
 	for (auto& fw : fireWorks) {
 		auto x = RandomNumber<float>(50, 750);
 		auto y = RandomNumber<float>(50, 550);
-		fw->count = 1;
+		fw->count = 1000;
 		fw->emitter = { x,y };
 		fw->fireworks = true;
-		fw->lifeTime = sf::seconds(RandomNumber<float>(1, 4));
+		fw->lifeTime = sf::seconds(RandomNumber<float>(2, 8));
 		fw->speedDistribution.values = { 0, RandomNumber<int>(40, 70) };
 		fw->speedDistribution.type = DistributionType::uniform;
 	}
@@ -144,7 +146,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	trail.addScript<TraillingEffect>();
 	trail.Register();
 
-	auto fwEntities = makeFireWorksEntity(1000, rainbowParticles);
+	auto fwEntities = makeFireWorksEntity(10, rainbowParticles);
 	for (auto& e : fwEntities) {
 		e.addScript<SpawnLater>(5);
 		e.Register();

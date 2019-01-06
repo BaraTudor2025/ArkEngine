@@ -98,7 +98,7 @@ public:
 		initWith<Particles>();
 	}
 
-	void update(sf::Time deltaTime) override;
+	void update() override;
 
 	void add(Component*) override;
 
@@ -107,7 +107,7 @@ public:
 	void render(sf::RenderWindow& target) override;
 
 private:
-	void updateBatch(sf::Time, const Particles&, gsl::span<sf::Vertex>, gsl::span<sf::Vector2f>, gsl::span<sf::Time>);
+	void updateBatch(const Particles&, gsl::span<sf::Vertex>, gsl::span<sf::Vector2f>, gsl::span<sf::Time>);
 
 	void respawnParticle(const Particles&, sf::Vertex&, sf::Vector2f&, sf::Time&);
 

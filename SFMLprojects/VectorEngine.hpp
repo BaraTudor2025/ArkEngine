@@ -50,7 +50,7 @@ public:
 protected:
 	virtual void init() { }
 
-	virtual void update(sf::Time deltaTime) { }
+	virtual void update() { }
 
 	virtual void onMouseLeftPress() { }
 	virtual void onMouseRightPress() { }
@@ -170,7 +170,7 @@ protected:
 private:
 	virtual void init() { }
 
-	virtual void update(sf::Time) = 0;
+	virtual void update() = 0;
 
 	virtual void render(sf::RenderWindow&) = 0;
 
@@ -196,17 +196,18 @@ public:
 
 	static sf::Vector2f mousePositon()
 	{
-		return mouseCoords(window);
+		sf::Vector2i mouse = sf::Mouse::getPosition(window);
+		return window.mapPixelToCoords(mouse);
+	}
+
+	static sf::Time deltaTime()
+	{
+		return delta_time + clock.getElapsedTime();
 	}
 
 	static bool running() { return running_; }
 	
 private:
-	static sf::Vector2f mouseCoords(sf::RenderWindow& window)
-	{
-		sf::Vector2i mouse = sf::Mouse::getPosition(window);
-		return window.mapPixelToCoords(mouse);
-	}
 
 	template <class F, class...Args>
 	static void forEachScript(F, Args&&...);
@@ -215,6 +216,8 @@ private:
 	static inline sf::View view;
 	static inline uint32_t width, height;
 	static inline bool running_ = false;
+	static inline sf::Time delta_time;
+	static inline sf::Clock clock;
 
 	static inline std::vector<System*> systems;
 };

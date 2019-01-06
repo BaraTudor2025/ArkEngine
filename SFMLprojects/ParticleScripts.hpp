@@ -21,7 +21,7 @@ namespace ParticlesScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void update(sf::Time) override
+		void update() override
 		{
 			p->emitter = VectorEngine::mousePositon();
 		}
@@ -37,7 +37,7 @@ namespace ParticlesScripts {
 			log_init();
 			traillingParticles = getComponent<Particles>();
 		}
-		void update(sf::Time) override
+		void update() override
 		{
 			if (spawn) {
 				auto mousePos = VectorEngine::mousePositon();
@@ -60,7 +60,7 @@ namespace ParticlesScripts {
 		std::string file;
 	public:
 		RegisterMousePath(std::string file) : file(file) { }
-		void update(sf::Time)
+		void update()
 		{
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
 				path.push_back(VectorEngine::mousePositon());
@@ -108,7 +108,7 @@ namespace ParticlesScripts {
 			p->spawn = false;
 		}
 
-		void update(sf::Time)
+		void update()
 		{
 			if (curr == model.begin())
 				p->spawn = true;

@@ -154,38 +154,13 @@ void VectorEngine::run()
 	
 	forEachScript(&Script::init);
 
-	//for (auto& s : Script::scripts)
-	//	s->init();
-
-	//for (auto it = Script::scripts.begin(); it != Script::scripts.end();) {
-	//	try {
-	//		(*it)->init();
-	//		it++;
-	//	} catch (const SeppukuException& exp) {
-	//		exp.script->unRegister();
-	//		erase_if(exp.script->entity->scripts, [&](auto& s) { return s.get() == exp.script; });
-	//		std::cout << "SEPPUKU\n";
-	//	}
-	//}
-
-	// TODO: maybe use exceptions to signal seppuku?
-	//auto& scripts = Script::scripts;
-	//int size = scripts.size();
-	//log("scripts num %d", size);
-	//for (int i = 0; i < size;) {
-	//	scripts[i]->init();
-	//	if (scripts.size() < size) // seppuku
-	//		size--;
-	//	else
-	//		i++;
-	//}
-	//log("scripts num %d", scripts.size());
-
-
 	running_ = true;
 
-	sf::Clock clock;
 	while (window.isOpen()) {
+
+		//delta_time = clock.restart();
+		//clock.restart();
+
 		sf::Event ev;
 		while (window.pollEvent(ev)) {
 			switch (ev.type) {
@@ -215,16 +190,14 @@ void VectorEngine::run()
 			}
 		}
 		window.clear();
-		sf::Vector2f mousePos = mouseCoords(window);
 
-		sf::Time deltaTime = clock.restart();
+		//delta_time = sf::Time::Zero;
+		delta_time = clock.restart();
 
-		forEachScript(&Script::update, deltaTime);
-
-		deltaTime += clock.getElapsedTime();
+		forEachScript(&Script::update);
 
 		for (auto system : systems)
-			system->update(deltaTime);
+			system->update();
 
 		for (auto system : systems)
 			system->render(window);

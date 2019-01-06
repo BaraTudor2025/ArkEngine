@@ -3,12 +3,12 @@
 
 ParticleSystem ParticleSystem::instance;
 
-void ParticleSystem::update(sf::Time deltaTime)
+void ParticleSystem::update()
 {
 	size_t pos = 0;
 	for (Particles* p : this->particlesData) {
 		this->updateBatch(
-			deltaTime, *p,
+			*p,
 			{ this->vertices.data() + pos, p->count },
 			{ this->velocities.data() + pos, p->count },
 			{ this->lifeTimes.data() + pos, p->count });
@@ -38,12 +38,12 @@ inline void ParticleSystem::render(sf::RenderWindow& target)
 }
 
 void ParticleSystem::updateBatch(
-	sf::Time deltaTime, 
 	const Particles& ps, 
 	gsl::span<sf::Vertex> vertices, 
 	gsl::span<sf::Vector2f> velocities, 
 	gsl::span<sf::Time> lifeTimes)
 {
+	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
 	for (int i = 0; i < vertices.size(); i++) {
 		lifeTimes[i] -= deltaTime;

@@ -28,7 +28,7 @@ public:
 
 protected:
 	static inline System* system;
-	static inline std::deque<T*> components;
+	static inline std::vector<T*> components;
 
 private:
 	void Register() override;
@@ -145,7 +145,7 @@ private:
 	int tag_;
 
 	static inline int tagCounter = 1;
-	static inline std::list<Entity*> entities;
+	static inline std::vector<Entity*> entities;
 
 	friend class VectorEngine;
 	friend class Script;
@@ -190,6 +190,8 @@ class VectorEngine final : public NonCopyable, public NonMovable {
 public:
 	static void create(sf::VideoMode vm, std::string name);
 
+	static sf::Vector2u windowSize() { return { width, height }; }
+
 	static void addSystem(System* s);
 
 	static void run();
@@ -199,7 +201,7 @@ public:
 	static sf::Time deltaTime() { return delta_time + clock.getElapsedTime(); }
 
 	static bool running() { return running_; }
-	
+
 private:
 
 	template <class F, class...Args>

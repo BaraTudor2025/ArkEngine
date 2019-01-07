@@ -82,12 +82,16 @@ std::vector<Entity> makeFireWorksEntity(int count, const Particles& templatePart
 	constructVector(fireWorks, count, templateParticles);
 
 	for (auto& fw : fireWorks) {
-		auto x = RandomNumber<float>(50, 750);
-		auto y = RandomNumber<float>(50, 550);
+		auto[width, height] = VectorEngine::windowSize();
+		auto x = RandomNumber<float>(50, width-50);
+		auto y = RandomNumber<float>(50, height-50);
 		fw->count = 1000;
 		fw->emitter = { x,y };
-		fw->fireworks = true;
-		fw->lifeTime = sf::seconds(RandomNumber<float>(2, 8));
+		//fw->fireworks = true;
+		fw->lifeTime = sf::seconds(RandomNumber<float>(3, 8));
+		fw->lifeTimeDistribution = 
+		{ { fw->lifeTime.asMilliseconds()/4, fw->lifeTime.asMilliseconds() },
+			DistributionType::uniform };
 		fw->speedDistribution.values = { 0, RandomNumber<int>(40, 70) };
 		fw->speedDistribution.type = DistributionType::uniform;
 	}
@@ -107,7 +111,7 @@ std::vector<Entity> makeFireWorksEntity(int count, const Particles& templatePart
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
-	VectorEngine::create(sf::VideoMode(800, 600), "Articifii!");
+	VectorEngine::create(sf::VideoMode(1920, 1080), "Articifii!");
 
 	auto rainbowParticles = getRainbowParticles();
 	auto whiteParticles = getWhiteParticles();
@@ -138,6 +142,8 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	fire.addScript<SpawnOnLeftClick>();
 	fire.addScript<EmittFromMouse>();
 
+	ParticleSystem::gravityMagnitude = 100;
+
 	Entity grass{ false };
 	greenParticles.spawn = true;
 	grass.Register();
@@ -153,7 +159,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	trail.addScript<TraillingEffect>();
 	trail.Register();
 
-	auto fwEntities = makeFireWorksEntity(10, rainbowParticles);
+	auto fwEntities = makeFireWorksEntity(30, rainbowParticles);
 	for (auto& e : fwEntities) {
 		e.addScript<SpawnLater>(5);
 		e.Register();
@@ -162,27 +168,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	ParticleSystem::gravityVector = { 0, 0 };
 
 	bool reg = true;
-
-	//std::ifstream fin("./res/colors.txt");
-	//if (!fin.is_open())
-	//	throw std::runtime_error("");
-	//auto grassP = grass.getComponent<Particles>();
-	//std::thread modifyVarsThread([&]() {
-	//	while (true) {
-	//		std::cin.get();
-	//		grassP->getColor = []() { return sf::Color::White; };
-	//		//std::cout << " mama";
-	//		//int r1, r2, g1, g2, b1, b2;
-	//		//fin >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
-	//		//greenParticles.getColor = [=]() {
-	//		//	auto r = RandomNumber<int>(r1, r2);
-	//		//	auto g = RandomNumber<int>(g1, g2);
-	//		//	auto b = RandomNumber<int>(b1, b2);
-	//		//	return sf::Color::White;
-	//		//};
-	//	}
-	//});
-	//modifyVarsThread.detach();
 
 	VectorEngine::addSystem(&ParticleSystem::instance);
 	VectorEngine::run();

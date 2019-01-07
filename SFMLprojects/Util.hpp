@@ -67,6 +67,11 @@ struct PolarVector {
 	float angle;
 };
 
+inline sf::Vector2f normalize(sf::Vector2f vec)
+{
+	return vec / std::hypot(vec.x, vec.y);
+}
+
 inline float toRadians(float deg)
 {
 	return deg / 180 * 3.14159f;

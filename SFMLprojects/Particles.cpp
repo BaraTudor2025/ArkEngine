@@ -49,7 +49,10 @@ void ParticleSystem::updateBatch(
 		lifeTimes[i] -= deltaTime;
 		if (lifeTimes[i] > sf::Time::Zero) { // if alive
 
-			velocities[i] += gravityVector * dt;
+			auto r = gravityPoint - vertices[i].position;
+			auto g = normalize(r) / std::hypot(r.x, r.y);
+			velocities[i] += gravityMagnitude * 1000.f * g * dt;
+			//velocities[i] += gravityVector * dt;
 			vertices[i].position += velocities[i] * dt;
 
 			float ratio = lifeTimes[i].asSeconds() / ps.lifeTime.asSeconds();

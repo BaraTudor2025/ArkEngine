@@ -90,12 +90,15 @@ inline Particles getGreenParticles()
 class ParticleSystem final : public System {
 
 public:
-	static inline sf::Vector2f gravityVector{0.f, 0.f};
+	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
+	static inline sf::Vector2f gravityPoint{ 0.f, 0.f };
+	static inline float gravityMagnitude = 20;
 
 	static ParticleSystem instance;
 
 	void init() override {
 		initWith<Particles>();
+		gravityPoint = static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f;
 	}
 
 	void update() override;

@@ -59,9 +59,9 @@ inline Particles getFireParticles()
 	return fireParticles;
 }
 
-inline Particles getWhiteParticles()
+inline Particles getWhiteParticles(int count = 1000, float life = 6)
 {
-	Particles whiteParticles(1000, sf::seconds(6), { 0, 5 });
+	Particles whiteParticles(count, sf::seconds(life), { 0, 2 });
 	whiteParticles.speedDistribution.type = DistributionType::uniform;
 	whiteParticles.angleDistribution.type = DistributionType::uniform;
 
@@ -93,12 +93,12 @@ public:
 	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
 	static inline sf::Vector2f gravityPoint{ 0.f, 0.f };
 	static inline float gravityMagnitude = 20;
+	static inline bool hasUniversalGravity = true;
 
 	static ParticleSystem instance;
 
 	void init() override {
 		initWith<Particles>();
-		gravityPoint = static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f;
 	}
 
 	void update() override;

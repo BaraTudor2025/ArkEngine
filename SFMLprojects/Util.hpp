@@ -36,14 +36,6 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
-template <typename T, typename...Args>
-void constructVector(std::vector<std::unique_ptr<T>>& range, int n, const Args&...args)
-{
-	range.reserve(n);
-	for (int i = 0; i < n; i++)
-		range.emplace_back(std::make_unique<T>(args...));
-}
-
 inline std::experimental::generator<int> range(int begin, int end)
 {
 	for (int i = 0; i < end; i++)
@@ -51,13 +43,13 @@ inline std::experimental::generator<int> range(int begin, int end)
 }
 
 template <typename T, typename U>
-void erase(T& range, U elem)
+inline void erase(T& range, U elem)
 {
 	range.erase(std::remove(range.begin(), range.end(), elem), range.end());
 }
 
 template <typename T, typename F>
-void erase_if(T& range, F predicate)
+inline void erase_if(T& range, F predicate)
 {
 	range.erase(std::remove_if(range.begin(), range.end(), predicate), range.end());
 }

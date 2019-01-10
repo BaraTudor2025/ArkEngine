@@ -59,15 +59,19 @@ namespace ParticlesScripts {
 		std::vector<sf::Vector2f> path;
 		std::string file;
 	public:
+
 		RegisterMousePath(std::string file) : file(file) { }
+
 		void update()
 		{
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
+			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
 				path.push_back(VectorEngine::mousePositon());
 		}
 
 		~RegisterMousePath()
 		{
+			if (path.empty())
+				return;
 			std::ofstream fout(file);
 			fout << path.size() << ' ';
 			for (auto[x, y] : path)
@@ -80,9 +84,10 @@ namespace ParticlesScripts {
 		std::vector<sf::Vector2f>::iterator curr;
 		std::string file;
 		Particles* p;
+		sf::Vector2f offset;
 	public:
 
-		PlayModel(std::string file) : file(file) { }
+		PlayModel(std::string file, sf::Vector2f offset = { 0.f, 0.f }) : file(file), offset(offset) { }
 
 		void init()
 		{
@@ -97,8 +102,11 @@ namespace ParticlesScripts {
 			int size;
 			fin >> size;
 			model.resize(size);
-			for (auto&[x, y] : model)
+			for (auto&[x, y] : model) {
 				fin >> x >> y;
+				x += offset.x;
+				y += offset.y;
+			}
 			curr = model.begin();
 			p->spawn = false;
 		}
@@ -107,8 +115,14 @@ namespace ParticlesScripts {
 		{
 			if (curr == model.begin())
 				p->spawn = true;
-			if (curr != model.end())
-				p->emitter = *curr++;
+			if (curr != model.end()) {
+				auto pixel = *curr++;
+				p->emitter = pixel;
+				if (curr != model.end())
+					curr++;
+				if (curr != model.end())
+					curr++;
+			}
 			else
 				p->spawn = false;
 		}

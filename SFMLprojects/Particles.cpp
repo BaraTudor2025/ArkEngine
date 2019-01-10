@@ -49,10 +49,14 @@ void ParticleSystem::updateBatch(
 		lifeTimes[i] -= deltaTime;
 		if (lifeTimes[i] > sf::Time::Zero) { // if alive
 
-			auto r = gravityPoint - vertices[i].position;
-			auto g = normalize(r) / std::hypot(r.x, r.y);
-			velocities[i] += gravityMagnitude * 1000.f * g * dt;
-			//velocities[i] += gravityVector * dt;
+			if (hasUniversalGravity)
+				velocities[i] += gravityVector * dt;
+			else {
+				auto r = gravityPoint - vertices[i].position;
+				auto dist = std::hypot(r.x, r.y);
+				auto g = r / (dist * dist);
+				velocities[i] += gravityMagnitude * 1000.f * g * dt;
+			}
 			vertices[i].position += velocities[i] * dt;
 
 			float ratio = lifeTimes[i].asSeconds() / ps.lifeTime.asSeconds();

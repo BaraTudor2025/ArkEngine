@@ -5,6 +5,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <cstdlib>
 #include <cmath>
 #include <thread>
@@ -76,30 +77,47 @@ private:
 };
 #endif
 
-std::vector<Entity> makeFireWorksEntity(int count, const Particles& templateParticles)
+std::vector<Entity> makeRandomParticlesFountains(int count, const Particles& templateParticles)
+{
+	std::vector<std::unique_ptr<Particles>> particles;
+	constructVector(particles, count, templateParticles);
+
+	for (auto& ps : particles) {
+		auto[width, height] = VectorEngine::windowSize();
+		auto x = RandomNumber<float>(50, width - 50);
+		auto y = RandomNumber<float>(50, height - 50);
+		ps->spawn = true;
+		ps->count = 1000;
+		ps->emitter = { x,y };
+		ps->lifeTime = sf::seconds(1.3);
+		ps->lifeTimeDistribution =
+		{ { ps->lifeTime.asMilliseconds() / 4, ps->lifeTime.asMilliseconds() },
+			DistributionType::uniform };
+		ps->speedDistribution.values = { 0, 100 };
+		ps->speedDistribution.type = DistributionType::uniform;
+	}
+
+	return makeEntitiesFromComponents(std::move(particles));
+}
+
+std::vector<Entity> makeFireWorksEntities(int count, const Particles& templateParticles)
 {
 	std::vector<std::unique_ptr<Particles>> fireWorks;
 	constructVector(fireWorks, count, templateParticles);
 
 	for (auto& fw : fireWorks) {
 		auto[width, height] = VectorEngine::windowSize();
-		auto x = RandomNumber<float>(50, width-50);
-		auto y = RandomNumber<float>(50, height-50);
+		auto x = RandomNumber<float>(50, width - 50);
+		auto y = RandomNumber<float>(50, height - 50);
 		fw->count = 1000;
 		fw->emitter = { x,y };
-		//fw->fireworks = true;
-		fw->lifeTime = sf::seconds(RandomNumber<float>(3, 8));
-		fw->lifeTimeDistribution = 
-		{ { fw->lifeTime.asMilliseconds()/4, fw->lifeTime.asMilliseconds() },
-			DistributionType::uniform };
+		fw->fireworks = true;
+		fw->lifeTime = sf::seconds(RandomNumber<float>(2, 8));
 		fw->speedDistribution.values = { 0, RandomNumber<int>(40, 70) };
 		fw->speedDistribution.type = DistributionType::uniform;
 	}
 
-	std::vector<Entity> entities(count);
-	for (auto i : range(0, count))
-		entities[i].addComponent(std::move(fireWorks[i]));
-	return entities;
+	return makeEntitiesFromComponents<Particles>(std::move(fireWorks));
 }
 
 /* 
@@ -109,63 +127,98 @@ std::vector<Entity> makeFireWorksEntity(int count, const Particles& templatePart
  * Entity has indexes to components and scripts
 */
 
+std::vector<std::string> splitOnSpace(std::string string)
+{
+	std::stringstream ss(string);
+	std::vector<std::string> v;
+	std::string s;
+	while (ss >> s)
+		v.push_back(s);
+	return v;
+}
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	VectorEngine::create(sf::VideoMode(1920, 1080), "Articifii!");
 
-	auto rainbowParticles = getRainbowParticles();
-	auto whiteParticles = getWhiteParticles();
-	auto fireParticles = getFireParticles();
-	auto greenParticles = getGreenParticles();
+	//auto rainbowParticles = getRainbowParticles();
+	auto whiteParticles = getWhiteParticles(200, 10);
+	//auto fireParticles = getFireParticles();
+	//auto greenParticles = getGreenParticles();
 
 	using namespace ParticlesScripts;
 
-	Entity letterM{ true }, letterU{ true }, letterI{ true }, letterE{ true };
-
-	letterM.addComponentCopy(whiteParticles);
-	letterU.addComponentCopy(whiteParticles);
-	letterI.addComponent<Particles>(whiteParticles);
-	letterE.addComponent<Particles>(whiteParticles);
-
-	letterM.addScript<PlayModel>("./res/litere/letterM.txt");
-	letterU.addScript<PlayModel>("./res/litere/letterU.txt");
-	letterI.addScript<PlayModel>("./res/litere/letterI.txt");
-	letterE.addScript<PlayModel>("./res/litere/letterE.txt");
-
-	Entity rainbow{ true };
-	rainbow.addComponent<Particles>(rainbowParticles);
-	rainbow.addScript<SpawnOnRightClick>();
-	rainbow.addScript<EmittFromMouse>();
-
-	Entity fire{ true };
-	fire.addComponent<Particles>(fireParticles);
-	fire.addScript<SpawnOnLeftClick>();
-	fire.addScript<EmittFromMouse>();
-
-	ParticleSystem::gravityMagnitude = 100;
-
-	Entity grass{ false };
-	greenParticles.spawn = true;
-	grass.Register();
-	grass.addComponent<Particles>(greenParticles);
-	grass.addScript<DeSpawnOnMouseClick<>>();
-	grass.addScript<ModifyColorsFromConsole>();
-	grass.addScript<EmittFromMouse>();
-
-	Entity trail{ false };
-	trail.addComponent<Particles>(whiteParticles);
-	trail.addScript<EmittFromMouse>();
-	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
-	trail.addScript<TraillingEffect>();
-	trail.Register();
-
-	auto fwEntities = makeFireWorksEntity(30, rainbowParticles);
-	for (auto& e : fwEntities) {
-		e.addScript<SpawnLater>(5);
-		e.Register();
+	std::string prop;
+	std::getline(std::cin, prop);
+	auto cuvinte = splitOnSpace(prop);
+	std::vector<Entity> letters(prop.size() - std::count(prop.begin(), prop.end(), ' '));
+	auto litera = cuvinte.begin();
+	int i = 0;
+	int rand = 0;
+	int col = 0;
+	for (auto& cuvant : cuvinte) {
+		col = 0;
+		for (auto litera : cuvant) {
+			letters[i].addComponent<Particles>(whiteParticles);
+			letters[i].addScript<ParticlesScripts::PlayModel>("./res/litere/letter"s + litera + ".txt"s, sf::Vector2f{ 150.f * col, 150.f * rand });
+			letters[i].Register();
+			i++;
+			col++;
+		}
+		rand++;
 	}
 
+	//Entity letter(true), whiteP(true);
+
+	//letter.addComponent<Particles>(whiteParticles);
+	//letter.addScript<EmittFromMouse>();
+	//letter.addScript<RegisterMousePath>("./res/litere/letterZ.txt");
+	//letter.addScript<SpawnOnLeftClick>();
+
+	//whiteP.addComponent<Particles>(whiteParticles);
+	//whiteP.addScript<EmittFromMouse>();
+	//whiteP.addScript<SpawnOnRightClick>();
+
+	//Entity rainbow{ false };
+	//rainbow.addComponent<Particles>(rainbowParticles);
+	//rainbow.addScript<SpawnOnRightClick>();
+	//rainbow.addScript<EmittFromMouse>();
+
+	//Entity fire{ false };
+	//fire.addComponent<Particles>(fireParticles);
+	//fire.addScript<SpawnOnLeftClick>();
+	//fire.addScript<EmittFromMouse>();
+
+	//Entity grass{ false };
+	//greenParticles.spawn = true;
+	//grass.addComponent<Particles>(greenParticles);
+	//grass.addScript<DeSpawnOnMouseClick<>>();
+	//grass.addScript<ModifyColorsFromConsole>();
+	//grass.addScript<EmittFromMouse>();
+
+	//Entity trail{ false };
+	//trail.addComponent<Particles>(whiteParticles);
+	//trail.addScript<EmittFromMouse>();
+	//trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
+	//trail.addScript<TraillingEffect>();
+
+	//auto fwEntities = makeFireWorksEntities(10, rainbowParticles);
+	//for (auto& e : fwEntities) {
+	//	e.addScript<SpawnLater>(5);
+	//	//e.Register();
+	//}
+
+	//auto randomParticles = makeRandomParticlesFountains(1, rainbowParticles);
+	//for (auto& r : randomParticles) {
+	//	//r.Register();
+	//}
+
+	//sf::Transform t;
+
+	ParticleSystem::hasUniversalGravity = true;
 	ParticleSystem::gravityVector = { 0, 0 };
+	ParticleSystem::gravityMagnitude = 100;
+	ParticleSystem::gravityPoint = static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f;
 
 	bool reg = true;
 

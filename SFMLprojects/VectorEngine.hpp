@@ -152,6 +152,23 @@ private:
 };
 
 
+template <typename T, typename...Args>
+void constructVector(std::vector<std::unique_ptr<T>>& range, int n, const Args&...args)
+{
+	range.reserve(n);
+	for (int i = 0; i < n; i++)
+		range.emplace_back(std::make_unique<T>(args...));
+}
+
+template <typename T>
+std::vector<Entity> makeEntitiesFromComponents(std::vector<std::unique_ptr<T>> comps)
+{
+	std::vector<Entity> entities(comps.size());
+	for (int i = 0; i < comps.size(); i++)
+		entities[i].addComponent(std::move(comps[i]));
+	return entities;
+}
+
 // fiecare sistem ar trebui sa aiba o singura instanta
 class System : public NonCopyable, public NonMovable {
 

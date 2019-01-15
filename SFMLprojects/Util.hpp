@@ -3,7 +3,9 @@
 #include <SFML/System/Vector2.hpp>
 #include <type_traits>
 #include <mutex>
-#include <experimental/generator>
+#include <vector>
+#include <sstream>
+//#include <experimental/generator>
 
 #define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
 #define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
@@ -12,7 +14,6 @@
 #define log_err(fmt, ...) log_err_impl(fmt, __VA_ARGS__)
 
 #define INSTANCE(type) type type::instance;
-#define INLINE_INSTANCE(type) inline type type::instance;
 
 #define COPYABLE(type) \
 	type() = default; \
@@ -36,10 +37,20 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
-inline std::experimental::generator<int> range(int begin, int end)
+//inline std::experimental::generator<int> range(int begin, int end)
+//{
+//	for (int i = 0; i < end; i++)
+//		co_yield i;
+//}
+
+inline std::vector<std::string> splitOnSpace(std::string string)
 {
-	for (int i = 0; i < end; i++)
-		co_yield i;
+	std::stringstream ss(string);
+	std::vector<std::string> v;
+	std::string s;
+	while (ss >> s)
+		v.push_back(s);
+	return v;
 }
 
 template <typename T, typename U>
@@ -99,10 +110,10 @@ public:
 
 	T& var() { return var_; }
 
-	T& operator->()
+	T* operator->()
 	{
 		std::lock_guard<std::mutex> lk();
-		return var_;
+		return &var_;
 	}
 
 	void lock() { mtx.lock(); }

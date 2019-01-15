@@ -168,6 +168,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ElipseShape.hpp" />
+    <ClInclude Include="Entities.hpp" />
+    <ClInclude Include="experimentalSOAvector.hpp" />
     <ClInclude Include="gsl.hpp" />
     <ClInclude Include="Particles.hpp" />
     <ClInclude Include="ParticleScripts.hpp" />

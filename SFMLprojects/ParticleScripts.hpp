@@ -29,14 +29,16 @@ namespace ParticlesScripts {
 
 	class TraillingEffect : public Script {
 		sf::Vector2f prevMousePos;
-		Particles* traillingParticles;
+		Particles* p;
 	public:
 		bool spawn = true;
+
 		void init()
 		{
 			log_init();
-			traillingParticles = getComponent<Particles>();
+			p = getComponent<Particles>();
 		}
+
 		void update() override
 		{
 			if (spawn) {
@@ -44,12 +46,12 @@ namespace ParticlesScripts {
 				auto dv = mousePos - prevMousePos;
 				auto[speed, angle] = toPolar(-dv);
 				if (speed != 0) {
-					traillingParticles->spawn = true;
+					p->spawn = true;
 					speed = std::clamp<float>(speed, 0, 5);
 				} else
-					traillingParticles->spawn = false;
-				traillingParticles->angleDistribution.values = { angle - PI / 6, angle + PI / 6 };
-				traillingParticles->speedDistribution.values = { 5 * speed , 20 * speed };
+					p->spawn = false;
+				p->angleDistribution.values = { angle - PI / 6, angle + PI / 6 };
+				p->speedDistribution.values = { 5 * speed , 20 * speed };
 				prevMousePos = mousePos;
 			}
 		}
@@ -217,7 +219,7 @@ namespace ParticlesScripts {
 			if (std::is_same_v<Particles, T>)
 				p = getComponent<T>();
 		}
-		void onMouseLeftPress() override
+		void onMouseLeftPress()
 		{
 			p->spawn = false;
 		}
@@ -225,7 +227,7 @@ namespace ParticlesScripts {
 		{
 			p->spawn = true;
 		}
-		void onMouseRightPress() override
+		void onMouseRightPress() 
 		{
 			p->spawn = false;
 		}
@@ -243,11 +245,11 @@ namespace ParticlesScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void onMouseRightPress() override
+		void onMouseRightPress()
 		{
 			p->spawn = true;
 		}
-		void onMouseRightRelease() override
+		void onMouseRightRelease()
 		{
 			p->spawn = false;
 		}
@@ -261,11 +263,11 @@ namespace ParticlesScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void onMouseLeftPress() override
+		void onMouseLeftPress()
 		{
 			p->spawn = true;
 		}
-		void onMouseLeftRelease() override
+		void onMouseLeftRelease()
 		{
 			p->spawn = false;
 		}

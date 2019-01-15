@@ -79,6 +79,7 @@ static T RandomNumber(Distribution<T> dist)
 			return dist(__Random_Number_Generator__);
 		}
 	}
+	return 0;
 }
 
 template <typename T>

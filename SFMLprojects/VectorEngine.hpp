@@ -151,6 +151,17 @@ private:
 	friend class Script;
 };
 
+inline void registerEntities(std::vector<std::unique_ptr<Entity>>& v)
+{
+	for (auto& e : v)
+		e->Register();
+}
+
+inline void registerEntities(std::vector<Entity>& v)
+{
+	for (auto& e : v)
+		e.Register();
+}
 
 template <typename T, typename...Args>
 void constructVector(std::vector<std::unique_ptr<T>>& range, int n, const Args&...args)
@@ -180,8 +191,8 @@ protected:
 	void initWith() {
 		for (Comp* c : Comp::components) {
 			this->add(c);
-			c->system = this;
 		}
+		Comp::system = this;
 	}
 
 private:

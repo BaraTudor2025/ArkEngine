@@ -56,11 +56,6 @@ protected:
 
 	virtual void handleInput(sf::Event) { }
 
-	virtual void onMouseLeftPress() { }
-	virtual void onMouseRightPress() { }
-	virtual void onMouseLeftRelease() { }
-	virtual void onMouseRightRelease() { }
-
 	template <typename T> T* getComponent();
 
 	template <typename T> std::vector<T*> getComponents();

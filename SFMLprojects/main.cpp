@@ -198,9 +198,9 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	plimbarica.addComponent<Particles>(rainbowParticles);
 	//plimbarica.addScript<RotateParticles>(4 * 360);
 	//plimbarica.addScript<TraillingEffect>();
-	plimbarica.addScript<Rotate>(90, VectorEngine::center());
-	auto pp = plimbarica.getComponent<Particles>();
-	pp->spawn = true;
+	plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
+	plimbarica.getComponent<Particles>()->spawn = true;
+	//pp->spawn = true;
 	//pp->emitter = VectorEngine::center();
 	plimbarica.Register();
 
@@ -243,20 +243,5 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::addSystem(&ParticleSystem::instance);
 	VectorEngine::run();
 	
-	return 0;
-}
-
-int mainRandom()
-{
-	std::map<int, int> nums;
-	auto args = std::pair(0.f, 2*PI);
-	int n = 100'000;
-	for (int i = 0; i < n; i++) {
-		auto num = RandomNumber(args, DistributionType::normal);
-		nums[std::round(num)]++;
-	}
-	for (auto [num, count] : nums) {
-		std::cout << num << ':' << count << '\n';
-	}
 	return 0;
 }

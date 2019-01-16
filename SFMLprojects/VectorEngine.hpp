@@ -18,12 +18,12 @@ protected:
 private:
 	virtual void Register() = 0;
 	virtual void unRegister() = 0;
+
 	friend class Entity;
 };
 
 class System;
 
-// TODO: movable?
 template <typename T>
 struct Data : Component {
 
@@ -36,12 +36,10 @@ protected:
 
 private:
 	void Register() override;
-
 	void unRegister() override;
 
 	bool registered = false;
 };
-
 
 class Entity;
 
@@ -55,6 +53,8 @@ protected:
 	virtual void init() { }
 
 	virtual void update() { }
+
+	virtual void handleInput(sf::Event) { }
 
 	virtual void onMouseLeftPress() { }
 	virtual void onMouseRightPress() { }
@@ -74,13 +74,14 @@ protected:
 private:
 	void Register();
 	void unRegister();
+
 	Entity* entity = nullptr;
 	bool registered = false;
+
 	static inline std::vector<Script*> scripts;
 	friend class VectorEngine;
 	friend class Entity;
 };
-
 
 class Entity final : public NonCopyable {
 

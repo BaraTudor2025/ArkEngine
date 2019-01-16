@@ -172,21 +172,9 @@ void VectorEngine::run()
 				auto[x, y] = window.getSize();
 				auto aspectRatio = float(x) / float(y);
 				view.setSize({ width / aspectRatio, height / aspectRatio });
-			}
-				break;
-			case sf::Event::MouseButtonPressed:
-				if (ev.mouseButton.button == sf::Mouse::Left)
-					forEachScript(&Script::onMouseLeftPress);
-				if (ev.mouseButton.button == sf::Mouse::Right)
-					forEachScript(&Script::onMouseRightPress);
-				break;
-			case sf::Event::MouseButtonReleased:
-				if (ev.mouseButton.button == sf::Mouse::Left)
-					forEachScript(&Script::onMouseLeftRelease);
-				if (ev.mouseButton.button == sf::Mouse::Right)
-					forEachScript(&Script::onMouseRightRelease);
-				break;
+			}	break;
 			default:
+				forEachScript(&Script::handleInput, ev);
 				break;
 			}
 		}

@@ -218,21 +218,18 @@ namespace ParticlesScripts {
 			if (std::is_same_v<Particles, T>)
 				p = getComponent<T>();
 		}
-		void onMouseLeftPress()
+		void handleInput(sf::Event event)
 		{
-			p->spawn = false;
-		}
-		void onMouseLeftRelease()
-		{
-			p->spawn = true;
-		}
-		void onMouseRightPress() 
-		{
-			p->spawn = false;
-		}
-		void onMouseRightRelease()
-		{
-			p->spawn = true;
+			switch (event.type) {
+			case sf::Event::MouseButtonPressed:
+				p->spawn = false;
+				break;
+			case sf::Event::MouseButtonReleased:
+				p->spawn = true;
+				break;
+			default:
+				break;
+			}
 		}
 	};
 
@@ -244,13 +241,21 @@ namespace ParticlesScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void onMouseRightPress()
+		void handleInput(sf::Event ev)
 		{
-			p->spawn = true;
-		}
-		void onMouseRightRelease()
-		{
-			p->spawn = false;
+			switch (ev.type)
+			{
+			case sf::Event::MouseButtonPressed:
+				if (ev.mouseButton.button == sf::Mouse::Right)
+					p->spawn = true;
+				break;
+			case sf::Event::MouseButtonReleased:
+				if (ev.mouseButton.button == sf::Mouse::Right)
+					p->spawn = false;
+				break;
+			default:
+				break;
+			}
 		}
 	};
 
@@ -262,13 +267,21 @@ namespace ParticlesScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void onMouseLeftPress()
+		void handleInput(sf::Event ev)
 		{
-			p->spawn = true;
-		}
-		void onMouseLeftRelease()
-		{
-			p->spawn = false;
+			switch (ev.type)
+			{
+			case sf::Event::MouseButtonPressed:
+				if (ev.mouseButton.button == sf::Mouse::Left)
+					p->spawn = true;
+				break;
+			case sf::Event::MouseButtonReleased:
+				if (ev.mouseButton.button == sf::Mouse::Left)
+					p->spawn = false;
+				break;
+			default:
+				break;
+			}
 		}
 	};
 }

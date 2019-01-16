@@ -40,6 +40,7 @@ struct Particles final : public Data<Particles> {
 	sf::Vector2f emitter;
 	bool spawn = false;
 	bool fireworks = false;
+	bool applyTransform = false;
 
 	std::function<sf::Color()> getColor = [](){ return sf::Color::White; };
 
@@ -110,8 +111,6 @@ public:
 	void render(sf::RenderWindow& target) override;
 
 private:
-	template<typename F, typename...Spans>
-	void forEach(F f, Spans&...);
 
 	void updateBatch(const Particles&, gsl::span<sf::Vertex>, gsl::span<sf::Vector2f>, gsl::span<sf::Time>);
 

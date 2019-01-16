@@ -1,40 +1,12 @@
 #include "Particles.hpp"
+#include "Util.hpp"
 #include <iostream>
 
 ParticleSystem ParticleSystem::instance;
 
-template<typename F, typename...Spans>
-inline void ParticleSystem::forEach(F f, Spans&...spans)
-{
-	size_t pos = 0;
-	for (Particles* p : this->particlesData) {
-		std::invoke(
-			f,
-			this,
-			*p,
-			gsl::span<Spans::value_type>{ spans.data() + pos, p->count } ... );
-		pos += p->count;
-	}
-}
-
-template<typename T, typename F, typename...Spans>
-inline void forEachSpan(F f, Spans&...spans)
-{
-	size_t pos = 0;
-	for (T* p : T::components) {
-		std::invoke(
-			f,
-			p->system,
-			*p,
-			gsl::span<Spans::value_type>{ spans.data() + pos, p->count } ... );
-		pos += p->count;
-	}
-}
-
 void ParticleSystem::update()
 {
-	this->forEach(&ParticleSystem::updateBatch, this->vertices, this->velocities, this->lifeTimes);
-	//forEachSpan<Particles>(&ParticleSystem::updateBatch, this->vertices, this->velocities, this->lifeTimes);
+	forEachSpanThis(this, &ParticleSystem::updateBatch, this->particlesData, this->vertices, this->velocities, this->lifeTimes);
 }
 
 void ParticleSystem::add(Component* data)
@@ -56,12 +28,14 @@ void ParticleSystem::remove(Component* c)
 /* TODO: de transformat emitter-ul */
 inline void ParticleSystem::render(sf::RenderWindow& target)
 {
-	//auto draw = [&](auto _, const Particles& ps, gsl::span<sf::Vertex> v) {
-	//	target.draw(v.data(), v.size(), sf::Points;
-	//};
+	auto draw = [&](const Particles& ps, gsl::span<sf::Vertex> v) {
+		if(ps.applyTransform)
+			target.draw(v.data(), v.size(), sf::Points, ps.entity->transform);
+		else
+			target.draw(v.data(), v.size(), sf::Points);
+	};
 
-	//this->forEach(draw, this->vertices);
-	target.draw(this->vertices.data(), this->vertices.size(), sf::Points);
+	forEachSpan(draw, this->particlesData, this->vertices);
 }
 
 void ParticleSystem::updateBatch(

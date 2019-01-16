@@ -5,6 +5,7 @@
 #include <mutex>
 #include <vector>
 #include <sstream>
+#include "gsl.hpp"
 //#include <experimental/generator>
 
 #define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
@@ -37,11 +38,58 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
-//inline std::experimental::generator<int> range(int begin, int end)
-//{
-//	for (int i = 0; i < end; i++)
-//		co_yield i;
-//}
+// param 'v' este un vector cu marimea fiecarui span
+// V::value_type trebuie sa aiba membrul count
+
+template<typename V, typename F, typename...Spans>
+inline void forEachSpan(F f, V& v, Spans&...spans)
+{
+	if constexpr (std::is_pointer_v<V::value_type>) {
+		size_t pos = 0;
+		for (auto p : v) {
+			std::invoke(
+				f,
+				*p,
+				gsl::span<Spans::value_type>{ spans.data() + pos, p->count } ... );
+			pos += p->count;
+		}
+	} else {
+		size_t pos = 0;
+		for (auto& p : v) {
+			std::invoke(
+				f,
+				p,
+				gsl::span<Spans::value_type>{ spans.data() + pos, p.count } ...);
+			pos += p->count;
+		}
+	}
+}
+
+template<class C, typename V, typename F, typename...Spans>
+inline void forEachSpanThis(C* pThis, F f, V& v, Spans&...spans)
+{
+	if constexpr (std::is_pointer_v<V::value_type>) {
+		size_t pos = 0;
+		for (auto p : v) {
+			std::invoke(
+				f,
+				pThis,
+				*p,
+				gsl::span<Spans::value_type> { spans.data() + pos, p->count } ... );
+			pos += p->count;
+		}
+	} else {
+		size_t pos = 0;
+		for (auto& p : v) {
+			std::invoke(
+				f,
+				pThis,
+				p,
+				gsl::span<Spans::value_type>{ spans.data() + pos, p.count } ... );
+			pos += p->count;
+		}
+	}
+}
 
 inline std::vector<std::string> splitOnSpace(std::string string)
 {

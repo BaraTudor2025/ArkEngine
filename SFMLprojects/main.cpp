@@ -130,6 +130,25 @@ public:
 	}
 };
 
+class Rotate : public Script {
+	sf::Transform* t;
+	float angle;
+	sf::Vector2f around;
+public:
+	Rotate(float a, sf::Vector2f around) : angle(a), around(around) { }
+	void init()
+	{
+		t = getComponent<sf::Transform>();
+		auto p = getComponent<Particles>();
+		p->emitter = around;
+		p->applyTransform = true;
+	}
+	void update()
+	{
+		t->rotate(angle * VectorEngine::deltaTime().asSeconds(), around);
+	}
+};
+
 	/* TODO: de transformat emitter-ul */
 
 int main() // are nevoie de c++17 si SFML 2.5.1
@@ -176,12 +195,13 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	trail.addScript<TraillingEffect>();
 
 	Entity plimbarica;
-	plimbarica.addComponent<Particles>(getWhiteParticles(4000, 3));
-	plimbarica.addScript<RotateParticles>(4 * 360);
-	plimbarica.addScript<TraillingEffect>();
+	plimbarica.addComponent<Particles>(rainbowParticles);
+	//plimbarica.addScript<RotateParticles>(4 * 360);
+	//plimbarica.addScript<TraillingEffect>();
+	plimbarica.addScript<Rotate>(90, VectorEngine::center());
 	auto pp = plimbarica.getComponent<Particles>();
 	pp->spawn = true;
-	pp->emitter = VectorEngine::center() + sf::Vector2f(300, 0);
+	//pp->emitter = VectorEngine::center();
 	plimbarica.Register();
 
 	grass.Register();

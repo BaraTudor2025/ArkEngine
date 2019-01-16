@@ -28,7 +28,7 @@ namespace ParticlesScripts {
 	};
 
 	class TraillingEffect : public Script {
-		sf::Vector2f prevMousePos;
+		sf::Vector2f prevEmitter;
 		Particles* p;
 	public:
 		bool spawn = true;
@@ -42,8 +42,7 @@ namespace ParticlesScripts {
 		void update() override
 		{
 			if (spawn) {
-				auto mousePos = VectorEngine::mousePositon();
-				auto dv = mousePos - prevMousePos;
+				auto dv = p->emitter - prevEmitter;
 				auto[speed, angle] = toPolar(-dv);
 				if (speed != 0) {
 					p->spawn = true;
@@ -52,7 +51,7 @@ namespace ParticlesScripts {
 					p->spawn = false;
 				p->angleDistribution.values = { angle - PI / 6, angle + PI / 6 };
 				p->speedDistribution.values = { 5 * speed , 20 * speed };
-				prevMousePos = mousePos;
+				prevEmitter = p->emitter;
 			}
 		}
 	};

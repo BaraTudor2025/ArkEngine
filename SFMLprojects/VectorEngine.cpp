@@ -36,8 +36,9 @@ Script::~Script()
 
 Entity::Entity(bool registered) : tag_(tagCounter++), registered(registered)
 {
-	if (registered)
+	if (registered) {
 		entities.push_back(this);
+	}
 }
 
 Entity::~Entity()
@@ -51,11 +52,13 @@ Entity& Entity::operator=(Entity&& other)
 {
 	if (this != &other) {
 		this->tag_ = other.tag_;
-		other.tag_ = 0;
+		this->transform = other.transform;
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
 		for (auto& s : scripts)
 			s->entity = this;
+		for (auto& c : components)
+			c->entity = this;
 		if (other.registered) {
 			erase(entities, &other);
 			other.registered = false;
@@ -71,8 +74,10 @@ void Entity::Register()
 {
 	if (!registered) {
 		entities.push_back(this);
-		for (auto& c : components)
+		for (auto& c : components) {
+			c->entity = this;
 			c->Register();
+		}
 		for (auto& s : scripts) {
 			s->entity = this;
 			s->Register();
@@ -98,8 +103,10 @@ void Entity::unRegister()
 
 void Entity::addComponent(std::unique_ptr<Component> c)
 {
-	if (this->registered)
+	if (this->registered) {
 		c->Register();
+		c->entity = this;
+	}
 	components.push_back(std::move(c));
 }
 
@@ -155,9 +162,6 @@ void VectorEngine::run()
 
 	while (window.isOpen()) {
 
-		//delta_time = clock.restart();
-		//clock.restart();
-
 		sf::Event ev;
 		while (window.pollEvent(ev)) {
 			switch (ev.type) {
@@ -188,7 +192,6 @@ void VectorEngine::run()
 		}
 		window.clear();
 
-		//delta_time = sf::Time::Zero;
 		delta_time = clock.restart();
 
 		forEachScript(&Script::update);

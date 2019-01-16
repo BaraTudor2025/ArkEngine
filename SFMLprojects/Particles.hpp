@@ -110,6 +110,9 @@ public:
 	void render(sf::RenderWindow& target) override;
 
 private:
+	template<typename F, typename...Spans>
+	void forEach(F f, Spans&...);
+
 	void updateBatch(const Particles&, gsl::span<sf::Vertex>, gsl::span<sf::Vector2f>, gsl::span<sf::Time>);
 
 	void respawnParticle(const Particles&, sf::Vertex&, sf::Vector2f&, sf::Time&);

@@ -5,11 +5,15 @@
 #include <deque>
 #include "Util.hpp"
 
+class Entity;
 
 struct Component {
 
 public:
 	virtual ~Component() = default;
+
+protected:
+	Entity* entity;
 
 private:
 	virtual void Register() = 0;
@@ -136,6 +140,8 @@ public:
 	// data WhateverScript::init() nu a fost apelat atunci varibilele sunt undefined 
 	void addScript(std::unique_ptr<Script> s);
 
+	sf::Transform transform;
+
 private:
 	void unRegister();
 
@@ -230,6 +236,8 @@ public:
 
 	static bool running() { return running_; }
 
+	static sf::Vector2f center() { return static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f; }
+
 private:
 
 	template <class F, class...Args>
@@ -270,13 +278,17 @@ inline T* Script::getScript()
 template<typename T>
 T* Entity::getComponent() 
 {
-	for (auto& c : components) {
-		auto p = dynamic_cast<T*>(c.get());
-		if (p)
-			return p;
+	if constexpr (std::is_same_v<T, sf::Transform>) {
+		return &this->transform;
+	} else {
+		for (auto& c : components) {
+			auto p = dynamic_cast<T*>(c.get());
+			if (p)
+				return p;
+		}
+		std::cerr << "entity id(" << this->tag() << "): nu am gasit componenta :( \n";
+		return nullptr;
 	}
-	std::cerr << "entity id(" << this->tag() << "): nu am gasit componenta :( \n";
-	return nullptr;
 }
 
 template<typename T>
@@ -331,8 +343,9 @@ template<typename T>
 inline void Data<T>::unRegister()
 {
 	if (this->registered) {
-		system->remove(this);
 		erase(components, this);
 		this->registered = false;
 	}
+	if(system)
+		system->remove(this);
 }

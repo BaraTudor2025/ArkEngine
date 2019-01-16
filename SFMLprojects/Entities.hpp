@@ -83,8 +83,8 @@ static std::vector<Entity> makeRandomParticlesFountains(int count, float life, c
 		ps->lifeTimeDistribution =
 		{ { ps->lifeTime.asMilliseconds() / 4, ps->lifeTime.asMilliseconds() },
 			DistributionType::uniform };
-		ps->speedDistribution.values = { 50, 50 };
-		ps->speedDistribution.type = DistributionType::normal;
+		ps->speedDistribution.values = { 0, 100 };
+		ps->speedDistribution.type = DistributionType::uniform;
 	}
 
 	return makeEntitiesFromComponents(std::move(particles));

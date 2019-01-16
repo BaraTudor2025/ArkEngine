@@ -3,17 +3,38 @@
 
 ParticleSystem ParticleSystem::instance;
 
-void ParticleSystem::update()
+template<typename F, typename...Spans>
+inline void ParticleSystem::forEach(F f, Spans&...spans)
 {
 	size_t pos = 0;
 	for (Particles* p : this->particlesData) {
-		this->updateBatch(
+		std::invoke(
+			f,
+			this,
 			*p,
-			{ this->vertices.data() + pos, p->count },
-			{ this->velocities.data() + pos, p->count },
-			{ this->lifeTimes.data() + pos, p->count });
+			gsl::span<Spans::value_type>{ spans.data() + pos, p->count } ... );
 		pos += p->count;
 	}
+}
+
+template<typename T, typename F, typename...Spans>
+inline void forEachSpan(F f, Spans&...spans)
+{
+	size_t pos = 0;
+	for (T* p : T::components) {
+		std::invoke(
+			f,
+			p->system,
+			*p,
+			gsl::span<Spans::value_type>{ spans.data() + pos, p->count } ... );
+		pos += p->count;
+	}
+}
+
+void ParticleSystem::update()
+{
+	this->forEach(&ParticleSystem::updateBatch, this->vertices, this->velocities, this->lifeTimes);
+	//forEachSpan<Particles>(&ParticleSystem::updateBatch, this->vertices, this->velocities, this->lifeTimes);
 }
 
 void ParticleSystem::add(Component* data)
@@ -32,8 +53,14 @@ void ParticleSystem::remove(Component* c)
 	erase(this->particlesData, p);
 }
 
+/* TODO: de transformat emitter-ul */
 inline void ParticleSystem::render(sf::RenderWindow& target)
 {
+	//auto draw = [&](auto _, const Particles& ps, gsl::span<sf::Vertex> v) {
+	//	target.draw(v.data(), v.size(), sf::Points;
+	//};
+
+	//this->forEach(draw, this->vertices);
 	target.draw(this->vertices.data(), this->vertices.size(), sf::Points);
 }
 

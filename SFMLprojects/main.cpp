@@ -106,8 +106,35 @@ public:
 	}
 };
 
+class RotateParticles : public Script {
+	sf::Transform t;
+	Particles* p;
+	sf::Vector2f offset;
+	sf::Vector2f rotateAroundThis;
+	float angle;
+
+public:
+	RotateParticles(float a) :angle(a) { }
+
+	void init()
+	{
+		p = getComponent<Particles>();
+		rotateAroundThis = VectorEngine::center();
+		offset =  p->emitter - rotateAroundThis;
+	}
+
+	void update()
+	{
+		t.rotate(angle * VectorEngine::deltaTime().asSeconds(), rotateAroundThis);
+		p->emitter = t.transformPoint(rotateAroundThis + offset);
+	}
+};
+
+	/* TODO: de transformat emitter-ul */
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
+
 	auto fullHD = sf::VideoMode(1920, 1080);
 	auto normalHD = sf::VideoMode(1280, 720);
 	auto fourByThree = sf::VideoMode(1024, 768);
@@ -116,7 +143,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	using namespace ParticlesScripts;
 
 	std::string prop("");
-	std::getline(std::cin, prop);
+	//std::getline(std::cin, prop);
 	std::vector<Entity> letters = makeLetterEntities(prop);
 	registerEntities(letters);
 
@@ -139,7 +166,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	greenParticles.spawn = true;
 	grass.addComponent<Particles>(greenParticles);
 	grass.addScript<DeSpawnOnMouseClick<>>();
-	grass.addScript<ModifyColorsFromConsole>();
+	//grass.addScript<ModifyColorsFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail{ false };
@@ -148,10 +175,19 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
 
-	//grass.Register();
-	//fire.Register();
-	//trail.Register();
-	//rainbow.Register();
+	Entity plimbarica;
+	plimbarica.addComponent<Particles>(getWhiteParticles(4000, 3));
+	plimbarica.addScript<RotateParticles>(4 * 360);
+	plimbarica.addScript<TraillingEffect>();
+	auto pp = plimbarica.getComponent<Particles>();
+	pp->spawn = true;
+	pp->emitter = VectorEngine::center() + sf::Vector2f(300, 0);
+	plimbarica.Register();
+
+	grass.Register();
+	fire.Register();
+	trail.Register();
+	rainbow.Register();
 
 	auto fwEntities = makeFireWorksEntities(10, rainbowParticles);
 	for (auto& e : fwEntities) {
@@ -180,7 +216,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	ParticleSystem::hasUniversalGravity = true;
 	ParticleSystem::gravityVector = { 0, 0 };
 	ParticleSystem::gravityMagnitude = 100;
-	ParticleSystem::gravityPoint = static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f;
+	ParticleSystem::gravityPoint = VectorEngine::center();
 
 	bool reg = true;
 

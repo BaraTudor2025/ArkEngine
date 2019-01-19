@@ -4,6 +4,7 @@
 #include "Particles.hpp"
 #include "Util.hpp"
 #include "ParticleScripts.hpp"
+#include "Scripts.hpp"
 
 static std::pair<Entity, Entity> makeMouseRecordingEntities(std::string fileToSave)
 {
@@ -14,7 +15,7 @@ static std::pair<Entity, Entity> makeMouseRecordingEntities(std::string fileToSa
 
 	letter.addComponent<Particles>(letterParticles);
 	letter.addScript<EmittFromMouse>();
-	letter.addScript<RegisterMousePath>(fileToSave);
+	letter.addScript<GeneralScripts::RegisterMousePath>(fileToSave);
 	letter.addScript<SpawnOnLeftClick>();
 
 	whiteP.addComponent<Particles>(letterParticles);

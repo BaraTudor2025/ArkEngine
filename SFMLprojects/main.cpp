@@ -15,6 +15,7 @@
 #include "VectorEngine.hpp"
 #include "Util.hpp"
 #include "Entities.hpp"
+#include "Scripts.hpp"
 using namespace std::literals;
 
 #if 0
@@ -85,26 +86,6 @@ private:
  * Entity has indexes to components and scripts
 */
 
-template <typename T>
-class ReadVarFromConsole : public Script {
-	T* var;
-	std::string prompt;
-public:
-	ReadVarFromConsole(T* var, std::string p) : prompt(p), var(var) { }
-
-	void init()
-	{
-		std::thread t([prompt = prompt, &var = *var]() {
-			while (true) {
-				std::cout << prompt;
-				std::cin >> var;
-				std::cout << std::endl;
-			}
-		});
-		t.detach();
-		this->seppuku();
-	}
-};
 
 class RotateParticles : public Script {
 	sf::Transform t;
@@ -198,7 +179,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	greenParticles.spawn = true;
 	grass.addComponent<Particles>(greenParticles);
 	grass.addScript<DeSpawnOnMouseClick<>>();
-	//grass.addScript<ModifyColorsFromConsole>();
+	grass.addScript<ReadColorFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail{ false };
@@ -241,7 +222,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Entity updateGP;
 	updateGP.addScript<UpdateGravityPoint>();
 	Entity readGMag;
-	readGMag.addScript<ReadVarFromConsole<float>>(&ParticleSystem::gravityMagnitude, "enter gravity magnitude: ");
+	readGMag.addScript<GeneralScripts::ReadVarFromConsole<float>>(&ParticleSystem::gravityMagnitude, "enter gravity magnitude: ");
 
 	//readGMag.Register();
 	//updateGP.Register();

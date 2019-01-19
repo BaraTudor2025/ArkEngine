@@ -56,30 +56,6 @@ namespace ParticleScripts {
 		}
 	};
 
-	class RegisterMousePath : public Script {
-		std::vector<sf::Vector2f> path;
-		std::string file;
-	public:
-
-		RegisterMousePath(std::string file) : file(file) { }
-
-		void update()
-		{
-			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
-				path.push_back(VectorEngine::mousePositon());
-		}
-
-		~RegisterMousePath()
-		{
-			if (path.empty())
-				return;
-			std::ofstream fout(file);
-			fout << path.size() << ' ';
-			for (auto[x, y] : path)
-				fout << x << ' ' << y << ' ';
-		}
-	};
-
 	class PlayModel : public Script {
 		std::vector<sf::Vector2f> model;
 		std::vector<sf::Vector2f>::iterator curr;
@@ -129,12 +105,33 @@ namespace ParticleScripts {
 		}
 	};
 
-	class ModifyColorsFromFile : public Script {
+	auto __IMPL__readColorDistributionFromStream = [](std::istream& is, Particles* p)
+	{
+		int r1, r2, g1, g2, b1, b2;
+		is >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
+		p->getColor = [=]() {
+			auto r = RandomNumber<int>(r1, r2);
+			auto g = RandomNumber<int>(g1, g2);
+			auto b = RandomNumber<int>(b1, b2);
+			return sf::Color(r, g, b);
+		};
+	};
+
+	auto __IMPL__readColorFromStream = [](std::istream& is, Particles* p)
+	{
+		int r, g, b;
+		is >> r >> g >> b;
+		p->getColor = [=]() {
+			return sf::Color(r, g, b);
+		};
+	};
+
+	class ReadColorDistributionFromFile : public Script {
 		Particles* p;
 		std::string fileName;
 	public:
 
-		ModifyColorsFromFile(std::string fileName) : fileName(fileName) { }
+		ReadColorDistributionFromFile(std::string fileName) : fileName(fileName) { }
 
 		void init()
 		{
@@ -144,14 +141,7 @@ namespace ParticleScripts {
 					std::cout << "press enter to read colors from: " + fileName;
 					std::cin.get();
 					std::ifstream fin(fileName);
-					int r1, r2, g1, g2, b1, b2;
-					fin >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
-					p->getColor = [=]() {
-						auto r = RandomNumber<int>(r1, r2);
-						auto g = RandomNumber<int>(g1, g2);
-						auto b = RandomNumber<int>(b1, b2);
-						return sf::Color(r, g, b);
-					};
+					__IMPL__readColorDistributionFromStream(fin, p);
 					fin.close();
 				}
 			});
@@ -159,7 +149,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class ModifyColorsFromConsole : public Script {
+	class ReadColorDistributionFromConsole : public Script {
 		Particles* p;
 	public:
 		void init()
@@ -168,15 +158,46 @@ namespace ParticleScripts {
 			std::thread t([&]() {
 				while (true) {
 					std::cout << "enter rgb low and high: ";
-					int r1, r2, g1, g2, b1, b2;
-					std::cin >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
-					std::cout << std::endl;
-					p->getColor = [=]() {
-						auto r = RandomNumber<int>(r1, r2);
-						auto g = RandomNumber<int>(g1, g2);
-						auto b = RandomNumber<int>(b1, b2);
-						return sf::Color(r, g, b);
-					};
+					__IMPL__readColorDistributionFromStream(std::cin, p);
+				}
+			});
+			t.detach();
+		}
+	};
+
+	class ReadColorFromConsole : public Script {
+		Particles* p;
+	public:
+		void init()
+		{
+			p = getComponent<Particles>();
+			std::thread t([&]() {
+				while (true) {
+					std::cout << "enter rgb : ";
+					__IMPL__readColorFromStream(std::cin, p);
+				}
+			});
+			t.detach();
+		}
+	};
+
+	class ReadColorFromFile : public Script {
+		Particles* p;
+		std::string fileName;
+	public:
+
+		ReadColorFromFile(std::string fileName) : fileName(fileName) { }
+
+		void init()
+		{
+			p = getComponent<Particles>();
+			std::thread t([&](){
+				while (true) {
+					std::cout << "press enter to read colors from: " + fileName;
+					std::cin.get();
+					std::ifstream fin(fileName);
+					__IMPL__readColorFromStream(fin, p);
+					fin.close();
 				}
 			});
 			t.detach();

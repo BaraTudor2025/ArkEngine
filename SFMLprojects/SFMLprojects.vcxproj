@@ -175,6 +175,7 @@
     <ClInclude Include="ParticleScripts.hpp" />
     <ClInclude Include="RandomNumbers.hpp" />
     <ClInclude Include="ResourceManager.hpp" />
+    <ClInclude Include="Scripts.hpp" />
     <ClInclude Include="Util.hpp" />
     <ClInclude Include="VectorEngine.hpp" />
   </ItemGroup>

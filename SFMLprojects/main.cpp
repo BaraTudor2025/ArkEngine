@@ -112,7 +112,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto rainbowParticles = getRainbowParticles();
 	auto fireParticles = getFireParticles();
 	auto greenParticles = getGreenParticles();
-	auto whiteParticles = getWhiteParticles();
 
 	Entity rainbow{ false };
 	rainbow.addComponent<Particles>(rainbowParticles);
@@ -132,7 +131,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail{ false };
-	trail.addComponent<Particles>(whiteParticles);
+	trail.addComponent<Particles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal );
 	trail.addScript<EmittFromMouse>();
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();

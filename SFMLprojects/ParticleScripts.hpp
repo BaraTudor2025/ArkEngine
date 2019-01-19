@@ -49,8 +49,8 @@ namespace ParticleScripts {
 					speed = std::clamp<float>(speed, 0, 5);
 				} else
 					p->spawn = false;
-				p->angleDistribution.values = { angle - PI / 6, angle + PI / 6 };
-				p->speedDistribution.values = { 5 * speed , 20 * speed };
+				p->angleDistribution = { angle - PI / 6, angle + PI / 6 };
+				p->speedDistribution = { 5 * speed , 20 * speed };
 				prevEmitter = p->emitter;
 			}
 		}
@@ -257,8 +257,6 @@ namespace ParticleScripts {
 
 		void init()
 		{
-			static int i = 1;
-			//log_init("%d", i++);
 			p = getComponent<Particles>();
 			p->spawn = false;
 
@@ -287,12 +285,8 @@ namespace ParticleScripts {
 		void handleInput(sf::Event event)
 		{
 			switch (event.type) {
-			case sf::Event::MouseButtonPressed:
-				p->spawn = false;
-				break;
-			case sf::Event::MouseButtonReleased:
-				p->spawn = true;
-				break;
+			case sf::Event::MouseButtonPressed: p->spawn = false; break;
+			case sf::Event::MouseButtonReleased: p->spawn = true; break;
 			default:
 				break;
 			}

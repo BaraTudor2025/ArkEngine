@@ -17,12 +17,10 @@
 #define INSTANCE(type) type type::instance;
 
 #define COPYABLE(type) \
-	type() = default; \
 	type(const type&) = default; \
 	type& operator=(const type&) = default;
 
 #define MOVABLE(type) \
-	type() = default; \
 	type(type&&) = default; \
 	type& operator=(type&&) = default;
 
@@ -57,21 +55,21 @@ template<typename F, typename V, typename...Spans>
 inline void forEachSpanImplNormalFunc(F f, V& v, Spans&...spans)
 {
 	if constexpr (std::is_pointer_v<V::value_type>) {
-		size_t pos = 0;
+		int pos = 0;
 		for (auto p : v) {
 			std::invoke(
 				f,
 				*p,
-				gsl::span<Spans::value_type>{ spans.data() + pos, p->count } ... );
+				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p->count) } ... );
 			pos += p->count;
 		}
 	} else {
-		size_t pos = 0;
+		int pos = 0;
 		for (auto& p : v) {
 			std::invoke(
 				f,
 				p,
-				gsl::span<Spans::value_type>{ spans.data() + pos, p.count } ...);
+				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p.count) } ...);
 			pos += p->count;
 		}
 	}
@@ -81,23 +79,23 @@ template<typename F, class C, typename V, typename...Spans>
 inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
 {
 	if constexpr (std::is_pointer_v<V::value_type>) {
-		size_t pos = 0;
+		int pos = 0;
 		for (auto p : v) {
 			std::invoke(
 				f,
 				pThis,
 				*p,
-				gsl::span<Spans::value_type> { spans.data() + pos, p->count } ... );
+				gsl::span<Spans::value_type> { spans.data() + pos, static_cast<size_t>(p->count) } ... );
 			pos += p->count;
 		}
 	} else {
-		size_t pos = 0;
+		int pos = 0;
 		for (auto& p : v) {
 			std::invoke(
 				f,
 				pThis,
 				p,
-				gsl::span<Spans::value_type>{ spans.data() + pos, p.count } ... );
+				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p.count) } ... );
 			pos += p->count;
 		}
 	}

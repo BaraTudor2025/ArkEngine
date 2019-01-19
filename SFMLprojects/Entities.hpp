@@ -10,7 +10,7 @@ static std::pair<Entity, Entity> makeMouseRecordingEntities(std::string fileToSa
 {
 	using namespace ParticleScripts;
 
-	auto letterParticles = getWhiteParticles(200, 10);
+	Particles letterParticles(200, sf::seconds(10), { 0, 2 });
 	Entity letter, whiteP;
 
 	letter.addComponent<Particles>(letterParticles);
@@ -34,7 +34,7 @@ static std::vector<Entity> makeLetterEntities(std::string prop)
 	int i = 0;
 	int rand = 0;
 	int col = 0;
-	auto letterParticles = getWhiteParticles(200, 10);
+	Particles letterParticles(200, sf::seconds(10), { 0, 2 });
 	for (auto& cuvant : cuvinte) {
 		col = 0;
 		for (auto litera : cuvant) {
@@ -61,8 +61,7 @@ static std::vector<Entity> makeFireWorksEntities(int count, const Particles& tem
 		fw->emitter = { x,y };
 		fw->fireworks = true;
 		fw->lifeTime = sf::seconds(RandomNumber<float>(2, 8));
-		fw->speedDistribution.values = { 0, RandomNumber<int>(40, 70) };
-		fw->speedDistribution.type = DistributionType::uniform;
+		fw->speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
 	}
 
 	return makeEntitiesFromComponents<Particles>(std::move(fireWorks));
@@ -81,11 +80,8 @@ static std::vector<Entity> makeRandomParticlesFountains(int count, float life, c
 		ps->count = 1000;
 		ps->emitter = { x,y };
 		ps->lifeTime = sf::seconds(2);
-		ps->lifeTimeDistribution =
-		{ { ps->lifeTime.asMilliseconds() / 4, ps->lifeTime.asMilliseconds() },
-			DistributionType::uniform };
-		ps->speedDistribution.values = { 0, 100 };
-		ps->speedDistribution.type = DistributionType::uniform;
+		ps->makeLifeTimeDistUniform();
+		ps->speedDistribution = { 0, 100 , DistributionType::uniform};
 	}
 
 	return makeEntitiesFromComponents(std::move(particles));

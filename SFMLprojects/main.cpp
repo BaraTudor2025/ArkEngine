@@ -18,7 +18,7 @@
 #include "Scripts.hpp"
 using namespace std::literals;
 
-#if 0
+#if 1
 struct Animation : public Data<Animation> {
 	int row;
 	int columns;
@@ -50,15 +50,22 @@ public:
 	}
 
 private:
-	std::vector<Animation*> animationData;
 };
 
+
+struct RigidBody : public Data<RigidBody> {
+
+};
+
+class ColisionSystem : public System {
+
+};
 
 struct Mesh : public Data<Mesh> {
 	std::string fileName;
 };
 
-class MeshRendered : public System {
+class MeshSystem : public System {
 
 public:
 	virtual void update() override
@@ -75,7 +82,7 @@ public:
 	}
 
 private:
-	std::vector<Mesh*> meshData;
+	std::vector<sf::Texture*> textures;
 };
 #endif
 
@@ -86,65 +93,7 @@ private:
  * Entity has indexes to components and scripts
 */
 
-
-class RotateParticles : public Script {
-	sf::Transform t;
-	Particles* p;
-	sf::Vector2f offset;
-	sf::Vector2f rotateAroundThis;
-	float angle;
-
-public:
-	RotateParticles(float a) :angle(a) { }
-
-	void init()
-	{
-		p = getComponent<Particles>();
-		rotateAroundThis = VectorEngine::center();
-		offset =  p->emitter - rotateAroundThis;
-	}
-
-	void update()
-	{
-		t.rotate(angle * VectorEngine::deltaTime().asSeconds(), rotateAroundThis);
-		p->emitter = t.transformPoint(rotateAroundThis + offset);
-	}
-};
-
-class Rotate : public Script {
-	sf::Transform* t;
-	float angle;
-	sf::Vector2f around;
-public:
-	Rotate(float a, sf::Vector2f around) : angle(a), around(around) { }
-	void init()
-	{
-		t = getComponent<sf::Transform>();
-		auto p = getComponent<Particles>();
-		p->emitter = around;
-		p->applyTransform = true;
-	}
-	void update()
-	{
-		//Particles::components.clear();
-		t->rotate(angle * VectorEngine::deltaTime().asSeconds(), around);
-	}
-};
-
-//#define VENGINE_BUILD_DLL 0
-//
-//#if VENGINE_BUILD_DLL
-//	#define VECTOR_ENGINE_API __declspec(dllexport)
-//#else
-//	#define VECTOR_ENGINE_API __declspec(dllimport)
-//#endif
-#define VECTOR_ENGINE_API
-
-// TODO: de inlocuit sf::Tranform cu asta
-//struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable { };
-
 /* TODO: de adaugat class Scene/World (manager de entitati) */
-/* TODO: de facut un script ReadColorDistributionFromConsole & ReadColorFromConsole */
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -179,7 +128,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	greenParticles.spawn = true;
 	grass.addComponent<Particles>(greenParticles);
 	grass.addScript<DeSpawnOnMouseClick<>>();
-	grass.addScript<ReadColorFromConsole>();
+	//grass.addScript<ReadColorFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail{ false };
@@ -189,6 +138,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	trail.addScript<TraillingEffect>();
 
 	Entity plimbarica;
+	plimbarica.addComponent<Transform>();
 	plimbarica.addComponent<Particles>(rainbowParticles);
 	//plimbarica.addScript<RotateParticles>(4 * 360);
 	//plimbarica.addScript<TraillingEffect>();

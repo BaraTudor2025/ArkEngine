@@ -5,10 +5,20 @@
 #include <deque>
 #include "Util.hpp"
 
+//#define VENGINE_BUILD_DLL 0
+//
+//#if VENGINE_BUILD_DLL
+//	#define VECTOR_ENGINE_API __declspec(dllexport)
+//#else
+//	#define VECTOR_ENGINE_API __declspec(dllimport)
+//#endif
+
+#define VECTOR_ENGINE_API
+
 class Entity;
 class System;
 
-struct Component {
+struct VECTOR_ENGINE_API Component {
 
 public:
 	virtual ~Component() = default;
@@ -27,13 +37,13 @@ private:
 
 
 template <typename T>
-struct Data : Component {
+struct VECTOR_ENGINE_API Data : Component {
 
 public:
 	virtual ~Data() { unRegister();  }
 
 protected:
-	static inline System* system;
+	static inline System* system = nullptr;
 
 private:
 	void Register() override;
@@ -44,8 +54,9 @@ private:
 	friend class System;
 };
 
+struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable { };
 
-class Script : public NonCopyable {
+class VECTOR_ENGINE_API Script : public NonCopyable {
 
 public:
 	Script() = default;
@@ -53,16 +64,12 @@ public:
 
 protected:
 	virtual void init() { }
-
 	virtual void update() { }
-
 	virtual void handleInput(sf::Event) { }
-
 	template <typename T> T* getComponent();
-
-	template <typename T> std::vector<T*> getComponents();
-
 	template <typename T> T* getScript();
+	Entity* entity() { return entity_; }
+	const Entity* entity() const { return entity_; }
 
 	// unRegister() si il scoate din Entitate
 	// poate fi apelat in orice functie virtuala overriden
@@ -80,65 +87,33 @@ private:
 	friend class Entity;
 };
 
-class Entity final : public NonCopyable {
+class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
 public:
 	explicit Entity(bool registered = false);
-
-	Entity(Entity&& other)
-	{
-		*this = std::move(other);
-	}
-
+	Entity(Entity&& other) { *this = std::move(other); }
 	Entity& operator=(Entity&& other);
-
 	~Entity();
 
-	// TODO: poate dau Register la Scripts doar in vectorii locali
-	// si engine-ul depinde de entitati si nu std::vector<> Script::scripts
-	// dar cum fac cu Data si Systems?
 	void Register();
 
 	int tag() { return tag_; }
 
-	// prima componenta de tip T gasita este returnata
-	template <typename T>
-	T* getComponent(); 
- 
-	template <typename T>
-	std::vector<T*> getComponents();
+	template <typename T> T* getComponent(); 
+	template <typename T> T* getScript();
 
-	template <typename T>
-	T* getScript();
-
-	template<typename Range>
-	void addComponents(Range& range);
-
-	template <typename T>
-	void addComponentCopy(const T& c)
-	{
-		addComponent(std::make_unique<T>(c));
-	}
+	void addComponent(std::unique_ptr<Component> c);
+	void addScript(std::unique_ptr<Script> s);
 
 	template <typename T, typename... Args>
-	void addComponent(Args&&... args)
-	{
+	void addComponent(Args&&... args) {
 		addComponent(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
-	void addComponent(std::unique_ptr<Component> c);
-
 	template <typename T, typename... Args>
-	void addScript(Args&&... args)
-	{
+	void addScript(Args&&... args) {
 		addScript(std::make_unique<T>(std::forward<Args>(args)...));
 	}
-
-	// ordinea in care sunt adaugate conteaza daca in init() apelezi getScript<WhateverScript>()
-	// data WhateverScript::init() nu a fost apelat atunci varibilele sunt undefined 
-	void addScript(std::unique_ptr<Script> s);
-
-	sf::Transform transform;
 
 private:
 	void unRegister();
@@ -155,16 +130,18 @@ private:
 	friend class Script;
 };
 
-inline void registerEntities(std::vector<std::unique_ptr<Entity>>& v)
-{
-	for (auto& e : v)
-		e->Register();
-}
+// helpers
 
-inline void registerEntities(std::vector<Entity>& v)
+template <typename T>
+inline void registerEntities(std::vector<T>& v)
 {
-	for (auto& e : v)
-		e.Register();
+	if constexpr (std::is_same_v<std::unique_ptr<Entity>, T> || 
+				  std::is_same_v<std::shared_ptr<Entity>, T>)
+		for (auto& e : v)
+			e->Register();
+	else
+		for (auto& e : v)
+			e.Register();
 }
 
 template <typename T, typename...Args>
@@ -185,7 +162,7 @@ std::vector<Entity> makeEntitiesFromComponents(std::vector<std::unique_ptr<T>> c
 }
 
 // fiecare sistem ar trebui sa aiba o singura instanta
-class System : public NonCopyable, public NonMovable {
+class VECTOR_ENGINE_API System : public NonCopyable, public NonMovable {
 
 public:
 	System() = default;
@@ -207,23 +184,17 @@ protected:
 
 private:
 	virtual void init() { }
-
 	virtual void update() = 0;
-
 	virtual void render(sf::RenderTarget& target) = 0;
-
 	virtual void add(Component*) = 0;
-
 	virtual void remove(Component*) = 0;
 
 	friend class VectorEngine;
-
-	template <typename T>
-	friend struct Data;
+	template <typename T> friend struct Data;
 };
 
 
-class VectorEngine final : public NonCopyable, public NonMovable {
+class VECTOR_ENGINE_API VectorEngine final : public NonCopyable, public NonMovable {
 
 public:
 	static void create(sf::VideoMode vm, std::string name);
@@ -261,52 +232,20 @@ private:
 /*********************************/
 /******** IMPLEMENTATION *********/
 /*********************************/
-template <typename T>
-inline T* Script::getComponent()
-{
-	return entity_->getComponent<T>();
-}
 
-template <typename T>
-inline std::vector<T*> Script::getComponents()
-{
-	return entity_->getComponents<T>();
-}
-
-template <typename T>
-inline T* Script::getScript()
-{
-	return entity_->getScript<T>();
-}
+template <typename T> T* Script::getComponent() { return entity_->getComponent<T>(); }
+template <typename T> T* Script::getScript() { return entity_->getScript<T>(); }
 
 template<typename T>
 T* Entity::getComponent() 
 {
-	if constexpr (std::is_same_v<T, sf::Transform>) {
-		return &this->transform;
-	} else {
-		for (auto& c : components) {
-			auto p = dynamic_cast<T*>(c.get());
-			if (p)
-				return p;
-		}
-		std::cerr << "entity id(" << this->tag() << "): nu am gasit componenta :( \n";
-		return nullptr;
-	}
-}
-
-template<typename T>
-std::vector<T*> Entity::getComponents()
-{
-	std::vector<T*> comps;
 	for (auto& c : components) {
 		auto p = dynamic_cast<T*>(c.get());
 		if (p)
-			comps.push_back(p);
+			return p;
 	}
-	if (comps.empty())
-		std::cerr << "entity id(" << this->tag() << "): nu am gasit componentele :( \n";
-	return comps;
+	std::cerr << "entity id(" << this->tag() << "): nu am gasit componenta :( \n";
+	return nullptr;
 }
 
 template<typename T>
@@ -321,26 +260,15 @@ T* Entity::getScript()
 	return nullptr;
 }
 
-template<typename Range>
-void Entity::addComponents(Range& range)
-{
-	using elem_type = std::decay_t<decltype(*std::begin(range))>;
-	if constexpr (std::is_convertible_v<elem_type, std::unique_ptr<Component>>)
-		for (auto& c : range)
-			addComponent(std::move(c));
-	else
-		for (auto& c : range)
-			addComponent(std::make_unique<elem_type>(c));
-}
-
 template<typename T>
 inline void Data<T>::Register()
 {
-	if (!this->registered)
+	if (!this->registered) {
 		components.push_back(static_cast<T*>(this));
-	if (VectorEngine::running() && system)
-		system->add(this);
-	this->registered = true;
+		this->registered = true;
+		if (VectorEngine::running() && system)
+			system->add(this);
+	}
 }
 
 template<typename T>
@@ -349,7 +277,7 @@ inline void Data<T>::unRegister()
 	if (this->registered) {
 		erase(components, this);
 		this->registered = false;
+		if(system)
+			system->remove(this);
 	}
-	if(system)
-		system->remove(this);
 }

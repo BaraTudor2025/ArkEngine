@@ -11,27 +11,41 @@ void ParticleSystem::update()
 
 void ParticleSystem::add(Component* data)
 {
-	auto ps = dynamic_cast<Particles*>(data);
-	auto addSize = [&](auto& range) { range.resize(range.size() + ps->count); };
-	addSize(this->velocities);
-	addSize(this->vertices);
-	addSize(this->lifeTimes);
+	if (auto ps = static_cast<Particles*>(data); ps) {
+		auto addSize = [&](auto& range) { range.resize(range.size() + ps->count); };
+		addSize(this->velocities);
+		addSize(this->vertices);
+		addSize(this->lifeTimes);
+	}
+	//	static int cnt = 0;
+	//	std::cout << "add " << ++cnt << '\n';
+	//} else {
+	//	static int cnt = 0;
+	//	std::cout << "add nothing " << ++cnt << '\n';
+	//}
 }
 
 void ParticleSystem::remove(Component* data)
 {
-	auto ps = dynamic_cast<Particles*>(data);
-	auto removeSize = [&](auto& range) { range.resize(range.size() - ps->count); };
-	removeSize(this->velocities);
-	removeSize(this->vertices);
-	removeSize(this->lifeTimes);
+	if (auto ps = static_cast<Particles*>(data); ps) {
+		auto removeSize = [&](auto& range) { range.resize(range.size() - ps->count); };
+		removeSize(this->velocities);
+		removeSize(this->vertices);
+		removeSize(this->lifeTimes);
+	}
+	//	static int cnt = 0;
+	//	std::cout << "remove " << ++cnt << '\n';
+	//} else {
+	//	static int cnt = 0;
+	//	std::cout << "remove nothing " << ++cnt << '\n';
+	//}
 }
 
 inline void ParticleSystem::render(sf::RenderTarget& target)
 {
-	auto draw = [&](const Particles& ps, gsl::span<sf::Vertex> v) {
+	auto draw = [&](Particles& ps, gsl::span<sf::Vertex> v) {
 		if(ps.applyTransform)
-			target.draw(v.data(), v.size(), sf::Points, ps.entity()->transform);
+			target.draw(v.data(), v.size(), sf::Points, ps.entity()->getComponent<Transform>()->getTransform());
 		else
 			target.draw(v.data(), v.size(), sf::Points);
 	};

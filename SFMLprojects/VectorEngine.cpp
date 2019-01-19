@@ -52,7 +52,6 @@ Entity& Entity::operator=(Entity&& other)
 {
 	if (this != &other) {
 		this->tag_ = other.tag_;
-		this->transform = other.transform;
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
 		for (auto& s : scripts)
@@ -91,13 +90,13 @@ void Entity::Register()
 
 void Entity::unRegister()
 {
+	this->registered = false;
 	if (!this->registered)
 		return;
 	for (auto& s : scripts)
 		s->unRegister();
 	for (auto& c : components)
 		c->unRegister();
-	this->registered = false;
 	erase(entities, this);
 }
 

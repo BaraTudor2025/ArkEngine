@@ -204,6 +204,51 @@ namespace ParticleScripts {
 		}
 	};
 
+	class RoatateEmitter : public Script {
+		sf::Transform t;
+		Particles* p;
+		sf::Vector2f offset;
+		sf::Vector2f rotateAroundThis;
+		float angle;
+
+	public:
+		RoatateEmitter(float a) :angle(a) { }
+
+		void init()
+		{
+			p = getComponent<Particles>();
+			rotateAroundThis = VectorEngine::center();
+			offset =  p->emitter - rotateAroundThis;
+		}
+
+		void update()
+		{
+			t.rotate(angle * VectorEngine::deltaTime().asSeconds(), rotateAroundThis);
+			p->emitter = t.transformPoint(rotateAroundThis + offset);
+		}
+	};
+
+	class Rotate : public Script {
+		Transform* t;
+		float angle;
+		sf::Vector2f around;
+	public:
+		Rotate(float a, sf::Vector2f around) : angle(a), around(around) { }
+		void init()
+		{
+			t = getComponent<Transform>();
+			t->setOrigin(around);
+			t->setPosition(around);
+			auto p = getComponent<Particles>();
+			p->emitter = around;
+			p->applyTransform = true;
+		}
+		void update()
+		{
+			t->rotate(angle * VectorEngine::deltaTime().asSeconds());
+		}
+	};
+
 	class SpawnLater : public Script {
 		int seconds;
 		Particles* p;

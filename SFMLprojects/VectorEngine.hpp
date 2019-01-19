@@ -135,8 +135,8 @@ private:
 template <typename T>
 inline void registerEntities(std::vector<T>& v)
 {
-	if constexpr (std::is_same_v<std::unique_ptr<Entity>, T> || 
-				  std::is_same_v<std::shared_ptr<Entity>, T>)
+	if constexpr(std::is_same_v<std::unique_ptr<Entity>, T> || 
+				 std::is_same_v<std::shared_ptr<Entity>, T>)
 		for (auto& e : v)
 			e->Register();
 	else

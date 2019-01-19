@@ -6,14 +6,17 @@
 #include "Util.hpp"
 
 class Entity;
+class System;
 
 struct Component {
 
 public:
 	virtual ~Component() = default;
+	const Entity* entity() const { return entity_; }
+	Entity* entity() { return entity_; }
 
 protected:
-	Entity* entity;
+	Entity* entity_;
 
 private:
 	virtual void Register() = 0;
@@ -22,7 +25,6 @@ private:
 	friend class Entity;
 };
 
-class System;
 
 template <typename T>
 struct Data : Component {
@@ -32,16 +34,16 @@ public:
 
 protected:
 	static inline System* system;
-	static inline std::vector<T*> components;
 
 private:
 	void Register() override;
 	void unRegister() override;
 
 	bool registered = false;
+	static inline std::vector<T*> components;
+	friend class System;
 };
 
-class Entity;
 
 class Script : public NonCopyable {
 
@@ -70,7 +72,7 @@ private:
 	void Register();
 	void unRegister();
 
-	Entity* entity = nullptr;
+	Entity* entity_ = nullptr;
 	bool registered = false;
 
 	static inline std::vector<Script*> scripts;
@@ -190,11 +192,17 @@ public:
 
 protected:
 	template <typename Comp>
-	void initWith() {
+	void initFrom() {
+		Comp::system = this;
 		for (Comp* c : Comp::components) {
 			this->add(c);
 		}
-		Comp::system = this;
+	}
+
+	template <typename T>
+	std::vector<T*>& getComponents()
+	{
+		return Data<T>::components;
 	}
 
 private:
@@ -202,7 +210,7 @@ private:
 
 	virtual void update() = 0;
 
-	virtual void render(sf::RenderWindow&) = 0;
+	virtual void render(sf::RenderTarget& target) = 0;
 
 	virtual void add(Component*) = 0;
 
@@ -256,19 +264,19 @@ private:
 template <typename T>
 inline T* Script::getComponent()
 {
-	return entity->getComponent<T>();
+	return entity_->getComponent<T>();
 }
 
 template <typename T>
 inline std::vector<T*> Script::getComponents()
 {
-	return entity->getComponents<T>();
+	return entity_->getComponents<T>();
 }
 
 template <typename T>
 inline T* Script::getScript()
 {
-	return entity->getScript<T>();
+	return entity_->getScript<T>();
 }
 
 template<typename T>
@@ -330,7 +338,7 @@ inline void Data<T>::Register()
 {
 	if (!this->registered)
 		components.push_back(static_cast<T*>(this));
-	if (VectorEngine::running())
+	if (VectorEngine::running() && system)
 		system->add(this);
 	this->registered = true;
 }

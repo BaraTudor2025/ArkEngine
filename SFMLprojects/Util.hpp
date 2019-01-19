@@ -38,11 +38,23 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
-// param 'v' este un vector cu marimea fiecarui span
-// V::value_type trebuie sa aiba membrul count
+/* Params
+ * f : function, if is member func then pass 'this' as the next args
+ * this: if f is member func
+ * v : range with member 'count', represents how many elements in each span
+ * spans...
+*/
+template <typename F, typename...Args>
+inline void forEachSpan(F f, Args&&...args)
+{
+	if constexpr (std::is_member_function_pointer_v<F>)
+		forEachSpanImplMemberFunc(f, std::forward<Args>(args)...);
+	else 
+		forEachSpanImplNormalFunc(f, std::forward<Args>(args)...);
+}
 
-template<typename V, typename F, typename...Spans>
-inline void forEachSpan(F f, V& v, Spans&...spans)
+template<typename F, typename V, typename...Spans>
+inline void forEachSpanImplNormalFunc(F f, V& v, Spans&...spans)
 {
 	if constexpr (std::is_pointer_v<V::value_type>) {
 		size_t pos = 0;
@@ -65,8 +77,8 @@ inline void forEachSpan(F f, V& v, Spans&...spans)
 	}
 }
 
-template<class C, typename V, typename F, typename...Spans>
-inline void forEachSpanThis(C* pThis, F f, V& v, Spans&...spans)
+template<typename F, class C, typename V, typename...Spans>
+inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
 {
 	if constexpr (std::is_pointer_v<V::value_type>) {
 		size_t pos = 0;

@@ -7,7 +7,7 @@
 
 static std::pair<Entity, Entity> makeMouseRecordingEntities(std::string fileToSave)
 {
-	using namespace ParticlesScripts;
+	using namespace ParticleScripts;
 
 	auto letterParticles = getWhiteParticles(200, 10);
 	Entity letter, whiteP;
@@ -38,7 +38,7 @@ static std::vector<Entity> makeLetterEntities(std::string prop)
 		col = 0;
 		for (auto litera : cuvant) {
 			letters[i].addComponent<Particles>(letterParticles);
-			letters[i].addScript<ParticlesScripts::PlayModel>("./res/litere/letter"s + litera + ".txt"s, sf::Vector2f{ 150.f * col, 150.f * rand });
+			letters[i].addScript<ParticleScripts::PlayModel>("./res/litere/letter"s + litera + ".txt"s, sf::Vector2f{ 150.f * col, 150.f * rand });
 			i++;
 			col++;
 		}
@@ -54,8 +54,8 @@ static std::vector<Entity> makeFireWorksEntities(int count, const Particles& tem
 
 	for (auto& fw : fireWorks) {
 		auto[width, height] = VectorEngine::windowSize();
-		auto x = RandomNumber<float>(50, width - 50);
-		auto y = RandomNumber<float>(50, height - 50);
+		float x = RandomNumber<int>(50, width - 50);
+		float y = RandomNumber<int>(50, height - 50);
 		fw->count = 1000;
 		fw->emitter = { x,y };
 		fw->fireworks = true;
@@ -74,8 +74,8 @@ static std::vector<Entity> makeRandomParticlesFountains(int count, float life, c
 
 	for (auto& ps : particles) {
 		auto[width, height] = VectorEngine::windowSize();
-		auto x = RandomNumber<float>(50, width - 50);
-		auto y = RandomNumber<float>(50, height - 50);
+		float x = RandomNumber<int>(50, width - 50);
+		float y = RandomNumber<int>(50, height - 50);
 		ps->spawn = true;
 		ps->count = 1000;
 		ps->emitter = { x,y };

@@ -40,7 +40,7 @@ public:
 
 	}
 
-	virtual void render(sf::RenderWindow &) override
+	virtual void render(sf::RenderTarget& target) override
 	{
 	}
 
@@ -63,7 +63,7 @@ public:
 	virtual void update() override
 	{
 	}
-	virtual void render(sf::RenderWindow &) override
+	virtual void render(sf::RenderTarget& target) override
 	{
 	}
 	virtual void add(Component *) override
@@ -145,21 +145,34 @@ public:
 	}
 	void update()
 	{
+		//Particles::components.clear();
 		t->rotate(angle * VectorEngine::deltaTime().asSeconds(), around);
 	}
 };
 
-	/* TODO: de transformat emitter-ul */
+//#define VENGINE_BUILD_DLL 0
+//
+//#if VENGINE_BUILD_DLL
+//	#define VECTOR_ENGINE_API __declspec(dllexport)
+//#else
+//	#define VECTOR_ENGINE_API __declspec(dllimport)
+//#endif
+#define VECTOR_ENGINE_API
+
+// TODO: de inlocuit sf::Tranform cu asta
+//struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable { };
+
+/* TODO: de adaugat class Scene/World (manager de entitati) */
+/* TODO: de facut un script ReadColorDistributionFromConsole & ReadColorFromConsole */
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
-
 	auto fullHD = sf::VideoMode(1920, 1080);
 	auto normalHD = sf::VideoMode(1280, 720);
 	auto fourByThree = sf::VideoMode(1024, 768);
 	VectorEngine::create(fourByThree, "Articifii!");
 
-	using namespace ParticlesScripts;
+	using namespace ParticleScripts;
 
 	std::string prop("");
 	//std::getline(std::cin, prop);

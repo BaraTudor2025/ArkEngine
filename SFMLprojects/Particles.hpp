@@ -25,9 +25,9 @@ struct Particles final : public Data<Particles> {
 	{
 		// daca e dist::uniform atunci prima emitere are efect de artificii
 		if (ltd == DistributionType::uniform)
-			lifeTimeDistribution = { { lifeTime.asMilliseconds() / 4, lifeTime.asMilliseconds() }, ltd };
+			lifeTimeDistribution = { { (float)lifeTime.asMilliseconds() / 4, (float)lifeTime.asMilliseconds() }, ltd };
 		else
-			lifeTimeDistribution = { { lifeTime.asMilliseconds() / 2,  lifeTime.asMilliseconds() / 2 }, ltd };
+			lifeTimeDistribution = { { (float)lifeTime.asMilliseconds() / 2, (float) lifeTime.asMilliseconds() / 2 }, ltd };
 	}
 
 	size_t count;
@@ -43,8 +43,6 @@ struct Particles final : public Data<Particles> {
 	bool applyTransform = false;
 
 	std::function<sf::Color()> getColor = [](){ return sf::Color::White; };
-
-	friend class ParticleSystem;
 };
 
 // templates
@@ -99,7 +97,7 @@ public:
 	static ParticleSystem instance;
 
 	void init() override {
-		initWith<Particles>();
+		this->initFrom<Particles>();
 	}
 
 	void update() override;
@@ -108,7 +106,7 @@ public:
 
 	void remove(Component*) override;
 
-	void render(sf::RenderWindow& target) override;
+	void render(sf::RenderTarget& target) override;
 
 private:
 
@@ -120,6 +118,4 @@ private:
 	std::vector<sf::Vertex>	vertices;
 	std::vector<sf::Vector2f> velocities;
 	std::vector<sf::Time> lifeTimes;
-
-	std::vector<Particles*> particlesData;
 };

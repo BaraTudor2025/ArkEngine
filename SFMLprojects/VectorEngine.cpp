@@ -44,7 +44,7 @@ Entity::Entity(bool registered) : tag_(tagCounter++), registered(registered)
 Entity::~Entity()
 {
 	for (auto& s : scripts)
-		s->entity = nullptr;
+		s->entity_ = nullptr;
 	this->unRegister();
 }
 
@@ -56,9 +56,9 @@ Entity& Entity::operator=(Entity&& other)
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
 		for (auto& s : scripts)
-			s->entity = this;
+			s->entity_ = this;
 		for (auto& c : components)
-			c->entity = this;
+			c->entity_ = this;
 		if (other.registered) {
 			erase(entities, &other);
 			other.registered = false;
@@ -75,11 +75,11 @@ void Entity::Register()
 	if (!registered) {
 		entities.push_back(this);
 		for (auto& c : components) {
-			c->entity = this;
+			c->entity_ = this;
 			c->Register();
 		}
 		for (auto& s : scripts) {
-			s->entity = this;
+			s->entity_ = this;
 			s->Register();
 		}
 		if (VectorEngine::running())
@@ -105,7 +105,7 @@ void Entity::addComponent(std::unique_ptr<Component> c)
 {
 	if (this->registered) {
 		c->Register();
-		c->entity = this;
+		c->entity_ = this;
 	}
 	components.push_back(std::move(c));
 }
@@ -113,7 +113,7 @@ void Entity::addComponent(std::unique_ptr<Component> c)
 void Entity::addScript(std::unique_ptr<Script> s)
 {
 	if (this->registered) {
-		s->entity = this;
+		s->entity_ = this;
 		s->Register();
 	}
 	if (VectorEngine::running())
@@ -145,7 +145,7 @@ void VectorEngine::forEachScript(F f, Args&&...args)
 			it++;
 		} catch (const SeppukuException& exp) {
 			exp.script->unRegister();
-			erase_if(exp.script->entity->scripts, [&](auto& s) { return s.get() == exp.script; });
+			erase_if(exp.script->entity_->scripts, [&](auto& s) { return s.get() == exp.script; });
 			//std::cout << "SEPPUKU\n";
 		}
 	}

@@ -11,7 +11,7 @@
 #define log_init()
 #endif
 
-namespace ParticlesScripts {
+namespace ParticleScripts {
 
 	class EmittFromMouse : public Script {
 		Particles* p;
@@ -192,7 +192,7 @@ namespace ParticlesScripts {
 		void init()
 		{
 			static int i = 1;
-			log_init("%d", i++);
+			//log_init("%d", i++);
 			p = getComponent<Particles>();
 			p->spawn = false;
 

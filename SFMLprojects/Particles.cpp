@@ -6,7 +6,7 @@ ParticleSystem ParticleSystem::instance;
 
 void ParticleSystem::update()
 {
-	forEachSpanThis(this, &ParticleSystem::updateBatch, this->particlesData, this->vertices, this->velocities, this->lifeTimes);
+	forEachSpan(&ParticleSystem::updateBatch, this, this->getComponents<Particles>(), this->vertices, this->velocities, this->lifeTimes);
 }
 
 void ParticleSystem::add(Component* data)
@@ -16,26 +16,27 @@ void ParticleSystem::add(Component* data)
 	addSize(this->velocities);
 	addSize(this->vertices);
 	addSize(this->lifeTimes);
-	this->particlesData.push_back(ps);
 }
 
-void ParticleSystem::remove(Component* c)
+void ParticleSystem::remove(Component* data)
 {
-	auto p = dynamic_cast<Particles*>(c);
-	erase(this->particlesData, p);
+	auto ps = dynamic_cast<Particles*>(data);
+	auto removeSize = [&](auto& range) { range.resize(range.size() - ps->count); };
+	removeSize(this->velocities);
+	removeSize(this->vertices);
+	removeSize(this->lifeTimes);
 }
 
-/* TODO: de transformat emitter-ul */
-inline void ParticleSystem::render(sf::RenderWindow& target)
+inline void ParticleSystem::render(sf::RenderTarget& target)
 {
 	auto draw = [&](const Particles& ps, gsl::span<sf::Vertex> v) {
 		if(ps.applyTransform)
-			target.draw(v.data(), v.size(), sf::Points, ps.entity->transform);
+			target.draw(v.data(), v.size(), sf::Points, ps.entity()->transform);
 		else
 			target.draw(v.data(), v.size(), sf::Points);
 	};
 
-	forEachSpan(draw, this->particlesData, this->vertices);
+	forEachSpan(draw, this->getComponents<Particles>(), this->vertices);
 }
 
 void ParticleSystem::updateBatch(

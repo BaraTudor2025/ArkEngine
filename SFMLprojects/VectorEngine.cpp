@@ -34,7 +34,7 @@ Script::~Script()
 	unRegister();
 }
 
-Entity::Entity(bool registered) : tag_(tagCounter++), registered(registered)
+Entity::Entity(bool registered) : id_(tagCounter++), registered(registered)
 {
 	if (registered) {
 		entities.push_back(this);
@@ -51,7 +51,7 @@ Entity::~Entity()
 Entity& Entity::operator=(Entity&& other)
 {
 	if (this != &other) {
-		this->tag_ = other.tag_;
+		this->id_ = other.id_;
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
 		for (auto& s : scripts)
@@ -100,16 +100,17 @@ void Entity::unRegister()
 	erase(entities, this);
 }
 
-void Entity::addComponent(std::unique_ptr<Component> c)
+Component* Entity::addComponent(std::unique_ptr<Component> c)
 {
 	if (this->registered) {
 		c->Register();
 		c->entity_ = this;
 	}
-	components.push_back(std::move(c));
+	this->components.push_back(std::move(c));
+	return this->components.back().get();
 }
 
-void Entity::addScript(std::unique_ptr<Script> s)
+Script* Entity::addScript(std::unique_ptr<Script> s)
 {
 	if (this->registered) {
 		s->entity_ = this;
@@ -118,15 +119,16 @@ void Entity::addScript(std::unique_ptr<Script> s)
 	if (VectorEngine::running())
 		s->init();
 	scripts.push_back(std::move(s));
+	return this->scripts.back().get();
 }
 
-void VectorEngine::create(sf::VideoMode vm, std::string name)
+void VectorEngine::create(sf::VideoMode vm, std::string name, sf::ContextSettings settings)
 {
 	width = vm.width;
 	height = vm.height;
 	view.setSize(vm.width, vm.height);
 	view.setCenter(0, 0);
-	window.create(vm, name, sf::Style::Close | sf::Style::Resize);
+	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
 }
 
 void VectorEngine::addSystem(System* s)
@@ -140,12 +142,10 @@ void VectorEngine::forEachScript(F f, Args&&...args)
 	for (auto it = Script::scripts.begin(); it != Script::scripts.end();) {
 		try {
 			std::invoke(f, *it, std::forward<Args>(args)...);
-			//(*it)->init();
 			it++;
 		} catch (const SeppukuException& exp) {
 			exp.script->unRegister();
 			erase_if(exp.script->entity_->scripts, [&](auto& s) { return s.get() == exp.script; });
-			//std::cout << "SEPPUKU\n";
 		}
 	}
 }
@@ -177,7 +177,7 @@ void VectorEngine::run()
 				break;
 			}
 		}
-		window.clear();
+		window.clear(backGroundColor);
 
 		delta_time = clock.restart();
 

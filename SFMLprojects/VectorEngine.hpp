@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <deque>
+#include <any>
 #include "Util.hpp"
 
 //#define VENGINE_BUILD_DLL 0
@@ -54,7 +55,25 @@ private:
 	friend class System;
 };
 
-struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable { };
+
+//struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable {
+//	using sf::Transformable::Transformable;
+//	operator const sf::Transform&() const { return this->getTransform();  }
+//	operator const sf::RenderStates&() const { return this->getTransform(); }
+//};
+
+/* convinient alias, 
+ * use only if entity has transformable component
+ * use: getComponent<Transform>();
+*/
+
+// using Transform = sf::Transformable;
+
+// TODO: special rectangle shape class
+struct VECTOR_ENGINE_API RectangleShape : public Data<RectangleShape>, sf::RectangleShape { 
+	using sf::RectangleShape::RectangleShape;
+};
+
 
 class VECTOR_ENGINE_API Script : public NonCopyable {
 
@@ -97,22 +116,24 @@ public:
 
 	void Register();
 
-	int tag() { return tag_; }
+	std::any tag;
+
+	int id() { return id_; }
 
 	template <typename T> T* getComponent(); 
 	template <typename T> T* getScript();
 
-	void addComponent(std::unique_ptr<Component> c);
-	void addScript(std::unique_ptr<Script> s);
+	Component* addComponent(std::unique_ptr<Component> c);
+	Script* addScript(std::unique_ptr<Script> s);
 
 	template <typename T, typename... Args>
-	void addComponent(Args&&... args) {
-		addComponent(std::make_unique<T>(std::forward<Args>(args)...));
+	T* addComponent(Args&&... args) {
+		return static_cast<T*>(addComponent(std::make_unique<T>(std::forward<Args>(args)...)));
 	}
 
 	template <typename T, typename... Args>
-	void addScript(Args&&... args) {
-		addScript(std::make_unique<T>(std::forward<Args>(args)...));
+	Script* addScript(Args&&... args) {
+		return addScript(std::make_unique<T>(std::forward<Args>(args)...));
 	}
 
 private:
@@ -121,7 +142,7 @@ private:
 	std::vector<std::unique_ptr<Component>> components;
 	std::vector<std::unique_ptr<Script>> scripts;
 	bool registered;
-	int tag_;
+	int id_;
 
 	static inline int tagCounter = 1;
 	static inline std::vector<Entity*> entities;
@@ -177,8 +198,7 @@ protected:
 	}
 
 	template <typename T>
-	std::vector<T*>& getComponents()
-	{
+	std::vector<T*>& getComponents() {
 		return Data<T>::components;
 	}
 
@@ -197,7 +217,7 @@ private:
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable, public NonMovable {
 
 public:
-	static void create(sf::VideoMode vm, std::string name);
+	static void create(sf::VideoMode vm, std::string name, sf::ContextSettings = sf::ContextSettings());
 
 	static sf::Vector2u windowSize() { return { width, height }; }
 
@@ -213,19 +233,20 @@ public:
 
 	static sf::Vector2f center() { return static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f; }
 
-private:
+	static inline sf::Color backGroundColor;
 
-	template <class F, class...Args>
-	static void forEachScript(F, Args&&...);
+private:
 
 	static inline sf::RenderWindow window;
 	static inline sf::View view;
-	static inline uint32_t width, height;
-	static inline bool running_ = false;
 	static inline sf::Time delta_time;
 	static inline sf::Clock clock;
-
+	static inline uint32_t width, height;
+	static inline bool running_ = false;
 	static inline std::vector<System*> systems;
+
+	template <class F, class...Args>
+	static void forEachScript(F, Args&&...);
 };
 
 
@@ -244,7 +265,7 @@ T* Entity::getComponent()
 		if (p)
 			return p;
 	}
-	std::cerr << "entity id(" << this->tag() << "): nu am gasit componenta :( \n";
+	std::cerr << "entity id(" << this->id() << "): nu am gasit componenta :( \n";
 	return nullptr;
 }
 
@@ -256,7 +277,7 @@ T* Entity::getScript()
 		if (p)
 			return p;
 	}
-	std::cerr << "entity id(" << this->tag() << "): nu am gasit scriptul :( \n";
+	std::cerr << "entity id(" << this->id() << "): nu am gasit scriptul :( \n";
 	return nullptr;
 }
 

@@ -2,7 +2,7 @@
 #include <unordered_map>
 
 template <typename T>
-inline T& load(const std::string& fileName)
+inline T* load(const std::string& fileName)
 {
 	static std::unordered_map<std::string, T> cache;
 
@@ -19,7 +19,7 @@ inline T& load(const std::string& fileName)
 		T temp;
 		if (!temp.loadFromFile("./res/" + folder + fileName))
 			throw std::runtime_error("nu am gasit fisierul: " + folder + fileName);
-		return cache[fileName] = temp;
+		return &(cache[fileName] = temp);
 	}
-	return it->second;
+	return &(it->second);
 }

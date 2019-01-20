@@ -228,26 +228,28 @@ namespace ParticleScripts {
 		}
 	};
 
-	class Rotate : public Script {
-		Transform* t;
-		float angle;
-		sf::Vector2f around;
-	public:
-		Rotate(float a, sf::Vector2f around) : angle(a), around(around) { }
-		void init()
-		{
-			t = getComponent<Transform>();
-			t->setOrigin(around);
-			t->setPosition(around);
-			auto p = getComponent<Particles>();
-			p->emitter = around;
-			p->applyTransform = true;
-		}
-		void update()
-		{
-			t->rotate(angle * VectorEngine::deltaTime().asSeconds());
-		}
-	};
+	//class Rotate : public Script {
+	//	//Transform* t;
+	//	float angle;
+	//	sf::Vector2f around;
+	//	Particles* p;
+	//public:
+	//	Rotate(float a, sf::Vector2f around) : angle(a), around(around) { }
+	//	void init()
+	//	{
+	//		//t = getComponent<Transform>();
+	//		p = getComponent<Particles>();
+	//		p->transform = std::make_unique<Transform>();
+	//		p->transform->setOrigin(around);
+	//		p->transform->setPosition(around);
+	//		p->emitter = around;
+	//		//p->applyTransform = true;
+	//	}
+	//	void update()
+	//	{
+	//		p->transform->rotate(angle * VectorEngine::deltaTime().asSeconds());
+	//	}
+	//};
 
 	class SpawnLater : public Script {
 		int seconds;

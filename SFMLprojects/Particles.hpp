@@ -13,6 +13,7 @@ static inline constexpr auto PI = 3.14159f;
 struct Particles final : public Data<Particles> {
 
 	COPYABLE(Particles)
+	//MOVABLE(Particles)
 
 	Particles(int count, sf::Time lifeTime,
 	          Distribution<float> speedArgs = { 0, 0 },
@@ -38,10 +39,11 @@ struct Particles final : public Data<Particles> {
 
 	bool spawn = false;
 	bool fireworks = false;
-	bool applyTransform = false;
 	sf::Vector2f emitter{ 0.f, 0.f };
-
 	std::function<sf::Color()> getColor;
+
+	// optional
+	// std::unique_ptr<Transform> transform = nullptr;
 
 	// call if lifeTime is modified
 	void makeLifeTimeDist() noexcept {

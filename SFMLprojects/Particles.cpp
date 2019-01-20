@@ -44,9 +44,10 @@ void ParticleSystem::remove(Component* data)
 inline void ParticleSystem::render(sf::RenderTarget& target)
 {
 	auto draw = [&](Particles& ps, gsl::span<sf::Vertex> v) {
-		if(ps.applyTransform)
-			target.draw(v.data(), v.size(), sf::Points, ps.entity()->getComponent<Transform>()->getTransform());
-		else
+		//if(ps.transform)
+		//	target.draw(v.data(), v.size(), sf::Points, ps.transform->getTransform());
+		//	//target.draw(v.data(), v.size(), sf::Points );
+		//else
 			target.draw(v.data(), v.size(), sf::Points);
 	};
 

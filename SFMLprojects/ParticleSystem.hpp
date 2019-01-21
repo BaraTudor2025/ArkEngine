@@ -13,7 +13,6 @@ static inline constexpr auto PI = 3.14159f;
 struct Particles final : public Data<Particles> {
 
 	COPYABLE(Particles)
-	//MOVABLE(Particles)
 
 	Particles(int count, sf::Time lifeTime,
 	          Distribution<float> speedArgs = { 0, 0 },

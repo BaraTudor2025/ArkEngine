@@ -162,16 +162,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AnimationSystem.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Particles.cpp" />
+    <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="VectorEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AnimationSystem.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="Entities.hpp" />
     <ClInclude Include="experimentalSOAvector.hpp" />
     <ClInclude Include="gsl.hpp" />
-    <ClInclude Include="Particles.hpp" />
+    <ClInclude Include="ParticleSystem.hpp" />
     <ClInclude Include="ParticleScripts.hpp" />
     <ClInclude Include="RandomNumbers.hpp" />
     <ClInclude Include="ResourceManager.hpp" />

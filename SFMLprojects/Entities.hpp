@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include "VectorEngine.hpp"
-#include "Particles.hpp"
+#include "ParticleSystem.hpp"
 #include "Util.hpp"
 #include "ParticleScripts.hpp"
 #include "Scripts.hpp"

@@ -4,6 +4,7 @@
 #include <functional>
 #include <deque>
 #include <any>
+#include <iostream>
 #include "Util.hpp"
 
 //#define VENGINE_BUILD_DLL 0
@@ -56,11 +57,11 @@ private:
 };
 
 
-//struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable {
-//	using sf::Transformable::Transformable;
-//	operator const sf::Transform&() const { return this->getTransform();  }
-//	operator const sf::RenderStates&() const { return this->getTransform(); }
-//};
+struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable {
+	using sf::Transformable::Transformable;
+	operator const sf::Transform&() const { return this->getTransform();  }
+	operator const sf::RenderStates&() const { return this->getTransform(); }
+};
 
 /* convinient alias, 
  * use only if entity has transformable component
@@ -69,10 +70,10 @@ private:
 
 // using Transform = sf::Transformable;
 
-// TODO: special rectangle shape class
-struct VECTOR_ENGINE_API RectangleShape : public Data<RectangleShape>, sf::RectangleShape { 
-	using sf::RectangleShape::RectangleShape;
-};
+//// TODO: special rectangle shape class
+//struct VECTOR_ENGINE_API RectangleShape : public Data<RectangleShape>, sf::RectangleShape { 
+//	using sf::RectangleShape::RectangleShape;
+//};
 
 
 class VECTOR_ENGINE_API Script : public NonCopyable {
@@ -84,6 +85,7 @@ public:
 protected:
 	virtual void init() { }
 	virtual void update() { }
+	//virtual void fixedUpdate() { }
 	virtual void handleInput(sf::Event) { }
 	template <typename T> T* getComponent();
 	template <typename T> T* getScript();

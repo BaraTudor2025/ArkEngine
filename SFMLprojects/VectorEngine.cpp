@@ -158,6 +158,7 @@ void VectorEngine::run()
 	forEachScript(&Script::init);
 
 	running_ = true;
+	window.setVerticalSyncEnabled(true);
 
 	while (window.isOpen()) {
 

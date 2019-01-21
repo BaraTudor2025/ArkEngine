@@ -2,7 +2,7 @@
 #include <fstream>
 #include <thread>
 #include <chrono>
-#include "Particles.hpp"
+#include "ParticleSystem.hpp"
 #include "VectorEngine.hpp"
 
 #if 0

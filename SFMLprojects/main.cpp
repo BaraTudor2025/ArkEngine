@@ -9,128 +9,16 @@
 #include <cstdlib>
 #include <cmath>
 #include <thread>
-#include "Particles.hpp"
+#include "ParticleSystem.hpp"
 #include "ParticleScripts.hpp"
 #include "RandomNumbers.hpp"
 #include "VectorEngine.hpp"
 #include "Util.hpp"
 #include "Entities.hpp"
 #include "Scripts.hpp"
-#include "ResourceManager.hpp"
+#include "AnimationSystem.hpp"
 
 using namespace std::literals;
-
-#if 1
-
-// Animation applies textures on a shape component
-// Entity needs shape component
-struct Animation : public Data<Animation> {
-
-public:
-	Animation(std::string fileName, sf::Vector2u frameCount, sf::Time frameTime, int state)
-	: fileName(fileName), frameCount(frameCount), frameTime(frameTime), row(state)
-	{ }
-
-	int row;
-	sf::Time frameTime;
-	bool flipped = false;
-
-private:
-	std::string fileName;
-	sf::Vector2u currentFrame;
-	const sf::Vector2u frameCount;
-	sf::Time passedTime;
-	sf::IntRect uvRect;
-	sf::Texture* pTexture;
-	//sf::VertexArray vertices;
-
-	template<typename>
-	friend class AnimationSystem;
-
-public:
-	template<std::size_t N> decltype(auto) get() {
-		if constexpr (N == 0) return this->row;
-		else if constexpr (N == 1) return this->frameCount;
-		else if constexpr (N == 2) return this->frameTime;
-		else if constexpr (N == 3) return (this->currentFrame);
-		else if constexpr (N == 4) return (this->passedTime);
-		else if constexpr (N == 5) return (this->uvRect);
-	}
-};
-
-namespace std{
-
-	template<> struct tuple_size<Animation> : std::integral_constant<std::size_t, 6> {};
-
-	template<std::size_t N> 
-	struct tuple_element<N, Animation> {
-		using type = decltype(std::declval<Animation>().get<N>());
-	};
-}
-
-template <typename Animated>
-class AnimationSystem : public System {
-
-public:
-	void init() override {
-		initFrom<Animation>();
-	}
-
-	void update() override
-	{
-		for (auto animation : this->getComponents<Animation>()) {
-			if (!animation->entity()->getComponent<Animated>())
-				continue;
-
-			auto&[row, frameCount, frameTime, currentFrame, passedTime, uvRect] = *animation;
-
-			currentFrame.y = row;
-			passedTime += VectorEngine::deltaTime();
-			if (passedTime >= frameTime) {
-				passedTime -= frameTime;
-				currentFrame.x += 1;
-				if (currentFrame.x >= frameCount.x)
-					currentFrame.x = 0;
-			}
-			uvRect.top = currentFrame.y * uvRect.height;
-			uvRect.left = currentFrame.x * uvRect.width;
-		}
-	}
-
-	void add(Component* c) override 
-	{
-		if (auto a = static_cast<Animation*>(c); a) {
-			if (!a->entity()->getComponent<Animated>())
-				return;
-			a->pTexture = load<sf::Texture>(a->fileName);
-			a->pTexture->setSmooth(true);
-			a->uvRect.width = a->pTexture->getSize().x / (float)a->frameCount.x;
-			a->uvRect.height = a->pTexture->getSize().y / (float)a->frameCount.y;
-			a->passedTime = sf::seconds(0);
-			a->currentFrame.x = 0;
-			a->entity()->getComponent<Animated>()->setTexture(a->pTexture);
-		}
-	}
-
-	virtual void render(sf::RenderTarget& target) override
-	{
-		for (auto animation : this->getComponents<Animation>()) {
-			auto animated = animation->entity()->getComponent<Animated>();
-			if (!animated)
-				continue;
-			animated->setTextureRect(animation->uvRect);
-			//sf::Shape p;
-			//sf::RenderStates rs;
-			//rs.texture = animation->pTexture;
-			target.draw(*animated);
-		}
-	}
-
-	virtual void remove(Component*) override { }
-
-};
-
-#endif
 
 #if 0
 struct RigidBody : public Data<RigidBody> {
@@ -177,35 +65,39 @@ private:
 
 class MovePlayer : public Script {
 	Animation* animation;
-	RectangleShape* body;
+	Transform* transform;
 	float speed;
 public:
 
 	MovePlayer(float speed) : speed(speed) { }
-	void init()
-	{
+	void init() {
 		animation = getComponent<Animation>();
-		body = getComponent<RectangleShape>();
+		transform = getComponent<Transform>();
 	}
+
 	void update() {
 		bool moved = false;
 		auto dt = VectorEngine::deltaTime().asSeconds();
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-			body->move(speed * dt, 0);
+			transform->move(speed * dt, 0);
 			moved = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-			body->move(-speed * dt, 0);
+			transform->move(-speed * dt, 0);
 			moved = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-			body->move(0, -speed * dt);
+			transform->move(0, -speed * dt);
 			moved = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-			body->move(0, speed * dt);
+			transform->move(0, speed * dt);
 			moved = true;
 		}
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
+			transform->rotate(-45 * dt);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
+			transform->rotate(45 * dt);
 		if (moved)
 			animation->row = 1;
 		else
@@ -222,15 +114,14 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 10;
+	//settings.attributeFlags = sf::ContextSettings::Attribute::
 	VectorEngine::create(fourByThree, "Articifii!", settings);
 	VectorEngine::backGroundColor = sf::Color(150, 150, 150);
-	VectorEngine::addSystem(new AnimationSystem<RectangleShape>());
+	VectorEngine::addSystem(new AnimationSystem());
 	//VectorEngine::addSystem(&ParticleSystem::instance);
 	
 	Entity player;
-	auto shape = player.addComponent<RectangleShape>();
-	shape->setSize(sf::Vector2f{ 100, 150 });
-	shape->setPosition(200, 200);
+	player.addComponent<Transform>()->setPosition(VectorEngine::center());
 	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
 	player.addScript<MovePlayer>(100);
 	player.Register();

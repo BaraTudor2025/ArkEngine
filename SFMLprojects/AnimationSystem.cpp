@@ -4,14 +4,16 @@
 template <typename Range>
 inline void updateVerticesWithRect(Range& vertices, const sf::IntRect& uvRect)
 {
+	auto h = std::abs(uvRect.height);
+	auto w = std::abs(uvRect.width);
 	vertices[0].position = sf::Vector2f(0, 0);
-	vertices[1].position = sf::Vector2f(0, uvRect.height);
-	vertices[2].position = sf::Vector2f(uvRect.width, 0);
-	vertices[3].position = sf::Vector2f(uvRect.width, uvRect.height);
+	vertices[1].position = sf::Vector2f(0, h);
+	vertices[2].position = sf::Vector2f(w, 0);
+	vertices[3].position = sf::Vector2f(w, h);
 
-	float left = static_cast<float>(uvRect.left);
+	float left = uvRect.left;//static_cast<float>(uvRect.left);
 	float right = left + uvRect.width;
-	float top = static_cast<float>(uvRect.top);
+	float top = uvRect.top; //static_cast<float>(uvRect.top);
 	float bottom = top + uvRect.height;
 
 	vertices[0].texCoords = sf::Vector2f(left, top);
@@ -37,7 +39,7 @@ inline decltype(auto) Animation::get()
 	else if constexpr (N == 1) return this->frameCount;
 	else if constexpr (N == 2) return this->frameTime;
 	else if constexpr (N == 3) return (this->currentFrame);
-	else if constexpr (N == 4) return (this->passedTime);
+	else if constexpr (N == 4) return (this->elapsedTime);
 	else if constexpr (N == 5) return (this->uvRect);
 }
 
@@ -48,7 +50,7 @@ void AnimationSystem::add(Component * c)
 		a->pTexture->setSmooth(true);
 		a->uvRect.width = a->pTexture->getSize().x / (float)a->frameCount.x;
 		a->uvRect.height = a->pTexture->getSize().y / (float)a->frameCount.y;
-		a->passedTime = sf::seconds(0);
+		a->elapsedTime = sf::seconds(0);
 		a->currentFrame.x = 0;
 		a->vertices.resize(4);
 		a->vertices.setPrimitiveType(sf::TriangleStrip);
@@ -59,19 +61,24 @@ void AnimationSystem::add(Component * c)
 void AnimationSystem::update()
 {
 	for (auto animation : this->getComponents<Animation>()) {
-		auto&[row, frameCount, frameTime, currentFrame, passedTime, uvRect] = *animation;
+		auto&[row, frameCount, frameTime, currentFrame, elapsedTime, uvRect] = *animation;
 
 		currentFrame.y = row;
-		passedTime += VectorEngine::deltaTime();
-		if (passedTime >= frameTime) {
-			passedTime -= frameTime;
+		elapsedTime += VectorEngine::deltaTime();
+		if (elapsedTime >= frameTime) {
+			elapsedTime -= frameTime;
 			currentFrame.x += 1;
 			if (currentFrame.x >= frameCount.x)
 				currentFrame.x = 0;
 		}
 		uvRect.top = currentFrame.y * uvRect.height;
-		uvRect.left = currentFrame.x * uvRect.width;
-		// TODO: animation->flipped
+		if (animation->flipped) {
+			uvRect.left = (currentFrame.x + 1) * std::abs(uvRect.width);
+			uvRect.width = -std::abs(uvRect.width);
+		} else {
+			uvRect.left = currentFrame.x * uvRect.width;
+			uvRect.width = std::abs(uvRect.width);
+		}
 
 		updateVerticesWithRect(animation->vertices, uvRect);
 	}

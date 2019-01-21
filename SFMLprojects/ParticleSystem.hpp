@@ -120,8 +120,6 @@ public:
 	static inline float gravityMagnitude = 20;
 	static inline bool hasUniversalGravity = true;
 
-	static ParticleSystem instance;
-
 private:
 	void init() override {
 		this->initFrom<Particles>();

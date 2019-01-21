@@ -74,6 +74,7 @@ public:
 	void init() {
 		animation = getComponent<Animation>();
 		transform = getComponent<Transform>();
+		animation->flipped = true;
 	}
 
 	void fixedUpdate(sf::Time frameTime) {
@@ -85,10 +86,12 @@ public:
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
 			transform->move(dx * std::cos(angle), dx * std::sin(angle));
 			moved = true;
+			animation->flipped = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
 			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
 			moved = true;
+			animation->flipped = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
 			//transform->move(dx * std::cos(PI/2 - angle), dx * std::sin(angle - PI/2));
@@ -153,26 +156,24 @@ public:
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
-	auto fullHD = sf::VideoMode(1920, 1080);
-	auto normalHD = sf::VideoMode(1280, 720);
-	auto fourByThree = sf::VideoMode(1024, 768);
 
 	sf::ContextSettings settings;
-	settings.antialiasingLevel = 10;
-	//settings.attributeFlags = sf::ContextSettings::Attribute::
-	VectorEngine::create(fourByThree, "Articifii!", sf::seconds(1/60.f),settings);
-	VectorEngine::backGroundColor = sf::Color(150, 150, 150);
+	settings.antialiasingLevel = 16;
+
+	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f),settings);
+	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
+
 	VectorEngine::addSystem(new AnimationSystem());
-	//VectorEngine::addSystem(&ParticleSystem::instance);
+	VectorEngine::addSystem(new ParticleSystem());
 	
 	Entity fpsCounter;
 	fpsCounter.addScript<FpsCounter>(true, true);
-	//fpsCounter.Register();
+	fpsCounter.Register();
 
 	Entity player;
 	player.addComponent<Transform>()->setPosition(VectorEngine::center());
 	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
-	player.addScript<MovePlayer>(500, 360);
+	player.addScript<MovePlayer>(200, 360);
 	player.Register();
 
 	using namespace ParticleScripts;
@@ -220,15 +221,15 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//pp->emitter = VectorEngine::center();
 
 	//plimbarica.Register();
-	//grass.Register();
-	//fire.Register();
-	//trail.Register();
-	//rainbow.Register();
+	grass.Register();
+	fire.Register();
+	trail.Register();
+	rainbow.Register();
 
 	auto fwEntities = makeFireWorksEntities(10, rainbowParticles);
 	for (auto& e : fwEntities) {
 		e.addScript<SpawnLater>(5);
-		//e.Register();
+		e.Register();
 	}
 
 	auto randomParticles = makeRandomParticlesFountains(50, 1.f, rainbowParticles);

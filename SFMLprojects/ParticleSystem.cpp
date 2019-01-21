@@ -2,8 +2,6 @@
 #include "Util.hpp"
 #include <iostream>
 
-ParticleSystem ParticleSystem::instance;
-
 void ParticleSystem::update()
 {
 	forEachSpan(&ParticleSystem::updateBatch, this, this->getComponents<Particles>(), this->vertices, this->velocities, this->lifeTimes);
@@ -41,7 +39,7 @@ void ParticleSystem::remove(Component* data)
 	//}
 }
 
-inline void ParticleSystem::render(sf::RenderTarget& target)
+void ParticleSystem::render(sf::RenderTarget& target)
 {
 	auto draw = [&](Particles& ps, gsl::span<sf::Vertex> v) {
 		//if(ps.transform)

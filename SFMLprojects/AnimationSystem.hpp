@@ -9,7 +9,7 @@ public:
 	{ }
 
 	int row;
-	bool flipped = false; // TODO
+	bool flipped = false;
 	sf::Time frameTime;
 	sf::Vector2f frameSize() { return static_cast<sf::Vector2f>(sf::Vector2i{ uvRect.width, uvRect.height }); }
 
@@ -17,7 +17,7 @@ private:
 	const std::string fileName;
 	sf::Vector2u currentFrame;
 	const sf::Vector2u frameCount;
-	sf::Time passedTime;
+	sf::Time elapsedTime;
 	sf::IntRect uvRect;
 	sf::Texture* pTexture;
 	sf::VertexArray vertices;

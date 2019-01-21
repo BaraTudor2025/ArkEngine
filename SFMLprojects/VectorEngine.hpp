@@ -208,8 +208,8 @@ private:
 	virtual void init() { }
 	virtual void update() = 0;
 	virtual void render(sf::RenderTarget& target) = 0;
-	virtual void add(Component*) = 0;
-	virtual void remove(Component*) = 0;
+	virtual void add(Component*) { }
+	virtual void remove(Component*) { }
 
 	friend class VectorEngine;
 	template <typename T> friend struct Data;
@@ -219,6 +219,11 @@ private:
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable, public NonMovable {
 
 public:
+
+	static inline const sf::VideoMode resolutionFullHD{1920, 1080};
+	static inline const sf::VideoMode resolutionNormalHD{1280, 720};
+	static inline const sf::VideoMode resolutionFourByThree{1024, 768};
+
 	/* fixedUpdateTime is the time of each fixed frame */
 	static void create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime ,sf::ContextSettings = sf::ContextSettings());
 
@@ -241,6 +246,9 @@ public:
 	static sf::Vector2f center() { return static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f; }
 
 	static inline sf::Color backGroundColor;
+	
+	// should be used only for debuging purpose
+	static sf::RenderWindow& degubGetWindow() { return window; }
 
 private:
 

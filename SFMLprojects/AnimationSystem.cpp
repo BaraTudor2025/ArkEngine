@@ -82,7 +82,8 @@ void AnimationSystem::render(sf::RenderTarget & target)
 	sf::RenderStates rs;
 	for (auto animation : this->getComponents<Animation>()) {
 		rs.texture = animation->pTexture;
-		rs.transform = *animation->entity()->getComponent<Transform>();
+		if(auto t = animation->entity()->getComponent<Transform>(); t)
+			rs.transform = *t;
 		target.draw(animation->vertices, rs);
 	}
 }

@@ -67,43 +67,88 @@ class MovePlayer : public Script {
 	Animation* animation;
 	Transform* transform;
 	float speed;
+	float rotationSpeed;
 public:
 
-	MovePlayer(float speed) : speed(speed) { }
+	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
 	void init() {
 		animation = getComponent<Animation>();
 		transform = getComponent<Transform>();
 	}
 
-	void update() {
+	void fixedUpdate(sf::Time frameTime) {
 		bool moved = false;
-		auto dt = VectorEngine::deltaTime().asSeconds();
+		auto dt = frameTime.asSeconds();
+		float dx = speed * dt;
+		float angle = toRadians(transform->getRotation());
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-			transform->move(speed * dt, 0);
+			transform->move(dx * std::cos(angle), dx * std::sin(angle));
 			moved = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-			transform->move(-speed * dt, 0);
+			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
 			moved = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-			transform->move(0, -speed * dt);
+			//transform->move(dx * std::cos(PI/2 - angle), dx * std::sin(angle - PI/2));
+			transform->move(dx * std::sin(angle), -dx * std::cos(angle));
 			moved = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-			transform->move(0, speed * dt);
+			transform->move(-dx * std::sin(angle), dx * std::cos(angle));
 			moved = true;
 		}
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
-			transform->rotate(-45 * dt);
+			transform->rotate(rotationSpeed * dt);
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
-			transform->rotate(45 * dt);
+			transform->rotate(-rotationSpeed * dt);
+
 		if (moved)
 			animation->row = 1;
 		else
 			animation->row = 0;
 	}
 
+};
+
+class FpsCounter : public Script {
+	sf::Time fixedUpdateElapsed;
+	sf::Time updateElapsed;
+	int fixedFPS;
+	int updateFPS;
+	bool measureFixedUpdate;
+	bool measureUpdate;
+
+public:
+	FpsCounter(bool measureUpdate, bool measureFixedUpdate)
+		:measureFixedUpdate(measureFixedUpdate), 
+		measureUpdate(measureUpdate) { }
+
+	void update() {
+		if (measureUpdate) {
+			updateElapsed += VectorEngine::deltaTime();
+			updateFPS += 1;
+			if (updateElapsed.asMilliseconds() >= 1000) {
+				updateElapsed -= sf::milliseconds(1000);
+				log("fps: %d", updateFPS);
+				updateFPS = 0;
+			}
+		}
+	}
+
+	void fixedUpdate(sf::Time dt) {
+		if (measureFixedUpdate) {
+			fixedUpdateElapsed += dt;
+			fixedFPS += 1;
+			if (fixedUpdateElapsed.asMilliseconds() >= 1000) {
+				fixedUpdateElapsed -= sf::milliseconds(1000);
+				log("fps: %d", fixedFPS);
+				fixedFPS = 0;
+			}
+		}
+	}
 };
 
 int main() // are nevoie de c++17 si SFML 2.5.1
@@ -115,15 +160,19 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	sf::ContextSettings settings;
 	settings.antialiasingLevel = 10;
 	//settings.attributeFlags = sf::ContextSettings::Attribute::
-	VectorEngine::create(fourByThree, "Articifii!", settings);
+	VectorEngine::create(fourByThree, "Articifii!", sf::seconds(1/60.f),settings);
 	VectorEngine::backGroundColor = sf::Color(150, 150, 150);
 	VectorEngine::addSystem(new AnimationSystem());
 	//VectorEngine::addSystem(&ParticleSystem::instance);
 	
+	Entity fpsCounter;
+	fpsCounter.addScript<FpsCounter>(true, true);
+	//fpsCounter.Register();
+
 	Entity player;
 	player.addComponent<Transform>()->setPosition(VectorEngine::center());
 	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
-	player.addScript<MovePlayer>(100);
+	player.addScript<MovePlayer>(500, 360);
 	player.Register();
 
 	using namespace ParticleScripts;

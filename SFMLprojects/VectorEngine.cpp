@@ -122,8 +122,9 @@ Script* Entity::addScript(std::unique_ptr<Script> s)
 	return this->scripts.back().get();
 }
 
-void VectorEngine::create(sf::VideoMode vm, std::string name, sf::ContextSettings settings)
+void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, sf::ContextSettings settings)
 {
+	frameTime = fixedUT;
 	width = vm.width;
 	height = vm.height;
 	view.setSize(vm.width, vm.height);
@@ -158,7 +159,8 @@ void VectorEngine::run()
 	forEachScript(&Script::init);
 
 	running_ = true;
-	window.setVerticalSyncEnabled(true);
+
+	auto lag = sf::Time::Zero;
 
 	while (window.isOpen()) {
 
@@ -181,11 +183,18 @@ void VectorEngine::run()
 		window.clear(backGroundColor);
 
 		delta_time = clock.restart();
+		lag += delta_time;
 
 		forEachScript(&Script::update);
 
+		while (lag >= frameTime) {
+			lag -= frameTime;
+			forEachScript(&Script::fixedUpdate, frameTime);
+		}
+
 		for (auto system : systems)
 			system->update();
+
 
 		for (auto system : systems)
 			system->render(window);

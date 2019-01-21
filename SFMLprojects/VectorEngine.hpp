@@ -85,7 +85,7 @@ public:
 protected:
 	virtual void init() { }
 	virtual void update() { }
-	//virtual void fixedUpdate() { }
+	virtual void fixedUpdate(sf::Time) { } // should be used for physics
 	virtual void handleInput(sf::Event) { }
 	template <typename T> T* getComponent();
 	template <typename T> T* getScript();
@@ -219,13 +219,18 @@ private:
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable, public NonMovable {
 
 public:
-	static void create(sf::VideoMode vm, std::string name, sf::ContextSettings = sf::ContextSettings());
+	/* fixedUpdateTime is the time of each fixed frame */
+	static void create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime ,sf::ContextSettings = sf::ContextSettings());
 
 	static sf::Vector2u windowSize() { return { width, height }; }
 
 	static void addSystem(System* s);
 
 	static void run();
+
+	static void setVSync(bool enabled) { window.setVerticalSyncEnabled(enabled); }
+
+	static void setFPSlimit(int fps) { window.setFramerateLimit(fps); }
 
 	static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
 
@@ -242,6 +247,7 @@ private:
 	static inline sf::RenderWindow window;
 	static inline sf::View view;
 	static inline sf::Time delta_time;
+	static inline sf::Time frameTime;
 	static inline sf::Clock clock;
 	static inline uint32_t width, height;
 	static inline bool running_ = false;

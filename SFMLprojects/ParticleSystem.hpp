@@ -38,11 +38,10 @@ struct Particles final : public Data<Particles> {
 
 	bool spawn = false;
 	bool fireworks = false;
+	bool applyTransform = false;
 	sf::Vector2f emitter{ 0.f, 0.f };
 	std::function<sf::Color()> getColor;
 
-	// optional
-	// std::unique_ptr<Transform> transform = nullptr;
 
 	// call if lifeTime is modified
 	void makeLifeTimeDist() noexcept {

@@ -9,7 +9,7 @@ public:
 	{ }
 
 	int row;
-	bool flipped = false;
+	bool flipped = false;//maybe add flipX and flipY
 	sf::Time frameTime;
 	sf::Vector2f frameSize() { return static_cast<sf::Vector2f>(sf::Vector2i{ uvRect.width, uvRect.height }); }
 

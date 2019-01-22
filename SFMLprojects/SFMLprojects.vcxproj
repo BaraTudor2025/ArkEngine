@@ -169,9 +169,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationSystem.hpp" />
+    <ClInclude Include="const_string.hpp" />
+    <ClInclude Include="DebugSystems.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="Entities.hpp" />
-    <ClInclude Include="experimentalSOAvector.hpp" />
+    <ClInclude Include="SOAvector.hpp" />
     <ClInclude Include="gsl.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />
     <ClInclude Include="ParticleScripts.hpp" />

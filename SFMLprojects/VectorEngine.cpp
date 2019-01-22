@@ -2,10 +2,12 @@
 #include <iostream>
 #include <vector>
 
-#if 0
-#define ecs_log(fmt, ...) log(fmt, __VA_ARGS__)
+#define VEngineDebug false
+
+#if VEngineDebug
+#define debug_log(fmt, ...) log(fmt, __VA_ARGS__)
 #else
-#define ecs_log(fmt, ...)
+#define debug_log(fmt, ...)
 #endif
 
 void Script::Register()
@@ -34,17 +36,17 @@ Script::~Script()
 	unRegister();
 }
 
-Entity::Entity(bool registered) : id_(tagCounter++), registered(registered)
+Entity::Entity(std::any tag) : id_(idCounter++), tag(tag)
 {
-	if (registered) {
-		entities.push_back(this);
-	}
+	registered = false;
 }
 
 Entity::~Entity()
 {
 	for (auto& s : scripts)
 		s->entity_ = nullptr;
+	for (auto& c : components)
+		c->entity_ = nullptr;
 	this->unRegister();
 }
 
@@ -52,19 +54,17 @@ Entity& Entity::operator=(Entity&& other)
 {
 	if (this != &other) {
 		this->id_ = other.id_;
-		this->components = std::move(other.components);
-		this->scripts = std::move(other.scripts);
-		for (auto& s : scripts)
-			s->entity_ = this;
-		for (auto& c : components)
-			c->entity_ = this;
+		this->tag = other.tag;
 		if (other.registered) {
-			erase(entities, &other);
-			other.registered = false;
-			entities.push_back(this);
-			this->registered = true;
-		} else
+			other.unRegister();
+			this->components = std::move(other.components);
+			this->scripts = std::move(other.scripts);
+			this->Register();
+		} else {
 			this->registered = false;
+			this->components = std::move(other.components);
+			this->scripts = std::move(other.scripts);
+		}
 	}
 	return *this;
 }
@@ -84,42 +84,42 @@ void Entity::Register()
 		if (VectorEngine::running())
 			for (auto& s : scripts)
 				s->init();
+		registered = true;
 	}
-	registered = true;
 }
 
 void Entity::unRegister()
 {
-	this->registered = false;
-	if (!this->registered)
+	if (!registered)
 		return;
 	for (auto& s : scripts)
 		s->unRegister();
 	for (auto& c : components)
 		c->unRegister();
 	erase(entities, this);
+	registered = false;
 }
 
 Component* Entity::addComponent(std::unique_ptr<Component> c)
 {
-	if (this->registered) {
-		c->Register();
+	if (registered) {
 		c->entity_ = this;
+		c->Register();
 	}
-	this->components.push_back(std::move(c));
-	return this->components.back().get();
+	components.push_back(std::move(c));
+	return components.back().get();
 }
 
 Script* Entity::addScript(std::unique_ptr<Script> s)
 {
-	if (this->registered) {
+	if (registered) {
 		s->entity_ = this;
 		s->Register();
 	}
 	if (VectorEngine::running())
 		s->init();
 	scripts.push_back(std::move(s));
-	return this->scripts.back().get();
+	return scripts.back().get();
 }
 
 void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, sf::ContextSettings settings)
@@ -145,23 +145,31 @@ void VectorEngine::forEachScript(F f, Args&&...args)
 			std::invoke(f, *it, std::forward<Args>(args)...);
 			it++;
 		} catch (const SeppukuException& exp) {
+#if VEngineDebug
+			static int seppukuCounter = 0;
+			seppukuCounter++;
+			debug_log("seppuku nr %d commited", seppukuCounter);
+#endif
 			exp.script->unRegister();
 			erase_if(exp.script->entity_->scripts, [&](auto& s) { return s.get() == exp.script; });
+			debug_log("removed script");
 		}
 	}
 }
 
 void VectorEngine::run()
 {
+	debug_log("start init systems");
 	for (auto& s : systems)
 		s->init();
 	
+	debug_log("start init scripts");
 	forEachScript(&Script::init);
 
 	running_ = true;
-
 	auto lag = sf::Time::Zero;
 
+	debug_log("start game loop scripts");
 	while (window.isOpen()) {
 
 		sf::Event ev;

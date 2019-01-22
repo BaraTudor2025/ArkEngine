@@ -17,6 +17,7 @@
 #include "Entities.hpp"
 #include "Scripts.hpp"
 #include "AnimationSystem.hpp"
+#include "DebugSystems.hpp"
 
 using namespace std::literals;
 
@@ -116,65 +117,31 @@ public:
 
 };
 
-class FpsCounter : public Script {
-	sf::Time fixedUpdateElapsed;
-	sf::Time updateElapsed;
-	int fixedFPS;
-	int updateFPS;
-	bool measureFixedUpdate;
-	bool measureUpdate;
 
-public:
-	FpsCounter(bool measureUpdate, bool measureFixedUpdate)
-		:measureFixedUpdate(measureFixedUpdate), 
-		measureUpdate(measureUpdate) { }
-
-	void update() {
-		if (measureUpdate) {
-			updateElapsed += VectorEngine::deltaTime();
-			updateFPS += 1;
-			if (updateElapsed.asMilliseconds() >= 1000) {
-				updateElapsed -= sf::milliseconds(1000);
-				log("fps: %d", updateFPS);
-				updateFPS = 0;
-			}
-		}
-	}
-
-	void fixedUpdate(sf::Time dt) {
-		if (measureFixedUpdate) {
-			fixedUpdateElapsed += dt;
-			fixedFPS += 1;
-			if (fixedUpdateElapsed.asMilliseconds() >= 1000) {
-				fixedUpdateElapsed -= sf::milliseconds(1000);
-				log("fps: %d", fixedFPS);
-				fixedFPS = 0;
-			}
-		}
-	}
-};
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 
-	sf::ContextSettings settings;
+	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
-	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f),settings);
-	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
+	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
+	//VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 
-	VectorEngine::addSystem(new AnimationSystem());
+	//VectorEngine::addSystem(new AnimationSystem());
 	VectorEngine::addSystem(new ParticleSystem());
+	VectorEngine::addSystem(new DebugEntitySystem());
+	//VectorEngine::addSystem(new DebugParticleSystem());
 	
-	Entity fpsCounter;
-	fpsCounter.addScript<FpsCounter>(true, true);
-	fpsCounter.Register();
+	//Entity fpsCounter;
+	//fpsCounter.addScript<FpsCounter>(true, true);
+	//fpsCounter.Register();
 
-	Entity player;
-	player.addComponent<Transform>()->setPosition(VectorEngine::center());
-	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
-	player.addScript<MovePlayer>(200, 360);
-	player.Register();
+	//Entity player;
+	//player.addComponent<Transform>()->setPosition(VectorEngine::center());
+	//player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
+	//player.addScript<MovePlayer>(200, 360);
+	//player.Register();
 
 	using namespace ParticleScripts;
 
@@ -187,52 +154,51 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto fireParticles = getFireParticles();
 	auto greenParticles = getGreenParticles();
 
-	Entity rainbow{ false };
-	rainbow.addComponent<Particles>(rainbowParticles);
+	Entity rainbow;
+	rainbow.addComponent<Particles>(rainbowParticles); //->debugName = "rainbow";
 	rainbow.addScript<SpawnOnRightClick>();
 	rainbow.addScript<EmittFromMouse>();
 
-	Entity fire{ false };
-	fire.addComponent<Particles>(fireParticles);
+	Entity fire;
+	fire.addComponent<Particles>(fireParticles); //->debugName = "fire";
 	fire.addScript<SpawnOnLeftClick>();
 	fire.addScript<EmittFromMouse>();
 
-	Entity grass{ false };
-	greenParticles.spawn = true;
-	grass.addComponent<Particles>(greenParticles);
+	Entity grass;
+	auto grassP = grass.addComponent<Particles>(greenParticles);
+	grassP->spawn = true;
+	//grassP->debugName = "grass";
 	grass.addScript<DeSpawnOnMouseClick<>>();
 	//grass.addScript<ReadColorFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
-	Entity trail{ false };
-	trail.addComponent<Particles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal );
+	Entity trail;
+	trail.addComponent<Particles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal )->debugName="mouse trail";
 	trail.addScript<EmittFromMouse>();
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
 
 	Entity plimbarica;
-	//plimbarica.addComponent<Transform>();
-	plimbarica.addComponent<Particles>(rainbowParticles);
-	//plimbarica.addScript<RotateParticles>(4 * 360);
-	//plimbarica.addScript<TraillingEffect>();
-	//plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
-	plimbarica.getComponent<Particles>()->spawn = true;
-	//pp->spawn = true;
-	//pp->emitter = VectorEngine::center();
+	plimbarica.addComponent<Transform>()->scale(10, 10);
+	auto plimb = plimbarica.addComponent<Particles>(rainbowParticles);
+	plimb->spawn = true;
+	//plimb->debugName = "plimbarica";
+	plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
+	//plimbarica.addScript<ReadColorFromConsole>();
 
-	//plimbarica.Register();
 	grass.Register();
-	fire.Register();
+	plimbarica.Register();
 	trail.Register();
 	rainbow.Register();
+	fire.Register();
 
-	auto fwEntities = makeFireWorksEntities(10, rainbowParticles);
+	auto fwEntities = makeFireWorksEntities(10, fireParticles);
 	for (auto& e : fwEntities) {
 		e.addScript<SpawnLater>(5);
-		e.Register();
+		//e.Register();
 	}
 
-	auto randomParticles = makeRandomParticlesFountains(50, 1.f, rainbowParticles);
+	auto randomParticles = makeRandomParticlesFountains(5, 1.f, getGreenParticles());
 	//registerEntities(randomParticles);
 
 	struct UpdateGravityPoint : public Script {
@@ -254,8 +220,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	ParticleSystem::gravityVector = { 0, 0 };
 	ParticleSystem::gravityMagnitude = 100;
 	ParticleSystem::gravityPoint = VectorEngine::center();
-
-	bool reg = true;
 
 	VectorEngine::run();
 	

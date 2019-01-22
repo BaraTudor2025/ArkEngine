@@ -43,6 +43,7 @@ struct VECTOR_ENGINE_API Data : Component {
 
 public:
 	virtual ~Data() { unRegister();  }
+	std::string debugName{"withoutName"};
 
 protected:
 	static inline System* system = nullptr;
@@ -92,8 +93,7 @@ protected:
 	Entity* entity() { return entity_; }
 	const Entity* entity() const { return entity_; }
 
-	// unRegister() si il scoate din Entitate
-	// poate fi apelat in orice functie virtuala overriden
+	// are bug-uri; nu-l folosi
 	void seppuku();
 
 private:
@@ -111,7 +111,7 @@ private:
 class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
 public:
-	explicit Entity(bool registered = false);
+	explicit Entity(std::any tag = nullptr);
 	Entity(Entity&& other) { *this = std::move(other); }
 	Entity& operator=(Entity&& other);
 	~Entity();
@@ -143,14 +143,15 @@ private:
 
 	std::vector<std::unique_ptr<Component>> components;
 	std::vector<std::unique_ptr<Script>> scripts;
-	bool registered;
+	bool registered = false;
 	int id_;
 
-	static inline int tagCounter = 1;
+	static inline int idCounter = 1;
 	static inline std::vector<Entity*> entities;
 
 	friend class VectorEngine;
 	friend class Script;
+	friend class System;
 };
 
 // helpers
@@ -201,7 +202,10 @@ protected:
 
 	template <typename T>
 	std::vector<T*>& getComponents() {
-		return Data<T>::components;
+		if constexpr (std::is_same_v<T, Entity>)
+			return Entity::entities;
+		else
+			return Data<T>::components;
 	}
 
 private:
@@ -219,7 +223,6 @@ private:
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable, public NonMovable {
 
 public:
-
 	static inline const sf::VideoMode resolutionFullHD{1920, 1080};
 	static inline const sf::VideoMode resolutionNormalHD{1280, 720};
 	static inline const sf::VideoMode resolutionFourByThree{1024, 768};
@@ -300,9 +303,9 @@ T* Entity::getScript()
 template<typename T>
 inline void Data<T>::Register()
 {
-	if (!this->registered) {
+	if (!registered) {
 		components.push_back(static_cast<T*>(this));
-		this->registered = true;
+		registered = true;
 		if (VectorEngine::running() && system)
 			system->add(this);
 	}
@@ -311,10 +314,10 @@ inline void Data<T>::Register()
 template<typename T>
 inline void Data<T>::unRegister()
 {
-	if (this->registered) {
+	if (registered) {
 		erase(components, this);
-		this->registered = false;
-		if(system)
+		registered = false;
+		if(VectorEngine::running() && system)
 			system->remove(this);
 	}
 }

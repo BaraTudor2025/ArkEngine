@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\experimental">
+      <UniqueIdentifier>{ed5af11b-7566-4053-9482-9b73baec421a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -50,9 +53,6 @@
     <ClInclude Include="ResourceManager.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="experimentalSOAvector.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Entities.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -63,6 +63,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AnimationSystem.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SOAvector.hpp">
+      <Filter>Header Files\experimental</Filter>
+    </ClInclude>
+    <ClInclude Include="const_string.hpp">
+      <Filter>Header Files\experimental</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugSystems.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

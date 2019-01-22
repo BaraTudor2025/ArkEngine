@@ -136,7 +136,7 @@ namespace ParticleScripts {
 		void init()
 		{
 			p = getComponent<Particles>();
-			std::thread t([&](){
+			std::thread t([p = p, fileName = fileName](){
 				while (true) {
 					std::cout << "press enter to read colors from: " + fileName;
 					std::cin.get();
@@ -155,7 +155,7 @@ namespace ParticleScripts {
 		void init()
 		{
 			p = getComponent<Particles>();
-			std::thread t([&]() {
+			std::thread t([p = p]() {
 				while (true) {
 					std::cout << "enter rgb low and high: ";
 					__IMPL__readColorDistributionFromStream(std::cin, p);
@@ -171,7 +171,7 @@ namespace ParticleScripts {
 		void init()
 		{
 			p = getComponent<Particles>();
-			std::thread t([&]() {
+			std::thread t([p = p]() {
 				while (true) {
 					std::cout << "enter rgb : ";
 					__IMPL__readColorFromStream(std::cin, p);
@@ -191,7 +191,7 @@ namespace ParticleScripts {
 		void init()
 		{
 			p = getComponent<Particles>();
-			std::thread t([&](){
+			std::thread t([fileName = fileName, p = p](){
 				while (true) {
 					std::cout << "press enter to read colors from: " + fileName;
 					std::cin.get();
@@ -228,28 +228,28 @@ namespace ParticleScripts {
 		}
 	};
 
-	//class Rotate : public Script {
-	//	//Transform* t;
-	//	float angle;
-	//	sf::Vector2f around;
-	//	Particles* p;
-	//public:
-	//	Rotate(float a, sf::Vector2f around) : angle(a), around(around) { }
-	//	void init()
-	//	{
-	//		//t = getComponent<Transform>();
-	//		p = getComponent<Particles>();
-	//		p->transform = std::make_unique<Transform>();
-	//		p->transform->setOrigin(around);
-	//		p->transform->setPosition(around);
-	//		p->emitter = around;
-	//		//p->applyTransform = true;
-	//	}
-	//	void update()
-	//	{
-	//		p->transform->rotate(angle * VectorEngine::deltaTime().asSeconds());
-	//	}
-	//};
+	class Rotate : public Script {
+		Transform* t;
+		float angle;
+		sf::Vector2f around;
+
+	public:
+		Rotate(float angle, sf::Vector2f around) : angle(angle), around(around) { }
+
+		void init() {
+			t = getComponent<Transform>();
+			t->setPosition(around);
+			t->setOrigin(around);
+			
+			auto p = getComponent<Particles>();
+			p->emitter = around;
+			p->applyTransform = true;
+		}
+
+		void update() {
+			t->rotate(angle * VectorEngine::deltaTime().asSeconds());
+		}
+	};
 
 	class SpawnLater : public Script {
 		int seconds;
@@ -269,29 +269,6 @@ namespace ParticleScripts {
 			waitToSpawn.detach();
 
 			this->seppuku();
-		}
-	};
-
-	template <typename T = Particles>
-	class DeSpawnOnMouseClick : public Script {
-		T* p = nullptr;
-	public:
-		void init() override
-		{
-			log_init();
-			if (std::is_base_of_v<Script, T>)
-				p = getScript<T>();
-			if (std::is_same_v<Particles, T>)
-				p = getComponent<T>();
-		}
-		void handleInput(sf::Event event)
-		{
-			switch (event.type) {
-			case sf::Event::MouseButtonPressed: p->spawn = false; break;
-			case sf::Event::MouseButtonReleased: p->spawn = true; break;
-			default:
-				break;
-			}
 		}
 	};
 
@@ -346,4 +323,28 @@ namespace ParticleScripts {
 			}
 		}
 	};
+
+	template <typename T = Particles>
+	class DeSpawnOnMouseClick : public Script {
+		T* p = nullptr;
+	public:
+		void init() override
+		{
+			log_init();
+			if (std::is_base_of_v<Script, T>)
+				p = getScript<T>();
+			if (std::is_same_v<Particles, T>)
+				p = getComponent<T>();
+		}
+		void handleInput(sf::Event event)
+		{
+			switch (event.type) {
+			case sf::Event::MouseButtonPressed: p->spawn = false; break;
+			case sf::Event::MouseButtonReleased: p->spawn = true; break;
+			default:
+				break;
+			}
+		}
+	};
+
 }

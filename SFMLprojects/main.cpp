@@ -118,24 +118,20 @@ public:
 };
 
 
-
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
-
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
 	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
+	VectorEngine::setVSync(false);
 	//VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 
 	//VectorEngine::addSystem(new AnimationSystem());
 	VectorEngine::addSystem(new ParticleSystem());
-	VectorEngine::addSystem(new DebugEntitySystem());
+	//VectorEngine::addSystem(new FpsCounterSystem());
+	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
-	
-	//Entity fpsCounter;
-	//fpsCounter.addScript<FpsCounter>(true, true);
-	//fpsCounter.Register();
 
 	//Entity player;
 	//player.addComponent<Transform>()->setPosition(VectorEngine::center());
@@ -179,7 +175,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	trail.addScript<TraillingEffect>();
 
 	Entity plimbarica;
-	plimbarica.addComponent<Transform>()->scale(10, 10);
+	plimbarica.addComponent<Transform>();
 	auto plimb = plimbarica.addComponent<Particles>(rainbowParticles);
 	plimb->spawn = true;
 	//plimb->debugName = "plimbarica";
@@ -194,8 +190,8 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 
 	auto fwEntities = makeFireWorksEntities(10, fireParticles);
 	for (auto& e : fwEntities) {
-		e.addScript<SpawnLater>(5);
-		//e.Register();
+		//e.addScript<SpawnLater>(5);
+		e.Register();
 	}
 
 	auto randomParticles = makeRandomParticlesFountains(5, 1.f, getGreenParticles());

@@ -31,16 +31,6 @@ void Script::seppuku()
 	throw SeppukuException{this};
 }
 
-Script::~Script()
-{
-	unRegister();
-}
-
-Entity::Entity(std::any tag) : id_(idCounter++), tag(tag)
-{
-	registered = false;
-}
-
 Entity::~Entity()
 {
 	for (auto& s : scripts)
@@ -55,15 +45,14 @@ Entity& Entity::operator=(Entity&& other)
 	if (this != &other) {
 		this->id_ = other.id_;
 		this->tag = other.tag;
+		this->components = std::move(other.components);
+		this->scripts = std::move(other.scripts);
 		if (other.registered) {
-			other.unRegister();
-			this->components = std::move(other.components);
-			this->scripts = std::move(other.scripts);
+			erase(entities, &other);
+			other.registered = false;
 			this->Register();
 		} else {
 			this->registered = false;
-			this->components = std::move(other.components);
-			this->scripts = std::move(other.scripts);
 		}
 	}
 	return *this;
@@ -167,7 +156,8 @@ void VectorEngine::run()
 	forEachScript(&Script::init);
 
 	running_ = true;
-	auto lag = sf::Time::Zero;
+	auto scriptsLag = sf::Time::Zero;
+	auto systemsLag = sf::Time::Zero;
 
 	debug_log("start game loop scripts");
 	while (window.isOpen()) {
@@ -191,18 +181,24 @@ void VectorEngine::run()
 		window.clear(backGroundColor);
 
 		delta_time = clock.restart();
-		lag += delta_time;
 
 		forEachScript(&Script::update);
 
-		while (lag >= frameTime) {
-			lag -= frameTime;
+		scriptsLag += deltaTime();
+		while (scriptsLag >= frameTime) {
+			scriptsLag -= frameTime;
 			forEachScript(&Script::fixedUpdate, frameTime);
 		}
 
 		for (auto system : systems)
 			system->update();
 
+		systemsLag += deltaTime();
+		while (systemsLag >= frameTime) {
+			systemsLag -= frameTime;
+			for (auto system : systems)
+				system->fixedUpdate(frameTime);
+		}
 
 		for (auto system : systems)
 			system->render(window);

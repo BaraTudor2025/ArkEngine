@@ -34,7 +34,8 @@ static T RandomNumber(Distribution<T> arg) noexcept
 			return dist(__Random_Number_Generator__);
 		}
 	}
-	return 0;
+	// daca am ajuns aici ceva nu e in regula
+	std::abort();
 }
 
 template <typename T>

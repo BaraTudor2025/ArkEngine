@@ -81,7 +81,7 @@ class VECTOR_ENGINE_API Script : public NonCopyable {
 
 public:
 	Script() = default;
-	virtual ~Script();
+	virtual ~Script() { unRegister(); };
 
 protected:
 	virtual void init() { }
@@ -111,7 +111,7 @@ private:
 class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
 public:
-	explicit Entity(std::any tag = nullptr);
+	explicit Entity(std::any tag = nullptr) : tag(tag), id_(idCounter++) { };
 	Entity(Entity&& other) { *this = std::move(other); }
 	Entity& operator=(Entity&& other);
 	~Entity();
@@ -210,8 +210,9 @@ protected:
 
 private:
 	virtual void init() { }
-	virtual void update() = 0;
-	virtual void render(sf::RenderTarget& target) = 0;
+	virtual void update() { }
+	virtual void fixedUpdate(sf::Time) { }
+	virtual void render(sf::RenderTarget& target) { }
 	virtual void add(Component*) { }
 	virtual void remove(Component*) { }
 
@@ -220,7 +221,7 @@ private:
 };
 
 
-class VECTOR_ENGINE_API VectorEngine final : public NonCopyable, public NonMovable {
+class VECTOR_ENGINE_API VectorEngine final : public NonCopyable {
 
 public:
 	static inline const sf::VideoMode resolutionFullHD{1920, 1080};

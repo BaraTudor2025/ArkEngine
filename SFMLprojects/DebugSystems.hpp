@@ -1,41 +1,20 @@
 #pragma once
 #include "VectorEngine.hpp"
+#include "Util.hpp"
 #include <thread>
 
-class FpsCounter : public Script {
-	sf::Time fixedUpdateElapsed;
+class FpsCounterSystem : public System {
 	sf::Time updateElapsed;
-	int fixedFPS;
 	int updateFPS;
-	bool measureFixedUpdate;
-	bool measureUpdate;
 
 public:
-	FpsCounter(bool measureUpdate, bool measureFixedUpdate)
-		:measureFixedUpdate(measureFixedUpdate), 
-		measureUpdate(measureUpdate) { }
-
 	void update() {
-		if (measureUpdate) {
-			updateElapsed += VectorEngine::deltaTime();
-			updateFPS += 1;
-			if (updateElapsed.asMilliseconds() >= 1000) {
-				updateElapsed -= sf::milliseconds(1000);
-				log("fps: %d", updateFPS);
-				updateFPS = 0;
-			}
-		}
-	}
-
-	void fixedUpdate(sf::Time dt) {
-		if (measureFixedUpdate) {
-			fixedUpdateElapsed += dt;
-			fixedFPS += 1;
-			if (fixedUpdateElapsed.asMilliseconds() >= 1000) {
-				fixedUpdateElapsed -= sf::milliseconds(1000);
-				log("fps: %d", fixedFPS);
-				fixedFPS = 0;
-			}
+		updateElapsed += VectorEngine::deltaTime();
+		updateFPS += 1;
+		if (updateElapsed.asMilliseconds() >= 1000) {
+			updateElapsed -= sf::milliseconds(1000);
+			log("fps: %d", updateFPS);
+			updateFPS = 0;
 		}
 	}
 };

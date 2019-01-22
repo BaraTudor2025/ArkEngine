@@ -42,7 +42,5 @@ public:
 
 	virtual void render(sf::RenderTarget& target) override;
 
-	virtual void remove(Component*) override { }
-
 };
 

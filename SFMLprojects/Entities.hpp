@@ -61,6 +61,7 @@ static std::vector<Entity> makeFireWorksEntities(int count, const Particles& tem
 		fw->emitter = { x,y };
 		fw->spawn = true;
 		fw->fireworks = true;
+		fw->getColor = makeColorsVector[RandomNumber<int>(0, makeColorsVector.size() - 1)];
 		fw->lifeTime = sf::seconds(RandomNumber<float>(2, 8));
 		fw->speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
 	}

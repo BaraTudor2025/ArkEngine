@@ -67,12 +67,12 @@ struct Particles final : public Data<Particles> {
 // templates
 
 static auto makeRed = []() {
-	auto green = RandomNumber<uint32_t>(0, 150);
+	auto green = RandomNumber<uint32_t>(0, 200);
 	return sf::Color(255, green, 0);
 };
 
 static auto makeGreen = []() {
-	auto red = RandomNumber<uint32_t>(0, 150);
+	auto red = RandomNumber<uint32_t>(0, 200);
 	return sf::Color(red, 255, 0);
 };
 
@@ -90,9 +90,16 @@ static auto makeColor = []() {
 	return sf::Color(RandomNumber<uint32_t>(0x000000ff, 0xffffffff));
 };
 
+static auto makeBlue = []() {
+	auto green = RandomNumber<uint32_t>(20, 250);
+	return sf::Color(10, green, 240);
+};
+
+static inline std::vector<std::function<sf::Color()>> makeColorsVector{ makeRed, makeGreen, makeBlue, makeColor };
+
 inline Particles getFireParticles() 
 {
-	Particles fireParticles = { 1000, sf::seconds(2), { 1, 100 } };
+	Particles fireParticles = { 1000, sf::seconds(3), { 1, 100 } };
 	fireParticles.getColor = makeRed;
 	return fireParticles;
 }

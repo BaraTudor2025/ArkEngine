@@ -29,19 +29,19 @@ struct Particles final : public Data<Particles> {
 		this->makeLifeTimeDist();
 	}
 
-	int count;
+	size_t count;
 	sf::Time lifeTime;
 
 	Distribution<float> speedDistribution;
 	Distribution<float> angleDistribution;
 	Distribution<float> lifeTimeDistribution;
 
-	bool spawn = false;
-	bool fireworks = false;
-	bool applyTransform = false;
 	sf::Vector2f emitter{ 0.f, 0.f };
 	std::function<sf::Color()> getColor;
 
+	bool spawn = false;
+	bool fireworks = false;
+	bool applyTransform = false;
 
 	// call if lifeTime is modified
 	void makeLifeTimeDist() noexcept {
@@ -62,6 +62,12 @@ struct Particles final : public Data<Particles> {
 			lifeTime.asMilliseconds() / 2.f,
 			DistributionType::normal };
 	}
+
+private:
+	sf::Time deathTimer = sf::Time::Zero;
+	bool isDead() { return deathTimer >= lifeTime; }
+	friend class ParticleSystem;
+
 };
 
 // templates
@@ -132,15 +138,21 @@ private:
 	}
 
 	void update() override;
+	void fixedUpdate(sf::Time) override;
 	void add(Component*) override;
 	void remove(Component*) override;
 	void render(sf::RenderTarget& target) override;
 
-	void updateBatch(const Particles&, gsl::span<sf::Vertex>, gsl::span<sf::Vector2f>, gsl::span<sf::Time>);
+	struct Data {
+		sf::Vector2f speed;
+		sf::Time lifeTime;
+	};
+
+	void updateBatch(Particles&, gsl::span<sf::Vertex>, gsl::span<Data>);
 	void respawnParticle(const Particles&, sf::Vertex&, sf::Vector2f&, sf::Time&);
 
 private:
+	// benchmark-ul spune ca memory layout-ul asta nu ajuta, are acelasi fps
 	std::vector<sf::Vertex>	vertices;
-	std::vector<sf::Vector2f> velocities;
-	std::vector<sf::Time> lifeTimes;
+	std::vector<Data> data;
 };

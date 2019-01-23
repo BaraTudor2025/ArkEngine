@@ -70,7 +70,7 @@ inline void forEachSpanImplNormalFunc(F f, V& v, Spans&...spans)
 				f,
 				p,
 				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p.count) } ...);
-			pos += p->count;
+			pos += p.count;
 		}
 	}
 }
@@ -96,7 +96,7 @@ inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
 				pThis,
 				p,
 				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p.count) } ... );
-			pos += p->count;
+			pos += p.count;
 		}
 	}
 }

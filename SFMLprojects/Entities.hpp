@@ -48,7 +48,7 @@ static std::vector<Entity> makeLetterEntities(std::string prop)
 	return letters;
 }
 
-static std::vector<Entity> makeFireWorksEntities(int count, const Particles& templateParticles)
+static std::vector<Entity> makeFireWorksEntities(int count, const Particles& templateParticles, bool spawn)
 {
 	std::vector<std::unique_ptr<Particles>> fireWorks;
 	constructVector(fireWorks, count, templateParticles);
@@ -59,9 +59,9 @@ static std::vector<Entity> makeFireWorksEntities(int count, const Particles& tem
 		float y = RandomNumber<int>(50, height - 50);
 		fw->count = 1000;
 		fw->emitter = { x,y };
-		fw->spawn = true;
+		fw->spawn = spawn;
 		fw->fireworks = true;
-		fw->getColor = makeColorsVector[RandomNumber<int>(0, makeColorsVector.size() - 1)];
+		fw->getColor = makeColorsVector[RandomNumber<size_t>(0, makeColorsVector.size() - 1)];
 		fw->lifeTime = sf::seconds(RandomNumber<float>(2, 8));
 		fw->speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
 	}
@@ -69,7 +69,7 @@ static std::vector<Entity> makeFireWorksEntities(int count, const Particles& tem
 	return makeEntitiesFromComponents<Particles>(std::move(fireWorks));
 }
 
-static std::vector<Entity> makeRandomParticlesFountains(int count, float life, const Particles& templateParticles)
+static std::vector<Entity> makeRandomParticlesFountains(int count, float life, const Particles& templateParticles, bool spawn)
 {
 	std::vector<std::unique_ptr<Particles>> particles;
 	constructVector(particles, count, templateParticles);
@@ -78,7 +78,7 @@ static std::vector<Entity> makeRandomParticlesFountains(int count, float life, c
 		auto[width, height] = VectorEngine::windowSize();
 		float x = RandomNumber<int>(50, width - 50);
 		float y = RandomNumber<int>(50, height - 50);
-		ps->spawn = true;
+		ps->spawn = spawn;
 		ps->count = 1000;
 		ps->emitter = { x,y };
 		ps->lifeTime = sf::seconds(2);

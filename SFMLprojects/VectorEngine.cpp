@@ -44,7 +44,7 @@ Entity& Entity::operator=(Entity&& other)
 {
 	if (this != &other) {
 		this->id_ = other.id_;
-		this->tag = other.tag;
+		this->tag = std::move(other.tag);
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
 		if (other.registered) {

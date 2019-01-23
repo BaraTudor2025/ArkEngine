@@ -121,7 +121,7 @@ public:
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	sf::ContextSettings settings = sf::ContextSettings();
-	settings.antialiasingLevel = 16;
+	settings.antialiasingLevel = 0;
 
 	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
 	VectorEngine::setVSync(false);
@@ -129,7 +129,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 
 	//VectorEngine::addSystem(new AnimationSystem());
 	VectorEngine::addSystem(new ParticleSystem());
-	//VectorEngine::addSystem(new FpsCounterSystem());
+	VectorEngine::addSystem(new FpsCounterSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
 
@@ -188,13 +188,13 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	rainbow.Register();
 	fire.Register();
 
-	auto fwEntities = makeFireWorksEntities(10, fireParticles);
+	auto fwEntities = makeFireWorksEntities(100, fireParticles, false);
 	for (auto& e : fwEntities) {
-		//e.addScript<SpawnLater>(5);
+		e.addScript<SpawnLater>(20);
 		e.Register();
 	}
 
-	auto randomParticles = makeRandomParticlesFountains(5, 1.f, getGreenParticles());
+	auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);
 	//registerEntities(randomParticles);
 
 	struct UpdateGravityPoint : public Script {
@@ -209,8 +209,8 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Entity readGMag;
 	readGMag.addScript<GeneralScripts::ReadVarFromConsole<float>>(&ParticleSystem::gravityMagnitude, "enter gravity magnitude: ");
 
-	//readGMag.Register();
 	//updateGP.Register();
+	//readGMag.Register();
 
 	ParticleSystem::hasUniversalGravity = true;
 	ParticleSystem::gravityVector = { 0, 0 };

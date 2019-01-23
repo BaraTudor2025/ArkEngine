@@ -4,44 +4,48 @@
 
 void ParticleSystem::update()
 {
-	forEachSpan(&ParticleSystem::updateBatch, this, this->getComponents<Particles>(), this->vertices, this->velocities, this->lifeTimes);
+	forEachSpan(&ParticleSystem::updateBatch, this, this->getComponents<Particles>(), this->vertices, this->data);
+}
+
+void ParticleSystem::fixedUpdate(sf::Time dt)
+{
+	for (auto p : this->getComponents<Particles>()) {
+		if (p->spawn) {
+			p->deathTimer = sf::Time::Zero;
+		} else {
+			if (!p->isDead())
+				p->deathTimer += dt;
+		}
+	}
 }
 
 void ParticleSystem::add(Component* data)
 {
 	if (auto ps = static_cast<Particles*>(data); ps) {
 		auto addSize = [&](auto& range) { range.resize(range.size() + ps->count); };
-		addSize(this->velocities);
+		if (ps->spawn)
+			ps->deathTimer = sf::Time::Zero;
+		else
+			ps->deathTimer = ps->lifeTime;
+		addSize(this->data);
 		addSize(this->vertices);
-		addSize(this->lifeTimes);
 	}
-	//	static int cnt = 0;
-	//	std::cout << "add " << ++cnt << '\n';
-	//} else {
-	//	static int cnt = 0;
-	//	std::cout << "add nothing " << ++cnt << '\n';
-	//}
 }
 
 void ParticleSystem::remove(Component* data)
 {
 	if (auto ps = static_cast<Particles*>(data); ps) {
 		auto removeSize = [&](auto& range) { range.resize(range.size() - ps->count); };
-		removeSize(this->velocities);
 		removeSize(this->vertices);
-		removeSize(this->lifeTimes);
+		removeSize(this->data);
 	}
-	//	static int cnt = 0;
-	//	std::cout << "remove " << ++cnt << '\n';
-	//} else {
-	//	static int cnt = 0;
-	//	std::cout << "remove nothing " << ++cnt << '\n';
-	//}
 }
 
 void ParticleSystem::render(sf::RenderTarget& target)
 {
 	auto draw = [&](Particles& ps, gsl::span<sf::Vertex> v) {
+		if (ps.isDead())
+			return;
 		if (ps.applyTransform) {
 			sf::RenderStates rs;
 			rs.transform = *ps.entity()->getComponent<Transform>();
@@ -55,42 +59,44 @@ void ParticleSystem::render(sf::RenderTarget& target)
 }
 
 void ParticleSystem::updateBatch(
-	const Particles& ps, 
+	Particles& ps, 
 	gsl::span<sf::Vertex> vertices, 
-	gsl::span<sf::Vector2f> velocities, 
-	gsl::span<sf::Time> lifeTimes)
+	gsl::span<Data> data)
 {
+	if (ps.isDead())
+		return;
+
 	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
 	for (int i = 0; i < vertices.size(); i++) {
-		lifeTimes[i] -= deltaTime;
-		if (lifeTimes[i] > sf::Time::Zero) { // if alive
+		data[i].lifeTime -= deltaTime;
+		if (data[i].lifeTime > sf::Time::Zero) { // if alive
 
 			if (hasUniversalGravity)
-				velocities[i] += gravityVector * dt;
+				data[i].speed += gravityVector * dt;
 			else {
 				auto r = gravityPoint - vertices[i].position;
 				auto dist = std::hypot(r.x, r.y);
 				auto g = r / (dist * dist);
-				velocities[i] += gravityMagnitude * 1000.f * g * dt;
+				data[i].speed += gravityMagnitude * 1000.f * g * dt;
 			}
-			vertices[i].position += velocities[i] * dt;
+			vertices[i].position += data[i].speed * dt;
 
-			float ratio = lifeTimes[i].asSeconds() / ps.lifeTime.asSeconds();
+			float ratio = data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
 			vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
 		} else if (ps.spawn)
-			this->respawnParticle(ps, vertices[i], velocities[i], lifeTimes[i]);
+			this->respawnParticle(ps, vertices[i], data[i].speed, data[i].lifeTime);
 	}
 }
 
-void ParticleSystem::respawnParticle(const Particles& ps, sf::Vertex& vertex, sf::Vector2f& velocity, sf::Time& lifeTime)
+void ParticleSystem::respawnParticle(const Particles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
 {
 	float angle = RandomNumber(ps.angleDistribution);
-	float speed = RandomNumber(ps.speedDistribution);
+	float speedMag = RandomNumber(ps.speedDistribution);
 
 	vertex.position = ps.emitter;
 	vertex.color = ps.getColor();
-	velocity = sf::Vector2f(std::cos(angle) * speed, std::sin(angle) * speed);
+	speed = sf::Vector2f(std::cos(angle) * speedMag, std::sin(angle) * speedMag);
 
 	if (ps.fireworks) {
 		lifeTime = ps.lifeTime;

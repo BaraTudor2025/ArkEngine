@@ -39,7 +39,7 @@ namespace ParticleScripts {
 			p = getComponent<Particles>();
 		}
 
-		void update() override
+		void fixedUpdate(sf::Time) override
 		{
 			if (spawn) {
 				auto dv = p->emitter - prevEmitter;
@@ -207,24 +207,24 @@ namespace ParticleScripts {
 	class RoatateEmitter : public Script {
 		sf::Transform t;
 		Particles* p;
-		sf::Vector2f offset;
-		sf::Vector2f rotateAroundThis;
+		sf::Vector2f distance;
+		sf::Vector2f around;
 		float angle;
 
 	public:
-		RoatateEmitter(float a) :angle(a) { }
+		RoatateEmitter(float angle, sf::Vector2f around, float distance)
+			:angle(angle), around(around), distance(distance, 0) { }
 
 		void init()
 		{
 			p = getComponent<Particles>();
-			rotateAroundThis = VectorEngine::center();
-			offset =  p->emitter - rotateAroundThis;
+			//offset =  p->emitter - around;
 		}
 
 		void update()
 		{
-			t.rotate(angle * VectorEngine::deltaTime().asSeconds(), rotateAroundThis);
-			p->emitter = t.transformPoint(rotateAroundThis + offset);
+			t.rotate(angle * VectorEngine::deltaTime().asSeconds(), around);
+			p->emitter = t.transformPoint(around + distance);
 		}
 	};
 
@@ -280,7 +280,7 @@ namespace ParticleScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void handleInput(sf::Event ev)
+		void handleEvent(sf::Event ev)
 		{
 			switch (ev.type)
 			{
@@ -306,7 +306,7 @@ namespace ParticleScripts {
 			log_init();
 			p = getComponent<Particles>();
 		}
-		void handleInput(sf::Event ev)
+		void handleEvent(sf::Event ev)
 		{
 			switch (ev.type)
 			{
@@ -336,7 +336,7 @@ namespace ParticleScripts {
 			if (std::is_same_v<Particles, T>)
 				p = getComponent<T>();
 		}
-		void handleInput(sf::Event event)
+		void handleEvent(sf::Event event)
 		{
 			switch (event.type) {
 			case sf::Event::MouseButtonPressed: p->spawn = false; break;

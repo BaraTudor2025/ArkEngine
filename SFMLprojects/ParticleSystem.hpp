@@ -65,7 +65,7 @@ struct Particles final : public Data<Particles> {
 
 private:
 	sf::Time deathTimer = sf::Time::Zero;
-	bool isDead() { return deathTimer >= lifeTime; }
+	bool areDead() { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
 
 };
@@ -149,7 +149,6 @@ private:
 	};
 
 	void updateBatch(Particles&, gsl::span<sf::Vertex>, gsl::span<Data>);
-	void respawnParticle(const Particles&, sf::Vertex&, sf::Vector2f&, sf::Time&);
 
 private:
 	// benchmark-ul spune ca memory layout-ul asta nu ajuta, are acelasi fps

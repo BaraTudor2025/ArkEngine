@@ -1,6 +1,7 @@
+#include <iostream>
 #include "ParticleSystem.hpp"
 #include "Util.hpp"
-#include <iostream>
+#include "ResourceManager.hpp"
 
 void ParticleSystem::update()
 {
@@ -13,7 +14,7 @@ void ParticleSystem::fixedUpdate(sf::Time dt)
 		if (p->spawn) {
 			p->deathTimer = sf::Time::Zero;
 		} else {
-			if (!p->isDead())
+			if (!p->areDead())
 				p->deathTimer += dt;
 		}
 	}
@@ -44,26 +45,29 @@ void ParticleSystem::remove(Component* data)
 void ParticleSystem::render(sf::RenderTarget& target)
 {
 	auto draw = [&](Particles& ps, gsl::span<sf::Vertex> v) {
-		if (ps.isDead())
+		if (ps.areDead())
 			return;
 		if (ps.applyTransform) {
 			sf::RenderStates rs;
 			rs.transform = *ps.entity()->getComponent<Transform>();
 			target.draw(v.data(), v.size(), sf::Points, rs);
 		}
-		else
+		else {
 			target.draw(v.data(), v.size(), sf::Points);
+		}
 	};
 
 	forEachSpan(draw, this->getComponents<Particles>(), this->vertices);
 }
+
+void respawnParticle(const Particles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
 
 void ParticleSystem::updateBatch(
 	Particles& ps, 
 	gsl::span<sf::Vertex> vertices, 
 	gsl::span<Data> data)
 {
-	if (ps.isDead())
+	if (ps.areDead())
 		return;
 
 	auto deltaTime = VectorEngine::deltaTime();
@@ -85,11 +89,11 @@ void ParticleSystem::updateBatch(
 			float ratio = data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
 			vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
 		} else if (ps.spawn)
-			this->respawnParticle(ps, vertices[i], data[i].speed, data[i].lifeTime);
+			respawnParticle(ps, vertices[i], data[i].speed, data[i].lifeTime);
 	}
 }
 
-void ParticleSystem::respawnParticle(const Particles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
+void respawnParticle(const Particles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
 {
 	float angle = RandomNumber(ps.angleDistribution);
 	float speedMag = RandomNumber(ps.speedDistribution);

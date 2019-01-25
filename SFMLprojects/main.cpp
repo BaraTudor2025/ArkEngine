@@ -117,6 +117,8 @@ public:
 
 };
 
+// TODO: rename handleInput -> handleEvent
+// adaugat struct TexturedParticles : (?) public PointParticles, Data<TexturedParticles>
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -151,35 +153,37 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto greenParticles = getGreenParticles();
 
 	Entity rainbow;
-	rainbow.addComponent<Particles>(rainbowParticles); //->debugName = "rainbow";
+	rainbow.addComponent<Particles>(rainbowParticles);
 	rainbow.addScript<SpawnOnRightClick>();
 	rainbow.addScript<EmittFromMouse>();
 
 	Entity fire;
-	fire.addComponent<Particles>(fireParticles); //->debugName = "fire";
+	fire.addComponent<Particles>(fireParticles);
 	fire.addScript<SpawnOnLeftClick>();
 	fire.addScript<EmittFromMouse>();
 
 	Entity grass;
 	auto grassP = grass.addComponent<Particles>(greenParticles);
 	grassP->spawn = true;
-	//grassP->debugName = "grass";
 	grass.addScript<DeSpawnOnMouseClick<>>();
 	//grass.addScript<ReadColorFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail;
-	trail.addComponent<Particles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal )->debugName="mouse trail";
+	trail.addComponent<Particles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
 	trail.addScript<EmittFromMouse>();
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
 
 	Entity plimbarica;
-	plimbarica.addComponent<Transform>();
+	//plimbarica.addComponent<Transform>();
 	auto plimb = plimbarica.addComponent<Particles>(rainbowParticles);
 	plimb->spawn = true;
-	//plimb->debugName = "plimbarica";
-	plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
+	//plimb->emitter = VectorEngine::center();
+	//plimb->emitter.x += 100;
+	//plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
+	plimbarica.addScript<RoatateEmitter>(360, VectorEngine::center(), 100);
+	plimbarica.addScript<TraillingEffect>();
 	//plimbarica.addScript<ReadColorFromConsole>();
 
 	grass.Register();

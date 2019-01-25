@@ -1,6 +1,8 @@
 
 #pragma once
 
+// taken from https://github.com/martinmoene/gsl-lite
+
 #ifndef GSL_GSL_LITE_H_INCLUDED
 #define GSL_GSL_LITE_H_INCLUDED
 

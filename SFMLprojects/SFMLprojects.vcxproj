@@ -173,6 +173,7 @@
     <ClInclude Include="DebugSystems.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="Entities.hpp" />
+    <ClInclude Include="gsl-lite.hpp" />
     <ClInclude Include="SOAvector.hpp" />
     <ClInclude Include="gsl.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />

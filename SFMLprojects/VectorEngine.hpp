@@ -23,9 +23,9 @@ class System;
 struct VECTOR_ENGINE_API Component {
 
 public:
-	virtual ~Component() = default;
-	const Entity* entity() const { return entity_; }
 	Entity* entity() { return entity_; }
+	const Entity* entity() const { return entity_; }
+	virtual ~Component() = default;
 
 protected:
 	Entity* entity_;
@@ -43,7 +43,6 @@ struct VECTOR_ENGINE_API Data : Component {
 
 public:
 	virtual ~Data() { unRegister();  }
-	std::string debugName{"withoutName"};
 
 protected:
 	static inline System* system = nullptr;
@@ -87,7 +86,7 @@ protected:
 	virtual void init() { }
 	virtual void update() { }
 	virtual void fixedUpdate(sf::Time) { } // should be used for physics
-	virtual void handleInput(sf::Event) { }
+	virtual void handleEvent(sf::Event) { }
 	template <typename T> T* getComponent();
 	template <typename T> T* getScript();
 	Entity* entity() { return entity_; }

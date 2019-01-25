@@ -58,7 +58,6 @@ class DebugParticleSystem : public DebugSystem {
 		std::cout << "number of particle components " << getComponents<Particles>().size() << std::endl;
 		for (auto p : getComponents<Particles>()) {
 			std::cout
-				<< "\n debug name: " << p->debugName
 				<< "\n count: " << p->count
 				<< "\n applyTransform:" << p->applyTransform
 				<< "\n fireworks: " << p->fireworks
@@ -66,12 +65,12 @@ class DebugParticleSystem : public DebugSystem {
 				<< "\n emitter: " << p->emitter.x << ' ' << p->emitter.y
 				<< "\n life time: " << p->lifeTime.asSeconds()
 				<< std::endl;
-			if (p->debugName == "withoutName")
 				if (p->entity() == nullptr)
 					std::cout << "\ninvalid entity";
 				else {
-					//std::cout << "registered: " << p->entity()->
-					std::cout << "entity id: " << p->entity()->id();
+					std::cout << "entity id: " << p->entity()->id() << std::endl;
+					// cast tag to string?
+					//std::cout << "entity id: " << p->entity()->tag << std::endl;
 				}
 		}
 	}

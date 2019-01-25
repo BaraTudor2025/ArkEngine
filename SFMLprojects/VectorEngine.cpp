@@ -174,7 +174,7 @@ void VectorEngine::run()
 				view.setSize({ width / aspectRatio, height / aspectRatio });
 			}	break;
 			default:
-				forEachScript(&Script::handleInput, ev);
+				forEachScript(&Script::handleEvent, ev);
 				break;
 			}
 		}

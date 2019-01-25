@@ -46,10 +46,9 @@ inline decltype(auto) Animation::get()
 void AnimationSystem::add(Component * c)
 {
 	if (auto a = static_cast<Animation*>(c); a) {
-		a->pTexture = load<sf::Texture>(a->fileName);
-		//a->pTexture->setSmooth(true);
-		a->uvRect.width = a->pTexture->getSize().x / (float)a->frameCount.x;
-		a->uvRect.height = a->pTexture->getSize().y / (float)a->frameCount.y;
+		a->texture = load<sf::Texture>(a->fileName);
+		a->uvRect.width = a->texture->getSize().x / (float)a->frameCount.x;
+		a->uvRect.height = a->texture->getSize().y / (float)a->frameCount.y;
 		a->elapsedTime = sf::seconds(0);
 		a->currentFrame.x = 0;
 		a->vertices.resize(4);
@@ -95,9 +94,9 @@ void AnimationSystem::render(sf::RenderTarget & target)
 {
 	sf::RenderStates rs;
 	for (auto animation : this->getComponents<Animation>()) {
-		rs.texture = animation->pTexture;
-		if(auto t = animation->entity()->getComponent<Transform>(); t)
-			rs.transform = *t;
+		animation->texture->setSmooth(animation->smoothTexture);
+		rs.texture = animation->texture;
+		rs.transform = *animation->entity()->getComponent<Transform>();
 		target.draw(animation->vertices, rs);
 	}
 }

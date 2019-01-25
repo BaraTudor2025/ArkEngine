@@ -17,6 +17,7 @@
 #include "Entities.hpp"
 #include "Scripts.hpp"
 #include "AnimationSystem.hpp"
+#include "MeshSystem.hpp"
 #include "DebugSystems.hpp"
 
 using namespace std::literals;
@@ -120,6 +121,8 @@ public:
 // TODO: rename handleInput -> handleEvent
 // adaugat struct TexturedParticles : (?) public PointParticles, Data<TexturedParticles>
 
+
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	sf::ContextSettings settings = sf::ContextSettings();
@@ -132,14 +135,20 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::addSystem(new AnimationSystem());
 	//VectorEngine::addSystem(new ParticleSystem());
 	VectorEngine::addSystem(new FpsCounterSystem());
+	VectorEngine::addSystem(new MeshSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
 
 	Entity player;
 	player.addComponent<Transform>()->setPosition(VectorEngine::center());
-	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
+	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0, false);
 	player.addScript<MovePlayer>(200, 360);
 	player.Register();
+
+	Entity image;
+	image.addComponent<Transform>()->setPosition(VectorEngine::center());
+	image.addComponent<Mesh>("toaleta.jpg", false);
+	image.Register();
 
 	using namespace ParticleScripts;
 

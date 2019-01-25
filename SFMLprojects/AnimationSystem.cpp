@@ -11,9 +11,9 @@ inline void updateVerticesWithRect(Range& vertices, const sf::IntRect& uvRect)
 	vertices[2].position = sf::Vector2f(w, 0);
 	vertices[3].position = sf::Vector2f(w, h);
 
-	float left = uvRect.left;//static_cast<float>(uvRect.left);
+	float left = uvRect.left;
 	float right = left + uvRect.width;
-	float top = uvRect.top; //static_cast<float>(uvRect.top);
+	float top = uvRect.top;
 	float bottom = top + uvRect.height;
 
 	vertices[0].texCoords = sf::Vector2f(left, top);
@@ -47,7 +47,7 @@ void AnimationSystem::add(Component * c)
 {
 	if (auto a = static_cast<Animation*>(c); a) {
 		a->pTexture = load<sf::Texture>(a->fileName);
-		a->pTexture->setSmooth(true);
+		//a->pTexture->setSmooth(true);
 		a->uvRect.width = a->pTexture->getSize().x / (float)a->frameCount.x;
 		a->uvRect.height = a->pTexture->getSize().y / (float)a->frameCount.y;
 		a->elapsedTime = sf::seconds(0);
@@ -71,13 +71,20 @@ void AnimationSystem::update()
 			if (currentFrame.x >= frameCount.x)
 				currentFrame.x = 0;
 		}
-		uvRect.top = currentFrame.y * uvRect.height;
-		if (animation->flipped) {
+
+		if (animation->flipX) {
 			uvRect.left = (currentFrame.x + 1) * std::abs(uvRect.width);
 			uvRect.width = -std::abs(uvRect.width);
 		} else {
 			uvRect.left = currentFrame.x * uvRect.width;
 			uvRect.width = std::abs(uvRect.width);
+		} 
+		if (animation->flipY) {
+			uvRect.top = (currentFrame.y + 1) * std::abs(uvRect.height);
+			uvRect.height = -std::abs(uvRect.height);
+		} else {
+			uvRect.top = currentFrame.y * uvRect.height;
+			uvRect.height = std::abs(uvRect.height);
 		}
 
 		updateVerticesWithRect(animation->vertices, uvRect);

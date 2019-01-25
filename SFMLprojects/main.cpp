@@ -75,7 +75,6 @@ public:
 	void init() {
 		animation = getComponent<Animation>();
 		transform = getComponent<Transform>();
-		animation->flipped = true;
 	}
 
 	void fixedUpdate(sf::Time frameTime) {
@@ -87,21 +86,22 @@ public:
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
 			transform->move(dx * std::cos(angle), dx * std::sin(angle));
 			moved = true;
-			animation->flipped = false;
+			animation->flipX = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
 			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
 			moved = true;
-			animation->flipped = true;
+			animation->flipX = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-			//transform->move(dx * std::cos(PI/2 - angle), dx * std::sin(angle - PI/2));
 			transform->move(dx * std::sin(angle), -dx * std::cos(angle));
 			moved = true;
+			animation->flipY = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
 			transform->move(-dx * std::sin(angle), dx * std::cos(angle));
 			moved = true;
+			animation->flipY = false;
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
@@ -123,23 +123,23 @@ public:
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	sf::ContextSettings settings = sf::ContextSettings();
-	settings.antialiasingLevel = 0;
+	settings.antialiasingLevel = 16;
 
 	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
 	VectorEngine::setVSync(false);
-	//VectorEngine::backGroundColor = sf::Color(50, 50, 50);
+	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 
-	//VectorEngine::addSystem(new AnimationSystem());
-	VectorEngine::addSystem(new ParticleSystem());
+	VectorEngine::addSystem(new AnimationSystem());
+	//VectorEngine::addSystem(new ParticleSystem());
 	VectorEngine::addSystem(new FpsCounterSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
 
-	//Entity player;
-	//player.addComponent<Transform>()->setPosition(VectorEngine::center());
-	//player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
-	//player.addScript<MovePlayer>(200, 360);
-	//player.Register();
+	Entity player;
+	player.addComponent<Transform>()->setPosition(VectorEngine::center());
+	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0);
+	player.addScript<MovePlayer>(200, 360);
+	player.Register();
 
 	using namespace ParticleScripts;
 
@@ -195,7 +195,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto fwEntities = makeFireWorksEntities(100, fireParticles, false);
 	for (auto& e : fwEntities) {
 		e.addScript<SpawnLater>(20);
-		e.Register();
+		//e.Register();
 	}
 
 	auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);

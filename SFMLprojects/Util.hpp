@@ -54,50 +54,47 @@ inline void forEachSpan(F f, Args&&...args)
 template<typename F, typename V, typename...Spans>
 inline void forEachSpanImplNormalFunc(F f, V& v, Spans&...spans)
 {
-	if constexpr (std::is_pointer_v<V::value_type>) {
-		int pos = 0;
-		for (auto p : v) {
-			std::invoke(
-				f,
-				*p,
-				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p->count) } ... );
+	int pos = 0;
+	for (auto p : v) {
+		size_t count;
+		if constexpr (std::is_pointer_v<V::value_type>)
+			count = p->count;
+		else
+			count = p.count;
+
+		std::invoke(
+			f,
+			*p,
+			gsl::span<Spans::value_type>{ spans.data() + pos, count } ...);
+
+		if constexpr (std::is_pointer_v<V::value_type>)
 			pos += p->count;
-		}
-	} else {
-		int pos = 0;
-		for (auto& p : v) {
-			std::invoke(
-				f,
-				p,
-				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p.count) } ...);
+		else
 			pos += p.count;
-		}
 	}
 }
 
 template<typename F, class C, typename V, typename...Spans>
 inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
 {
-	if constexpr (std::is_pointer_v<V::value_type>) {
-		int pos = 0;
-		for (auto p : v) {
-			std::invoke(
-				f,
-				pThis,
-				*p,
-				gsl::span<Spans::value_type> { spans.data() + pos, static_cast<size_t>(p->count) } ... );
+	int pos = 0;
+	for (auto p : v) {
+		size_t count;
+		if constexpr (std::is_pointer_v<V::value_type>)
+			count = p->count;
+		else
+			count = p.count;
+
+		std::invoke(
+			f,
+			pThis,
+			*p,
+			gsl::span<Spans::value_type>{ spans.data() + pos, count } ...);
+
+		if constexpr (std::is_pointer_v<V::value_type>)
 			pos += p->count;
-		}
-	} else {
-		int pos = 0;
-		for (auto& p : v) {
-			std::invoke(
-				f,
-				pThis,
-				p,
-				gsl::span<Spans::value_type>{ spans.data() + pos, static_cast<size_t>(p.count) } ... );
+		else
 			pos += p.count;
-		}
 	}
 }
 

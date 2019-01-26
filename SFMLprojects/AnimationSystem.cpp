@@ -51,14 +51,10 @@ void AnimationSystem::add(Component * c)
 		a->uvRect.height = a->texture->getSize().y / (float)a->frameCount.y;
 		a->elapsedTime = sf::seconds(0);
 		a->currentFrame.x = 0;
-		a->vertices.resize(4);
-		a->vertices.setPrimitiveType(sf::TriangleStrip);
 		a->entity()->getComponent<Transform>()->setOrigin(a->frameSize() / 2.f);
 	}
 	if (auto mesh = dynamic_cast<Mesh*>(c); mesh) {
 		mesh->texture = load<sf::Texture>(mesh->fileName);
-		mesh->vertices.resize(4);
-		mesh->vertices.setPrimitiveType(sf::TriangleStrip);
 		mesh->entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh->texture->getSize()) / 2.f);
 		auto[a, b, c, d] = mesh->uvRect;
 		if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
@@ -120,17 +116,17 @@ void AnimationSystem::update()
 void AnimationSystem::render(sf::RenderTarget & target)
 {
 	sf::RenderStates rs;
-	for (auto m : this->getComponents<Mesh>()) {
-		m->texture->setRepeated(m->repeatTexture);
-		m->texture->setSmooth(m->smoothTexture);
-		rs.texture = m->texture;
-		rs.transform = *m->entity()->getComponent<Transform>();
-		target.draw(m->vertices, rs);
+	for (auto mesh : this->getComponents<Mesh>()) {
+		mesh->texture->setRepeated(mesh->repeatTexture);
+		mesh->texture->setSmooth(mesh->smoothTexture);
+		rs.texture = mesh->texture;
+		rs.transform = *mesh->entity()->getComponent<Transform>();
+		target.draw(mesh->vertices.data(), 4, sf::TriangleStrip, rs);
 	}
 	for (auto animation : this->getComponents<Animation>()) {
 		animation->texture->setSmooth(animation->smoothTexture);
 		rs.texture = animation->texture;
 		rs.transform = *animation->entity()->getComponent<Transform>();
-		target.draw(animation->vertices, rs);
+		target.draw(animation->vertices.data(), 4, sf::TriangleStrip, rs);
 	}
 }

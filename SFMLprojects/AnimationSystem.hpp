@@ -1,5 +1,6 @@
 #pragma once
 #include "VectorEngine.hpp"
+#include <array>
 
 struct Mesh : public Data<Mesh> {
 
@@ -22,13 +23,12 @@ private:
 	const std::string fileName;
 	sf::IntRect uvRect;
 	sf::Texture* texture;
-	sf::VertexArray vertices;
+	std::array<sf::Vertex, 4> vertices;
 	friend class AnimationSystem;
 };
 
 struct Animation : public Data<Animation> {
 
-public:
 	Animation(std::string fileName, sf::Vector2u frameCount, sf::Time frameTime, int row, bool smoothTexture)
 	: fileName(fileName), frameCount(frameCount), frameTime(frameTime), row(row), smoothTexture(smoothTexture)
 	{ }
@@ -51,7 +51,7 @@ private:
 	sf::Time elapsedTime;
 	sf::IntRect uvRect;
 	sf::Texture* texture;
-	sf::VertexArray vertices;
+	std::array<sf::Vertex, 4> vertices;
 
 	friend class AnimationSystem;
 

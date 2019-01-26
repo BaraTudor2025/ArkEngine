@@ -106,7 +106,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 
 	VectorEngine::addSystem(new AnimationSystem());
-	//VectorEngine::addSystem(new ParticleSystem());
+	VectorEngine::addSystem(new ParticleSystem());
 	VectorEngine::addSystem(new FpsCounterSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
@@ -167,16 +167,16 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	plimbarica.addScript<TraillingEffect>();
 	//plimbarica.addScript<ReadColorFromConsole>();
 
-	grass.Register();
-	plimbarica.Register();
-	trail.Register();
-	rainbow.Register();
-	fire.Register();
+	//grass.Register();
+	//plimbarica.Register();
+	//trail.Register();
+	//rainbow.Register();
+	//fire.Register();
 
 	auto fwEntities = makeFireWorksEntities(100, fireParticles, false);
 	for (auto& e : fwEntities) {
-		e.addScript<SpawnLater>(20);
-		//e.Register();
+		e.setAction(Action::SpawnLater, 10);
+		e.Register();
 	}
 
 	auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);

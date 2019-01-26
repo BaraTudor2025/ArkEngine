@@ -24,13 +24,6 @@ void Script::unRegister()
 	registered = false;
 }
 
-struct SeppukuException { Script* script; };
-
-void Script::seppuku()
-{
-	throw SeppukuException{this};
-}
-
 Entity::~Entity()
 {
 	for (auto& s : scripts)
@@ -47,6 +40,8 @@ Entity& Entity::operator=(Entity&& other)
 		this->tag = std::move(other.tag);
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
+		this->action = std::move(other.action);
+		this->actionArgs = std::move(other.actionArgs);
 		if (other.registered) {
 			erase(entities, &other);
 			other.registered = false;
@@ -111,6 +106,18 @@ Script* Entity::addScript(std::unique_ptr<Script> s)
 	return scripts.back().get();
 }
 
+void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
+{
+	this->action = f;
+	if (VectorEngine::running())
+		this->action(*this, std::move(args));
+	else {
+		if(args.has_value())
+			// if not running save arguments unitl VectorEngine::run is called
+			this->actionArgs = std::make_unique<std::any>(std::move(args));
+	}
+}
+
 void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, sf::ContextSettings settings)
 {
 	frameTime = fixedUT;
@@ -126,26 +133,6 @@ void VectorEngine::addSystem(System* s)
 	systems.push_back(s);
 }
 
-template <typename F, typename...Args>
-void VectorEngine::forEachScript(F f, Args&&...args)
-{
-	for (auto it = Script::scripts.begin(); it != Script::scripts.end();) {
-		try {
-			std::invoke(f, *it, std::forward<Args>(args)...);
-			it++;
-		} catch (const SeppukuException& exp) {
-#if VEngineDebug
-			static int seppukuCounter = 0;
-			seppukuCounter++;
-			debug_log("seppuku nr %d commited", seppukuCounter);
-#endif
-			exp.script->unRegister();
-			erase_if(exp.script->entity_->scripts, [&](auto& s) { return s.get() == exp.script; });
-			debug_log("removed script");
-		}
-	}
-}
-
 void VectorEngine::run()
 {
 	debug_log("start init systems");
@@ -153,18 +140,28 @@ void VectorEngine::run()
 		s->init();
 	
 	debug_log("start init scripts");
-	forEachScript(&Script::init);
+	for (auto s : Script::scripts)
+		s->init();
 
-	running_ = true;
+	for (auto& e : Entity::entities)
+		if (e->action) {
+			if (e->actionArgs && e->actionArgs->has_value()) {
+				e->action(*e, std::move(*e->actionArgs));
+			} else {
+				e->action(*e, nullptr);
+			}
+		}
+
 	auto scriptsLag = sf::Time::Zero;
 	auto systemsLag = sf::Time::Zero;
 
-	debug_log("start game loop scripts");
+	debug_log("start game loop");
+	running_ = true;
 	while (window.isOpen()) {
 
-		sf::Event ev;
-		while (window.pollEvent(ev)) {
-			switch (ev.type) {
+		sf::Event event;
+		while (window.pollEvent(event)) {
+			switch (event.type) {
 			case sf::Event::Closed:
 				window.close();
 				break;
@@ -172,9 +169,11 @@ void VectorEngine::run()
 				auto[x, y] = window.getSize();
 				auto aspectRatio = float(x) / float(y);
 				view.setSize({ width / aspectRatio, height / aspectRatio });
+				window.setView(view);
 			}	break;
 			default:
-				forEachScript(&Script::handleEvent, ev);
+				for (auto s : Script::scripts)
+					s->handleEvent(event);
 				break;
 			}
 		}
@@ -182,12 +181,14 @@ void VectorEngine::run()
 
 		delta_time = clock.restart();
 
-		forEachScript(&Script::update);
+		for (auto s : Script::scripts)
+			s->update();
 
 		scriptsLag += deltaTime();
 		while (scriptsLag >= frameTime) {
 			scriptsLag -= frameTime;
-			forEachScript(&Script::fixedUpdate, frameTime);
+			for (auto s : Script::scripts)
+				s->fixedUpdate(frameTime);
 		}
 
 		for (auto system : systems)

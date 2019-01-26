@@ -80,7 +80,7 @@ class DebugEntitySystem : public DebugSystem {
 	void init() { this->pressEnterToDisplay = true; }
 	void displayInfo() {
 		std::cout << "number of entities " << getComponents<Entity>().size() << std::endl;
-		for (auto e : getComponents<Entity>()) {
+		for (auto e : getEntities()) {
 			std::cout << "id: " << e->id() << '\n';
 		}
 	}

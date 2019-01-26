@@ -56,6 +56,8 @@ private:
 	friend class System;
 };
 
+template <typename T> using is_component = std::is_base_of<Component, T>;
+template <typename T> bool is_component_v = is_component<T>::value;
 
 struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable {
 	using sf::Transformable::Transformable;
@@ -92,9 +94,6 @@ protected:
 	Entity* entity() { return entity_; }
 	const Entity* entity() const { return entity_; }
 
-	// are bug-uri; nu-l folosi
-	void seppuku();
-
 private:
 	void Register();
 	void unRegister();
@@ -106,6 +105,9 @@ private:
 	friend class VectorEngine;
 	friend class Entity;
 };
+
+template <typename T> using is_script = std::is_base_of<Script, T>;
+template <typename T> bool is_script_v = is_script<T>::value;
 
 class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
@@ -127,6 +129,8 @@ public:
 	Component* addComponent(std::unique_ptr<Component> c);
 	Script* addScript(std::unique_ptr<Script> s);
 
+	void setAction(std::function<void(Entity&, std::any)> f, std::any args = std::any());
+
 	template <typename T, typename... Args>
 	T* addComponent(Args&&... args) {
 		return static_cast<T*>(addComponent(std::make_unique<T>(std::forward<Args>(args)...)));
@@ -140,10 +144,13 @@ public:
 private:
 	void unRegister();
 
+private:
 	std::vector<std::unique_ptr<Component>> components;
 	std::vector<std::unique_ptr<Script>> scripts;
-	bool registered = false;
+	std::function<void(Entity&, std::any)> action = nullptr;
+	std::unique_ptr<std::any> actionArgs;
 	int id_;
+	bool registered = false;
 
 	static inline int idCounter = 1;
 	static inline std::vector<Entity*> entities;
@@ -185,10 +192,11 @@ std::vector<Entity> makeEntitiesFromComponents(std::vector<std::unique_ptr<T>> c
 }
 
 // fiecare sistem ar trebui sa aiba o singura instanta
-class VECTOR_ENGINE_API System : public NonCopyable, public NonMovable {
+class VECTOR_ENGINE_API System : public NonCopyable{
 
 public:
 	System() = default;
+	virtual ~System() = default;
 
 protected:
 	template <typename Comp>
@@ -201,10 +209,11 @@ protected:
 
 	template <typename T>
 	std::vector<T*>& getComponents() {
-		if constexpr (std::is_same_v<T, Entity>)
-			return Entity::entities;
-		else
 			return Data<T>::components;
+	}
+
+	std::vector<Entity*> getEntities() {
+		return Entity::entities;
 	}
 
 private:
@@ -263,9 +272,6 @@ private:
 	static inline uint32_t width, height;
 	static inline bool running_ = false;
 	static inline std::vector<System*> systems;
-
-	template <class F, class...Args>
-	static void forEachScript(F, Args&&...);
 };
 
 
@@ -304,7 +310,7 @@ template<typename T>
 inline void Data<T>::Register()
 {
 	if (!registered) {
-		components.push_back(static_cast<T*>(this));
+		components.push_back(dynamic_cast<T*>(this));
 		registered = true;
 		if (VectorEngine::running() && system)
 			system->add(this);
@@ -315,7 +321,7 @@ template<typename T>
 inline void Data<T>::unRegister()
 {
 	if (registered) {
-		erase(components, this);
+		erase(components, dynamic_cast<T*>(this));
 		registered = false;
 		if(VectorEngine::running() && system)
 			system->remove(this);

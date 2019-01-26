@@ -126,83 +126,6 @@ namespace ParticleScripts {
 		};
 	};
 
-	class ReadColorDistributionFromFile : public Script {
-		Particles* p;
-		std::string fileName;
-	public:
-
-		ReadColorDistributionFromFile(std::string fileName) : fileName(fileName) { }
-
-		void init()
-		{
-			p = getComponent<Particles>();
-			std::thread t([p = p, fileName = fileName](){
-				while (true) {
-					std::cout << "press enter to read colors from: " + fileName;
-					std::cin.get();
-					std::ifstream fin(fileName);
-					__IMPL__readColorDistributionFromStream(fin, p);
-					fin.close();
-				}
-			});
-			t.detach();
-		}
-	};
-
-	class ReadColorDistributionFromConsole : public Script {
-		Particles* p;
-	public:
-		void init()
-		{
-			p = getComponent<Particles>();
-			std::thread t([p = p]() {
-				while (true) {
-					std::cout << "enter rgb low and high: ";
-					__IMPL__readColorDistributionFromStream(std::cin, p);
-				}
-			});
-			t.detach();
-		}
-	};
-
-	class ReadColorFromConsole : public Script {
-		Particles* p;
-	public:
-		void init()
-		{
-			p = getComponent<Particles>();
-			std::thread t([p = p]() {
-				while (true) {
-					std::cout << "enter rgb : ";
-					__IMPL__readColorFromStream(std::cin, p);
-				}
-			});
-			t.detach();
-		}
-	};
-
-	class ReadColorFromFile : public Script {
-		Particles* p;
-		std::string fileName;
-	public:
-
-		ReadColorFromFile(std::string fileName) : fileName(fileName) { }
-
-		void init()
-		{
-			p = getComponent<Particles>();
-			std::thread t([fileName = fileName, p = p](){
-				while (true) {
-					std::cout << "press enter to read colors from: " + fileName;
-					std::cin.get();
-					std::ifstream fin(fileName);
-					__IMPL__readColorFromStream(fin, p);
-					fin.close();
-				}
-			});
-			t.detach();
-		}
-	};
 
 	class RoatateEmitter : public Script {
 		sf::Transform t;
@@ -251,26 +174,6 @@ namespace ParticleScripts {
 		}
 	};
 
-	class SpawnLater : public Script {
-		int seconds;
-		Particles* p;
-	public:
-		SpawnLater(int seconds) : seconds(seconds) { }
-
-		void init()
-		{
-			p = getComponent<Particles>();
-			p->spawn = false;
-
-			std::thread waitToSpawn([pp = p, sec = seconds]() {
-				std::this_thread::sleep_for(std::chrono::seconds(sec));
-				pp->spawn = true;
-			});
-			waitToSpawn.detach();
-
-			this->seppuku();
-		}
-	};
 
 	class SpawnOnRightClick : public Script {
 		Particles* p;
@@ -331,7 +234,7 @@ namespace ParticleScripts {
 		void init() override
 		{
 			log_init();
-			if (std::is_base_of_v<Script, T>)
+			if (is_script_v<T>)
 				p = getScript<T>();
 			if (std::is_same_v<Particles, T>)
 				p = getComponent<T>();
@@ -347,4 +250,71 @@ namespace ParticleScripts {
 		}
 	};
 
+}
+
+namespace ParticleScripts::Action {
+
+	void SpawnLater(Entity& e, std::any a)
+	{
+		std::thread waitToSpawn([&e, a = std::move(a)]() {
+			auto p = e.getComponent<Particles>();
+			p->spawn = false;
+			auto seconds = std::any_cast<int>(a);
+			std::this_thread::sleep_for(std::chrono::seconds(seconds));
+			p->spawn = true;
+		});
+		waitToSpawn.detach();
+	}
+
+	void ReadColorDistributionFromFile(Entity& e, std::any fileName){
+		std::thread t([&e, arg = std::move(fileName)](){
+			auto fileName = std::any_cast<std::string>(arg);
+			auto p = e.getComponent<Particles>();
+			while (true) {
+				std::cout << "press enter to read colors from: " + fileName;
+				std::cin.get();
+				std::ifstream fin(fileName);
+				__IMPL__readColorDistributionFromStream(fin, p);
+				fin.close();
+			}
+		});
+		t.detach();
+	}
+
+	void ReadColorDistributionFromConsole(Entity& e, std::any){
+		std::thread t([&e]() {
+			auto p = e.getComponent<Particles>();
+			while (true) {
+				std::cout << "enter rgb low and high: ";
+				__IMPL__readColorDistributionFromStream(std::cin, p);
+			}
+		});
+		t.detach();
+	}
+
+	void ReadColorFromConsole(Entity& e, std::any){
+		std::thread t([&e]() {
+			auto p = e.getComponent<Particles>();
+			while (true) {
+				std::cout << "enter rgb : ";
+				__IMPL__readColorFromStream(std::cin, p);
+			}
+		});
+		t.detach();
+	}
+
+	void ReadColorFromFile(Entity& e, std::any fileName){
+		std::thread t([&e, arg = std::move(fileName)](){
+			auto p = e.getComponent<Particles>();
+			auto fileName = std::any_cast<std::string>(arg);
+			while (true) {
+				std::cout << "press enter to read colors from: " + fileName;
+				std::cin.get();
+				std::ifstream fin(fileName);
+				__IMPL__readColorFromStream(fin, p);
+				fin.close();
+			}
+		});
+		t.detach();
+	}
 }

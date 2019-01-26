@@ -21,7 +21,6 @@ namespace GeneralScripts
 				}
 			});
 			t.detach();
-			this->seppuku();
 		}
 	};
 

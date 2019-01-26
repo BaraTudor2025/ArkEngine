@@ -45,7 +45,7 @@ inline decltype(auto) Animation::get()
 
 void AnimationSystem::add(Component * c)
 {
-	if (auto a = static_cast<Animation*>(c); a) {
+	if (auto a = dynamic_cast<Animation*>(c); a) {
 		a->texture = load<sf::Texture>(a->fileName);
 		a->uvRect.width = a->texture->getSize().x / (float)a->frameCount.x;
 		a->uvRect.height = a->texture->getSize().y / (float)a->frameCount.y;
@@ -54,6 +54,33 @@ void AnimationSystem::add(Component * c)
 		a->vertices.resize(4);
 		a->vertices.setPrimitiveType(sf::TriangleStrip);
 		a->entity()->getComponent<Transform>()->setOrigin(a->frameSize() / 2.f);
+	}
+	if (auto mesh = dynamic_cast<Mesh*>(c); mesh) {
+		mesh->texture = load<sf::Texture>(mesh->fileName);
+		mesh->vertices.resize(4);
+		mesh->vertices.setPrimitiveType(sf::TriangleStrip);
+		mesh->entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh->texture->getSize()) / 2.f);
+		auto[a, b, c, d] = mesh->uvRect;
+		if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
+			mesh->uvRect.width = mesh->texture->getSize().x;
+			mesh->uvRect.height = mesh->texture->getSize().y;
+			mesh->uvRect.left = 0;
+			mesh->uvRect.top = 0;
+		}
+		updateVerticesWithRect(mesh->vertices, mesh->uvRect);
+		//sf::IntRect uvRect;
+		//if (mesh->flipX) {
+		//	uvRect.left = uvRect.width;
+		//	uvRect.width = -uvRect.width;
+		//} else {
+		//	uvRect.left = 0;
+		//} 
+		//if (mesh->flipY) {
+		//	uvRect.top = uvRect.height;
+		//	uvRect.height = -uvRect.height;
+		//} else {
+		//	uvRect.top = 0;
+		//}
 	}
 }
 
@@ -93,6 +120,13 @@ void AnimationSystem::update()
 void AnimationSystem::render(sf::RenderTarget & target)
 {
 	sf::RenderStates rs;
+	for (auto m : this->getComponents<Mesh>()) {
+		m->texture->setRepeated(m->repeatTexture);
+		m->texture->setSmooth(m->smoothTexture);
+		rs.texture = m->texture;
+		rs.transform = *m->entity()->getComponent<Transform>();
+		target.draw(m->vertices, rs);
+	}
 	for (auto animation : this->getComponents<Animation>()) {
 		animation->texture->setSmooth(animation->smoothTexture);
 		rs.texture = animation->texture;

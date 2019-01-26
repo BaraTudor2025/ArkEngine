@@ -164,7 +164,6 @@
   <ItemGroup>
     <ClCompile Include="AnimationSystem.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="MeshSystem.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="VectorEngine.cpp" />
   </ItemGroup>
@@ -175,7 +174,6 @@
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="Entities.hpp" />
     <ClInclude Include="gsl-lite.hpp" />
-    <ClInclude Include="MeshSystem.hpp" />
     <ClInclude Include="SOAvector.hpp" />
     <ClInclude Include="gsl.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />

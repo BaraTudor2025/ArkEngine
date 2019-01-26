@@ -1,6 +1,31 @@
 #pragma once
 #include "VectorEngine.hpp"
 
+struct Mesh : public Data<Mesh> {
+
+	Mesh(std::string fileName, bool smoothTexture = false)
+		:fileName(fileName), smoothTexture(smoothTexture), uvRect(0,0,0,0), repeatTexture(false) { }
+
+	Mesh(std::string fileName, bool smoothTexture, sf::IntRect rect, bool repeatTexture)
+		:fileName(fileName),  smoothTexture(smoothTexture), uvRect(uvRect), repeatTexture(repeatTexture){ }
+
+	sf::Vector2f meshSize() { 
+	    return static_cast<sf::Vector2f>(
+		    sf::Vector2i{ std::abs(uvRect.width), std::abs(uvRect.height) }); 
+	}
+
+private:
+	const bool repeatTexture;
+	const bool smoothTexture;
+	//const bool flipX;
+	//const bool flipY;
+	const std::string fileName;
+	sf::IntRect uvRect;
+	sf::Texture* texture;
+	sf::VertexArray vertices;
+	friend class AnimationSystem;
+};
+
 struct Animation : public Data<Animation> {
 
 public:
@@ -40,13 +65,14 @@ class AnimationSystem : public System {
 public:
 	void init() override {
 		initFrom<Animation>();
+		initFrom<Mesh>();
 	}
 
 	void add(Component* c) override;
 
 	void update() override;
 
-	virtual void render(sf::RenderTarget& target) override;
+	void render(sf::RenderTarget& target) override;
 
 };
 

@@ -17,13 +17,12 @@
 #include "Entities.hpp"
 #include "Scripts.hpp"
 #include "AnimationSystem.hpp"
-#include "MeshSystem.hpp"
 #include "DebugSystems.hpp"
 
 using namespace std::literals;
 
 #if 0
-struct RigidBody : public Data<RigidBody> {
+struct HitBox : public Data<HitBox> {
 
 };
 
@@ -31,29 +30,6 @@ class ColisionSystem : public System {
 
 };
 
-struct Mesh : public Data<Mesh> {
-	std::string fileName;
-};
-
-class MeshSystem : public System {
-
-public:
-	virtual void update() override
-	{
-	}
-	virtual void render(sf::RenderTarget& target) override
-	{
-	}
-	virtual void add(Component *) override
-	{
-	}
-	virtual void remove(Component *) override
-	{
-	}
-
-private:
-	std::vector<sf::Texture*> textures;
-};
 #endif
 
 /* 
@@ -118,10 +94,7 @@ public:
 
 };
 
-// TODO: rename handleInput -> handleEvent
 // adaugat struct TexturedParticles : (?) public PointParticles, Data<TexturedParticles>
-
-
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -135,7 +108,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::addSystem(new AnimationSystem());
 	//VectorEngine::addSystem(new ParticleSystem());
 	VectorEngine::addSystem(new FpsCounterSystem());
-	VectorEngine::addSystem(new MeshSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
 

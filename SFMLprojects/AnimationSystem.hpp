@@ -1,6 +1,6 @@
 #pragma once
 #include "VectorEngine.hpp"
-#include <array>
+#include "Quad.hpp"
 
 struct Mesh : public Data<Mesh> {
 
@@ -23,7 +23,7 @@ private:
 	const std::string fileName;
 	sf::IntRect uvRect;
 	sf::Texture* texture;
-	std::array<sf::Vertex, 4> vertices;
+	Quad vertices{sf::TriangleStrip};
 	friend class AnimationSystem;
 };
 
@@ -51,7 +51,7 @@ private:
 	sf::Time elapsedTime;
 	sf::IntRect uvRect;
 	sf::Texture* texture;
-	std::array<sf::Vertex, 4> vertices;
+	Quad vertices{sf::TriangleStrip};
 
 	friend class AnimationSystem;
 

@@ -1,27 +1,6 @@
 #include "AnimationSystem.hpp"
 #include "ResourceManager.hpp"
 
-template <typename Range>
-inline void updateVerticesWithRect(Range& vertices, const sf::IntRect& uvRect)
-{
-	auto h = std::abs(uvRect.height);
-	auto w = std::abs(uvRect.width);
-	vertices[0].position = sf::Vector2f(0, 0);
-	vertices[1].position = sf::Vector2f(0, h);
-	vertices[2].position = sf::Vector2f(w, 0);
-	vertices[3].position = sf::Vector2f(w, h);
-
-	float left = uvRect.left;
-	float right = left + uvRect.width;
-	float top = uvRect.top;
-	float bottom = top + uvRect.height;
-
-	vertices[0].texCoords = sf::Vector2f(left, top);
-	vertices[1].texCoords = sf::Vector2f(left, bottom);
-	vertices[2].texCoords = sf::Vector2f(right, top);
-	vertices[3].texCoords = sf::Vector2f(right, bottom);
-}
-
 namespace std{
 
 	template<> struct tuple_size<Animation> : std::integral_constant<std::size_t, 6> {};
@@ -63,7 +42,7 @@ void AnimationSystem::add(Component * c)
 			mesh->uvRect.left = 0;
 			mesh->uvRect.top = 0;
 		}
-		updateVerticesWithRect(mesh->vertices, mesh->uvRect);
+		mesh->vertices.updatePosTex(mesh->uvRect);
 		//sf::IntRect uvRect;
 		//if (mesh->flipX) {
 		//	uvRect.left = uvRect.width;
@@ -109,7 +88,7 @@ void AnimationSystem::update()
 			uvRect.height = std::abs(uvRect.height);
 		}
 
-		updateVerticesWithRect(animation->vertices, uvRect);
+		animation->vertices.updatePosTex(uvRect);
 	}
 }
 

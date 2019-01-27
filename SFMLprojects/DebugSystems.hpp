@@ -1,21 +1,38 @@
 #pragma once
+#include <thread>
 #include "VectorEngine.hpp"
 #include "Util.hpp"
-#include <thread>
+#include "ResourceManager.hpp"
 
 class FpsCounterSystem : public System {
 	sf::Time updateElapsed;
+	sf::Text text;
 	int updateFPS;
 
 public:
+	FpsCounterSystem(sf::Color color = sf::Color::White) {
+		text.setFillColor(color);
+	}
+
+private:
+	void init() {
+		text.setFont(*load<sf::Font>("KeepCalm-Medium.ttf"));
+		text.setCharacterSize(15);
+	}
+
 	void update() {
 		updateElapsed += VectorEngine::deltaTime();
 		updateFPS += 1;
 		if (updateElapsed.asMilliseconds() >= 1000) {
 			updateElapsed -= sf::milliseconds(1000);
-			log("fps: %d", updateFPS);
+			//log("fps: %d", updateFPS);
+			text.setString("FPS:" + std::to_string(updateFPS));
 			updateFPS = 0;
 		}
+	}
+
+	void render(sf::RenderTarget& target) {
+		target.draw(text);
 	}
 };
 

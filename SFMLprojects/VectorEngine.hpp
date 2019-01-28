@@ -196,7 +196,7 @@ class VECTOR_ENGINE_API System : public NonCopyable{
 
 public:
 	System() = default;
-	virtual ~System() = default;
+	virtual ~System() = 0;
 
 protected:
 	template <typename Comp>

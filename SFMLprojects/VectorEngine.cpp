@@ -10,6 +10,8 @@
 #define debug_log(fmt, ...)
 #endif
 
+System::~System() { }
+
 void Script::Register()
 { 
 	if(!this->registered)
@@ -168,8 +170,8 @@ void VectorEngine::run()
 			case sf::Event::Resized: {
 				auto[x, y] = window.getSize();
 				auto aspectRatio = float(x) / float(y);
-				view.setSize({ width / aspectRatio, height / aspectRatio });
-				window.setView(view);
+				view.setSize({ width * aspectRatio, (float)height });
+				//window.setView(view);
 			}	break;
 			default:
 				for (auto s : Script::scripts)

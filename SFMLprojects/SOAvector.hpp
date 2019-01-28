@@ -9,12 +9,12 @@ class Vector {
 
 public:
 	struct SOA {
-		std::vector<Particles> p;
+		std::vector<PointParticles> p;
 		std::vector<int> i;
 	};
 
 	struct AOS {
-		Particles p;
+		PointParticles p;
 		int i;
 	};
 
@@ -23,7 +23,7 @@ public:
 
 public:
 	struct Proxy {
-		Particles& p;
+		PointParticles& p;
 		int& i;
 	};
 
@@ -32,7 +32,7 @@ private:
 		union U{
 			typename std::vector<Vector::SOA>::iterator soaIt;
 			struct {
-				std::vector<Particles>::iterator p;
+				std::vector<PointParticles>::iterator p;
 				std::vector<int>::iterator i;
 			}aosIt;
 		};

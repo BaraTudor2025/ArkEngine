@@ -72,8 +72,8 @@ class DebugParticleSystem : public DebugSystem {
 	void init() { this->pressEnterToDisplay = true; }
 
 	void displayInfo() {
-		std::cout << "number of particle components " << getComponents<Particles>().size() << std::endl;
-		for (auto p : getComponents<Particles>()) {
+		std::cout << "number of particle components " << getComponents<PointParticles>().size() << std::endl;
+		for (auto p : getComponents<PointParticles>()) {
 			std::cout
 				<< "\n count: " << p->count
 				<< "\n applyTransform:" << p->applyTransform

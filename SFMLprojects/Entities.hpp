@@ -10,15 +10,15 @@ static std::pair<Entity, Entity> makeMouseRecordingEntities(std::string fileToSa
 {
 	using namespace ParticleScripts;
 
-	Particles letterParticles(200, sf::seconds(10), { 0, 2 });
+	PointParticles letterParticles(200, sf::seconds(10), { 0, 2 });
 	Entity letter, whiteP;
 
-	letter.addComponent<Particles>(letterParticles);
+	letter.addComponent<PointParticles>(letterParticles);
 	letter.addScript<EmittFromMouse>();
 	letter.addScript<GeneralScripts::RegisterMousePath>(fileToSave);
 	letter.addScript<SpawnOnLeftClick>();
 
-	whiteP.addComponent<Particles>(letterParticles);
+	whiteP.addComponent<PointParticles>(letterParticles);
 	whiteP.addScript<EmittFromMouse>();
 	whiteP.addScript<SpawnOnRightClick>();
 
@@ -34,11 +34,11 @@ static std::vector<Entity> makeLetterEntities(std::string prop)
 	int i = 0;
 	int rand = 0;
 	int col = 0;
-	Particles letterParticles(200, sf::seconds(10), { 0, 2 });
+	PointParticles letterParticles(200, sf::seconds(10), { 0, 2 });
 	for (auto& cuvant : cuvinte) {
 		col = 0;
 		for (auto litera : cuvant) {
-			letters[i].addComponent<Particles>(letterParticles);
+			letters[i].addComponent<PointParticles>(letterParticles);
 			letters[i].addScript<ParticleScripts::PlayModel>("./res/litere/letter"s + litera + ".txt"s, sf::Vector2f{ 150.f * col, 150.f * rand });
 			i++;
 			col++;
@@ -48,9 +48,9 @@ static std::vector<Entity> makeLetterEntities(std::string prop)
 	return letters;
 }
 
-static std::vector<Entity> makeFireWorksEntities(int count, const Particles& templateParticles, bool spawn)
+static std::vector<Entity> makeFireWorksEntities(int count, const PointParticles& templateParticles, bool spawn)
 {
-	std::vector<std::unique_ptr<Particles>> fireWorks;
+	std::vector<std::unique_ptr<PointParticles>> fireWorks;
 	constructVector(fireWorks, count, templateParticles);
 
 	for (auto& fw : fireWorks) {
@@ -66,12 +66,12 @@ static std::vector<Entity> makeFireWorksEntities(int count, const Particles& tem
 		fw->speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
 	}
 
-	return makeEntitiesFromComponents<Particles>(std::move(fireWorks));
+	return makeEntitiesFromComponents<PointParticles>(std::move(fireWorks));
 }
 
-static std::vector<Entity> makeRandomParticlesFountains(int count, float life, const Particles& templateParticles, bool spawn)
+static std::vector<Entity> makeRandomParticlesFountains(int count, float life, const PointParticles& templateParticles, bool spawn)
 {
-	std::vector<std::unique_ptr<Particles>> particles;
+	std::vector<std::unique_ptr<PointParticles>> particles;
 	constructVector(particles, count, templateParticles);
 
 	for (auto& ps : particles) {

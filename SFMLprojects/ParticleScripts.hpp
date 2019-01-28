@@ -14,12 +14,12 @@
 namespace ParticleScripts {
 
 	class EmittFromMouse : public Script {
-		Particles* p;
+		PointParticles* p;
 	public:
 		void init() override
 		{
 			log_init();
-			p = getComponent<Particles>();
+			p = getComponent<PointParticles>();
 		}
 		void update() override
 		{
@@ -29,14 +29,14 @@ namespace ParticleScripts {
 
 	class TraillingEffect : public Script {
 		sf::Vector2f prevEmitter;
-		Particles* p;
+		PointParticles* p;
 	public:
 		bool spawn = true;
 
 		void init()
 		{
 			log_init();
-			p = getComponent<Particles>();
+			p = getComponent<PointParticles>();
 		}
 
 		void fixedUpdate(sf::Time) override
@@ -60,7 +60,7 @@ namespace ParticleScripts {
 		std::vector<sf::Vector2f> model;
 		std::vector<sf::Vector2f>::iterator curr;
 		std::string file;
-		Particles* p;
+		PointParticles* p;
 		sf::Vector2f offset;
 	public:
 
@@ -69,7 +69,7 @@ namespace ParticleScripts {
 		void init()
 		{
 			log_init();
-			p = getComponent<Particles>();
+			p = getComponent<PointParticles>();
 			std::ifstream fin(file);
 			if (!fin.is_open()) {
 				std::cerr << "nu-i fisierul: " + file + "\n";
@@ -105,7 +105,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	auto __IMPL__readColorDistributionFromStream = [](std::istream& is, Particles* p)
+	auto __IMPL__readColorDistributionFromStream = [](std::istream& is, PointParticles* p)
 	{
 		int r1, r2, g1, g2, b1, b2;
 		is >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
@@ -117,7 +117,7 @@ namespace ParticleScripts {
 		};
 	};
 
-	auto __IMPL__readColorFromStream = [](std::istream& is, Particles* p)
+	auto __IMPL__readColorFromStream = [](std::istream& is, PointParticles* p)
 	{
 		int r, g, b;
 		is >> r >> g >> b;
@@ -129,24 +129,30 @@ namespace ParticleScripts {
 
 	class RoatateEmitter : public Script {
 		sf::Transform t;
-		Particles* p;
+		PointParticles* p;
+		//Transform* t;
 		sf::Vector2f distance;
 		sf::Vector2f around;
-		float angle;
+		float angleSpeed;
 
 	public:
 		RoatateEmitter(float angle, sf::Vector2f around, float distance)
-			:angle(angle), around(around), distance(distance, 0) { }
+			:angleSpeed(angle), around(around), distance(distance, 0) { }
 
 		void init()
 		{
-			p = getComponent<Particles>();
+			p = getComponent<PointParticles>();
+			//p->emitter = distance;
+			//p->applyTransformOnEmitter = true;
+			//t = getComponent<Transform>();
+			//t->move(around);
+			//t->setOrigin(around);
 			//offset =  p->emitter - around;
 		}
 
 		void update()
 		{
-			t.rotate(angle * VectorEngine::deltaTime().asSeconds(), around);
+			t.rotate(angleSpeed * VectorEngine::deltaTime().asSeconds(), around);
 			p->emitter = t.transformPoint(around + distance);
 		}
 	};
@@ -164,7 +170,7 @@ namespace ParticleScripts {
 			t->setPosition(around);
 			t->setOrigin(around);
 			
-			auto p = getComponent<Particles>();
+			auto p = getComponent<PointParticles>();
 			p->emitter = around;
 			p->applyTransform = true;
 		}
@@ -176,12 +182,12 @@ namespace ParticleScripts {
 
 
 	class SpawnOnRightClick : public Script {
-		Particles* p;
+		PointParticles* p;
 	public:
 		void init()
 		{
 			log_init();
-			p = getComponent<Particles>();
+			p = getComponent<PointParticles>();
 		}
 		void handleEvent(sf::Event ev)
 		{
@@ -202,12 +208,12 @@ namespace ParticleScripts {
 	};
 
 	class SpawnOnLeftClick : public Script {
-		Particles* p;
+		PointParticles* p;
 	public:
 		void init()
 		{
 			log_init();
-			p = getComponent<Particles>();
+			p = getComponent<PointParticles>();
 		}
 		void handleEvent(sf::Event ev)
 		{
@@ -227,7 +233,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	template <typename T = Particles>
+	template <typename T = PointParticles>
 	class DeSpawnOnMouseClick : public Script {
 		T* p = nullptr;
 	public:
@@ -236,7 +242,7 @@ namespace ParticleScripts {
 			log_init();
 			if (is_script_v<T>)
 				p = getScript<T>();
-			if (std::is_same_v<Particles, T>)
+			if (std::is_same_v<PointParticles, T>)
 				p = getComponent<T>();
 		}
 		void handleEvent(sf::Event event)
@@ -257,7 +263,7 @@ namespace ParticleScripts::Action {
 	void SpawnLater(Entity& e, std::any a)
 	{
 		std::thread waitToSpawn([&e, a = std::move(a)]() {
-			auto p = e.getComponent<Particles>();
+			auto p = e.getComponent<PointParticles>();
 			p->spawn = false;
 			auto seconds = std::any_cast<int>(a);
 			std::this_thread::sleep_for(std::chrono::seconds(seconds));
@@ -269,7 +275,7 @@ namespace ParticleScripts::Action {
 	void ReadColorDistributionFromFile(Entity& e, std::any fileName){
 		std::thread t([&e, arg = std::move(fileName)](){
 			auto fileName = std::any_cast<std::string>(arg);
-			auto p = e.getComponent<Particles>();
+			auto p = e.getComponent<PointParticles>();
 			while (true) {
 				std::cout << "press enter to read colors from: " + fileName;
 				std::cin.get();
@@ -283,7 +289,7 @@ namespace ParticleScripts::Action {
 
 	void ReadColorDistributionFromConsole(Entity& e, std::any){
 		std::thread t([&e]() {
-			auto p = e.getComponent<Particles>();
+			auto p = e.getComponent<PointParticles>();
 			while (true) {
 				std::cout << "enter rgb low and high: ";
 				__IMPL__readColorDistributionFromStream(std::cin, p);
@@ -294,7 +300,7 @@ namespace ParticleScripts::Action {
 
 	void ReadColorFromConsole(Entity& e, std::any){
 		std::thread t([&e]() {
-			auto p = e.getComponent<Particles>();
+			auto p = e.getComponent<PointParticles>();
 			while (true) {
 				std::cout << "enter rgb : ";
 				__IMPL__readColorFromStream(std::cin, p);
@@ -305,7 +311,7 @@ namespace ParticleScripts::Action {
 
 	void ReadColorFromFile(Entity& e, std::any fileName){
 		std::thread t([&e, arg = std::move(fileName)](){
-			auto p = e.getComponent<Particles>();
+			auto p = e.getComponent<PointParticles>();
 			auto fileName = std::any_cast<std::string>(arg);
 			while (true) {
 				std::cout << "press enter to read colors from: " + fileName;

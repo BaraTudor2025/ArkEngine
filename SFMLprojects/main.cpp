@@ -22,7 +22,13 @@
 using namespace std::literals;
 
 #if 0
+
 struct HitBox : public Data<HitBox> {
+	std::vector<sf::IntRect> hitBoxes;
+	std::function<void(Entity&, Entity&)> onColide = nullptr;
+};
+
+struct Wall : public Data<Wall> {
 
 };
 
@@ -32,26 +38,32 @@ class ColisionSystem : public System {
 
 #endif
 
-/* 
- * TODO: Refactoring
- * Entity won't be the owner of components and scripts
- * Components and scripts manage themselves in their private static vectors
- * Entity has indexes to components and scripts
-*/
-
-/* TODO: de adaugat class Scene/World (manager de entitati) */
-
 class MovePlayer : public Script {
 	Animation* animation;
 	Transform* transform;
+	PixelParticles* runningParticles;
 	float speed;
 	float rotationSpeed;
 public:
 
 	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
+
 	void init() {
 		animation = getComponent<Animation>();
+
 		transform = getComponent<Transform>();
+		transform->setOrigin(animation->frameSize() / 2.f);
+		transform->move(VectorEngine::center());
+		transform->scale(0.15, 0.15);
+
+		runningParticles = getComponent<PixelParticles>();
+		auto pp = runningParticles;
+		pp->spawn = true;
+		pp->speed = this->speed;
+		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
+		pp->gravity = { 0, this->speed };
+		auto[w, h] = VectorEngine::windowSize();
+		pp->platform = { VectorEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 	}
 
 	void fixedUpdate(sf::Time frameTime) {
@@ -62,23 +74,25 @@ public:
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
 			transform->move(dx * std::cos(angle), dx * std::sin(angle));
+			runningParticles->angleDistribution = { PI + PI/4, PI / 10, DistributionType::normal };
+			runningParticles->emitter = transform->getPosition() + sf::Vector2f{ -25, 40 };
 			moved = true;
 			animation->flipX = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
 			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
+			runningParticles->angleDistribution = { -PI/4, PI / 10, DistributionType::normal };
+			runningParticles->emitter = transform->getPosition() + sf::Vector2f{ 25, 40 };
 			moved = true;
 			animation->flipX = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
 			transform->move(dx * std::sin(angle), -dx * std::cos(angle));
 			moved = true;
-			animation->flipY = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
 			transform->move(-dx * std::sin(angle), dx * std::cos(angle));
 			moved = true;
-			animation->flipY = false;
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
@@ -86,15 +100,34 @@ public:
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
 			transform->rotate(-rotationSpeed * dt);
 
-		if (moved)
-			animation->row = 1;
-		else
+		if (moved) {
 			animation->row = 0;
+			animation->frameTime = sf::milliseconds(75);
+			runningParticles->spawn = true;
+		}
+		else {
+			animation->frameTime = sf::milliseconds(125);
+			animation->row = 1;
+			runningParticles->spawn = false;
+		}
 	}
-
 };
 
-// adaugat struct TexturedParticles : (?) public PointParticles, Data<TexturedParticles>
+/* 
+ * TODO: Refactoring?
+ * Entity won't be the owner of components
+ * Components manage themselves (or systems manage them) in private static vectors
+ * Entity has indexes to components
+*/
+
+//enum class GameTag { Bullet, Player, Wall };
+
+/* TODO: TexturedParticles */
+/* TODO: Entity.children : vector<Entity*> */
+/* TODO: TileSystem */
+/* TODO: GuiSystem, Button, Text(with fade), TextBox + remove systems from engine */
+/* TODO: MusicSystem/SoundSystem */
+/* TODO: de adaugat class Scene/World (manager de entitati) */
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -106,21 +139,22 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 
 	VectorEngine::addSystem(new AnimationSystem());
+	VectorEngine::addSystem(new FpsCounterSystem(sf::Color::White));
 	VectorEngine::addSystem(new ParticleSystem());
-	VectorEngine::addSystem(new FpsCounterSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
 
 	Entity player;
-	player.addComponent<Transform>()->setPosition(VectorEngine::center());
-	player.addComponent<Animation>("tux_from_linux.png", sf::Vector2u{3, 9}, sf::milliseconds(200), 0, false);
-	player.addScript<MovePlayer>(200, 360);
+	player.addComponent<Transform>();
+	player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
+	player.addComponent<PixelParticles>(30, sf::seconds(1.5), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+	player.addScript<MovePlayer>(400, 180);
 	player.Register();
 
 	Entity image;
 	image.addComponent<Transform>()->setPosition(VectorEngine::center());
 	image.addComponent<Mesh>("toaleta.jpg", false);
-	image.Register();
+	//image.Register();
 
 	using namespace ParticleScripts;
 
@@ -134,31 +168,31 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto greenParticles = getGreenParticles();
 
 	Entity rainbow;
-	rainbow.addComponent<Particles>(rainbowParticles);
+	rainbow.addComponent<PointParticles>(rainbowParticles);
 	rainbow.addScript<SpawnOnRightClick>();
 	rainbow.addScript<EmittFromMouse>();
 
 	Entity fire;
-	fire.addComponent<Particles>(fireParticles);
+	fire.addComponent<PointParticles>(fireParticles);
 	fire.addScript<SpawnOnLeftClick>();
 	fire.addScript<EmittFromMouse>();
 
 	Entity grass;
-	auto grassP = grass.addComponent<Particles>(greenParticles);
+	auto grassP = grass.addComponent<PointParticles>(greenParticles);
 	grassP->spawn = true;
 	grass.addScript<DeSpawnOnMouseClick<>>();
 	//grass.addScript<ReadColorFromConsole>();
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail;
-	trail.addComponent<Particles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
+	trail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
 	trail.addScript<EmittFromMouse>();
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
 
 	Entity plimbarica;
-	//plimbarica.addComponent<Transform>();
-	auto plimb = plimbarica.addComponent<Particles>(rainbowParticles);
+	plimbarica.addComponent<Transform>();
+	auto plimb = plimbarica.addComponent<PointParticles>(rainbowParticles);
 	plimb->spawn = true;
 	//plimb->emitter = VectorEngine::center();
 	//plimb->emitter.x += 100;
@@ -168,7 +202,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//plimbarica.addScript<ReadColorFromConsole>();
 
 	//grass.Register();
-	//plimbarica.Register();
+	plimbarica.Register();
 	//trail.Register();
 	//rainbow.Register();
 	//fire.Register();
@@ -176,7 +210,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto fwEntities = makeFireWorksEntities(100, fireParticles, false);
 	for (auto& e : fwEntities) {
 		e.setAction(Action::SpawnLater, 10);
-		e.Register();
+		//e.Register();
 	}
 
 	auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);

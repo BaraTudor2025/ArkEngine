@@ -2,19 +2,21 @@
 
 #include <SFML/System/Time.hpp>
 #include <SFML/Graphics.hpp>
-#include <vector>
 #include <functional>
+#include <optional>
+#include <vector>
 #include "RandomNumbers.hpp"
 #include "gsl.hpp"
 #include "VectorEngine.hpp"
+#include "Quad.hpp"
 
 static inline constexpr auto PI = 3.14159f;
 
-struct Particles final : public Data<Particles> {
+struct PointParticles final : public Data<PointParticles> {
 
-	COPYABLE(Particles)
+	COPYABLE(PointParticles)
 
-	Particles(int count, sf::Time lifeTime,
+	PointParticles(int count, sf::Time lifeTime,
 	          Distribution<float> speedArgs = { 0, 0 },
 	          Distribution<float> angleArgs = { 0.f, 2 * 3.14159f },
 	          DistributionType lifeTimeDistType = DistributionType::uniform,
@@ -34,7 +36,6 @@ struct Particles final : public Data<Particles> {
 
 	Distribution<float> speedDistribution;
 	Distribution<float> angleDistribution;
-	Distribution<float> lifeTimeDistribution;
 
 	sf::Vector2f emitter{ 0.f, 0.f };
 	std::function<sf::Color()> getColor;
@@ -65,9 +66,36 @@ struct Particles final : public Data<Particles> {
 
 private:
 	sf::Time deathTimer = sf::Time::Zero;
-	bool areDead() { return deathTimer >= lifeTime; }
+	Distribution<float> lifeTimeDistribution;
+	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
 
+};
+
+struct PixelParticles : public Data<PixelParticles> {
+
+	using Colors = std::pair<sf::Color, sf::Color>;
+
+	COPYABLE(PixelParticles)
+
+	PixelParticles(size_t count, sf::Time lifeTime, sf::Vector2f size, Colors colors)
+		:count(count), size(size), colors(colors), lifeTime(lifeTime) { }
+
+	size_t count;
+	sf::Vector2f size;
+	Colors colors;
+	sf::Vector2f emitter;
+	float speed;
+	sf::Time lifeTime;
+	Distribution<float> angleDistribution = { 0, 2 * PI, DistributionType::normal };
+	bool spawn = false;
+	sf::Vector2f gravity;
+	sf::FloatRect platform; // particles can't go through this
+
+private:
+	sf::Time deathTimer = sf::Time::Zero;
+	bool areDead() const { return deathTimer >= lifeTime; }
+	friend class ParticleSystem;
 };
 
 // templates
@@ -103,21 +131,21 @@ static auto makeBlue = []() {
 
 static inline std::vector<std::function<sf::Color()>> makeColorsVector{ makeRed, makeGreen, makeBlue, makeColor };
 
-inline Particles getFireParticles() 
+inline PointParticles getFireParticles() 
 {
-	Particles fireParticles = { 1000, sf::seconds(3), { 1, 100 } };
+	PointParticles fireParticles = { 1000, sf::seconds(3), { 1, 100 } };
 	fireParticles.getColor = makeRed;
 	return fireParticles;
 }
 
-inline Particles getRainbowParticles()
+inline PointParticles getRainbowParticles()
 {
-	Particles rainbowParticles(2000, sf::seconds(3), { 1, 100 , DistributionType::normal});
+	PointParticles rainbowParticles(2000, sf::seconds(3), { 1, 100 , DistributionType::normal});
 	rainbowParticles.getColor = makeColor;
 	return rainbowParticles;
 }
 
-inline Particles getGreenParticles()
+inline PointParticles getGreenParticles()
 {
 	auto greenParticles = getFireParticles();
 	greenParticles.getColor = makeGreen;
@@ -133,9 +161,7 @@ public:
 	static inline bool hasUniversalGravity = true;
 
 private:
-	void init() override {
-		this->initFrom<Particles>();
-	}
+	void init() override;
 
 	void update() override;
 	void fixedUpdate(sf::Time) override;
@@ -143,15 +169,20 @@ private:
 	void remove(Component*) override;
 	void render(sf::RenderTarget& target) override;
 
-	struct Data {
+	struct InternalData {
 		sf::Vector2f speed;
-		sf::Time lifeTime;
+		sf::Time lifeTime = sf::Time::Zero;
 	};
 
-	void updateBatch(Particles&, gsl::span<sf::Vertex>, gsl::span<Data>);
+	void updatePointBatch(const PointParticles&, gsl::span<sf::Vertex>, gsl::span<InternalData>);
+	void updatePixelBatch(const PixelParticles&, gsl::span<Quad>, gsl::span<InternalData>);
+	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
+	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
 
 private:
 	// benchmark-ul spune ca memory layout-ul asta nu ajuta, are acelasi fps
-	std::vector<sf::Vertex>	vertices;
-	std::vector<Data> data;
+	std::vector<sf::Vertex>	pointVertices;
+	std::vector<InternalData> pointParticles;
+	std::vector<Quad> pixelQuads;
+	std::vector<InternalData> pixelParticles;
 };

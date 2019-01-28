@@ -23,7 +23,7 @@ private:
 	const std::string fileName;
 	sf::IntRect uvRect;
 	sf::Texture* texture;
-	Quad vertices{sf::TriangleStrip};
+	Quad vertices;
 	friend class AnimationSystem;
 };
 
@@ -51,7 +51,7 @@ private:
 	sf::Time elapsedTime;
 	sf::IntRect uvRect;
 	sf::Texture* texture;
-	Quad vertices{sf::TriangleStrip};
+	Quad vertices;
 
 	friend class AnimationSystem;
 

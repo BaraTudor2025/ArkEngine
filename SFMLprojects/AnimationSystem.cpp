@@ -30,7 +30,6 @@ void AnimationSystem::add(Component * c)
 		a->uvRect.height = a->texture->getSize().y / (float)a->frameCount.y;
 		a->elapsedTime = sf::seconds(0);
 		a->currentFrame.x = 0;
-		a->entity()->getComponent<Transform>()->setOrigin(a->frameSize() / 2.f);
 	}
 	if (auto mesh = dynamic_cast<Mesh*>(c); mesh) {
 		mesh->texture = load<sf::Texture>(mesh->fileName);

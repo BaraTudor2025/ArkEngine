@@ -36,6 +36,18 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
+template <typename T, typename U>
+sf::Vector2<T> operator*(sf::Vector2<T> v1, sf::Vector2<U> v2)
+{
+	return { v1.x * v2.x, v1.y * v2.y };
+}
+
+template <typename T, typename U>
+sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
+{
+	return { v1.x / v2.x, v1.y / v2.y };
+}
+
 /* Params
  * f : function, if is member func then pass 'this' as the next args
  * this: if f is member func

@@ -26,10 +26,7 @@ using namespace std::literals;
 struct HitBox : public Data<HitBox> {
 	std::vector<sf::IntRect> hitBoxes;
 	std::function<void(Entity&, Entity&)> onColide = nullptr;
-};
-
-struct Wall : public Data<Wall> {
-
+	std::optional<int> mass; // if mass is undefined object is imovable
 };
 
 class ColisionSystem : public System {
@@ -44,6 +41,8 @@ class MovePlayer : public Script {
 	PixelParticles* runningParticles;
 	float speed;
 	float rotationSpeed;
+	sf::Vector2f particleEmitterOffsetLeft;
+	sf::Vector2f particleEmitterOffsetRight;
 public:
 
 	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
@@ -58,7 +57,7 @@ public:
 
 		runningParticles = getComponent<PixelParticles>();
 		auto pp = runningParticles;
-		pp->spawn = true;
+		pp->particlesPerSecond = 50;
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
@@ -104,8 +103,7 @@ public:
 			animation->row = 0;
 			animation->frameTime = sf::milliseconds(75);
 			runningParticles->spawn = true;
-		}
-		else {
+		} else {
 			animation->frameTime = sf::milliseconds(125);
 			animation->row = 1;
 			runningParticles->spawn = false;
@@ -147,7 +145,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Entity player;
 	player.addComponent<Transform>();
 	player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-	player.addComponent<PixelParticles>(30, sf::seconds(1.5), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+	player.addComponent<PixelParticles>(200, sf::seconds(10), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 	player.addScript<MovePlayer>(400, 180);
 	player.Register();
 

@@ -79,9 +79,10 @@ struct PixelParticles : public Data<PixelParticles> {
 	COPYABLE(PixelParticles)
 
 	PixelParticles(size_t count, sf::Time lifeTime, sf::Vector2f size, Colors colors)
-		:count(count), size(size), colors(colors), lifeTime(lifeTime) { }
+		:count(count), particlesPerSecond(count),size(size), colors(colors), lifeTime(lifeTime) { }
 
 	size_t count;
+	float particlesPerSecond;
 	sf::Vector2f size;
 	Colors colors;
 	sf::Vector2f emitter;
@@ -93,6 +94,8 @@ struct PixelParticles : public Data<PixelParticles> {
 	sf::FloatRect platform; // particles can't go through this
 
 private:
+	float particlesToSpawn = 0; // internal counter of particles to spawn per second
+	int spawnBeingPos = 0;
 	sf::Time deathTimer = sf::Time::Zero;
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
@@ -175,7 +178,7 @@ private:
 	};
 
 	void updatePointBatch(const PointParticles&, gsl::span<sf::Vertex>, gsl::span<InternalData>);
-	void updatePixelBatch(const PixelParticles&, gsl::span<Quad>, gsl::span<InternalData>);
+	void updatePixelBatch(PixelParticles&, gsl::span<Quad>, gsl::span<InternalData>);
 	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
 	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
 

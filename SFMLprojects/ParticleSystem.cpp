@@ -103,6 +103,9 @@ void ParticleSystem::fixedUpdate(sf::Time dt)
 	};
 	processDeathTime(this->getComponents<PointParticles>());
 	processDeathTime(this->getComponents<PixelParticles>());
+	for (auto& pixels : this->getComponents<PixelParticles>())
+		if(pixels->spawn)
+			pixels->particlesToSpawn += pixels->particlesPerSecond * dt.asSeconds();
 }
 
 inline void ParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
@@ -172,12 +175,16 @@ inline void ParticleSystem::respawnPixelParticle(const PixelParticles& ps, Quad&
 	lifeTime = sf::milliseconds(time);
 }
 
-void ParticleSystem::updatePixelBatch(const PixelParticles& ps, gsl::span<Quad> quads, gsl::span<InternalData> pixelParticles)
+void ParticleSystem::updatePixelBatch(PixelParticles& ps, gsl::span<Quad> quads, gsl::span<InternalData> pixelParticles)
 {
 	if (ps.areDead())
 		return;
 	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
+	int particleNum = std::floor(ps.particlesToSpawn);
+	if(particleNum >= 1)
+		ps.particlesToSpawn -= particleNum;
+
 	for (int i = 0; i < quads.size(); i++) {
 		pixelParticles[i].lifeTime -= deltaTime;
 		if (pixelParticles[i].lifeTime > sf::Time::Zero) {
@@ -185,10 +192,24 @@ void ParticleSystem::updatePixelBatch(const PixelParticles& ps, gsl::span<Quad> 
 				continue;
 			pixelParticles[i].speed += ps.gravity * dt;
 			quads[i].move(pixelParticles[i].speed * dt);
-		} else if (ps.spawn)
-			respawnPixelParticle(ps, quads[i], pixelParticles[i].speed, pixelParticles[i].lifeTime);
-		else {
+		} 
+		else
 			quads[i].setAlpha(0);
-		}
 	}
+
+	auto process = [&](int begin, int end) { 
+		for (int i = begin; i < end; i++)
+			respawnPixelParticle(ps, quads[i], pixelParticles[i].speed, pixelParticles[i].lifeTime);
+	};
+
+	if (particleNum != 0 && ps.spawn)
+		if (ps.spawnBeingPos + particleNum > ps.count) {
+			process(ps.spawnBeingPos, ps.count);
+			auto endPos = particleNum - (ps.count - ps.spawnBeingPos);
+			process(0, endPos);
+			ps.spawnBeingPos = endPos;
+		} else {
+				process(ps.spawnBeingPos, ps.spawnBeingPos + particleNum);
+				ps.spawnBeingPos += particleNum;
+		}
 }

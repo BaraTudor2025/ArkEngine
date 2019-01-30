@@ -218,6 +218,7 @@ protected:
 
 private:
 	virtual void init() { }
+	virtual void handleEvent(sf::Event) { }
 	virtual void update() { }
 	virtual void fixedUpdate(sf::Time) { }
 	virtual void render(sf::RenderTarget& target) { }

@@ -174,7 +174,9 @@ void VectorEngine::run()
 				//window.setView(view);
 			}	break;
 			default:
-				for (auto s : Script::scripts)
+				for (auto& s : systems)
+					s->handleEvent(event);
+				for (auto& s : Script::scripts)
 					s->handleEvent(event);
 				break;
 			}

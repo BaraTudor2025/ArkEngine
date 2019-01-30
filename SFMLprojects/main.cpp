@@ -57,7 +57,7 @@ public:
 
 		runningParticles = getComponent<PixelParticles>();
 		auto pp = runningParticles;
-		pp->particlesPerSecond = 50;
+		pp->particlesPerSecond = pp->count;
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
@@ -127,6 +127,152 @@ public:
 /* TODO: MusicSystem/SoundSystem */
 /* TODO: de adaugat class Scene/World (manager de entitati) */
 
+// ? 
+struct TextBox : Data<TextBox> {
+
+};
+
+struct Text : Data<Text>, sf::Text { 
+
+	Text(std::string fontName = "KeepCalm-Medium.ttf") : fontName(fontName) { }
+
+	bool moveWithMouse = false;
+
+private:
+	std::string fontName;
+	friend class GuiSystem;
+};
+
+struct Button : Data<Button>, sf::RectangleShape {
+
+	Button(sf::FloatRect rect, std::string texture = "")
+		: textureName(texture), rect(rect)
+	{
+		this->setSize({ this->rect.width, this->rect.height });
+		this->move(this->rect.left, this->rect.top);
+	}
+
+	std::function<void()> onClick;
+	void savePosition(std::string file) { 
+		std::ofstream fout("./res/gui_data/" + file);
+		std::cout << "mama\n";
+		auto[x, y] = this->getPosition();
+		fout << x << ' ' << y;
+	}
+	void loadPosition(std::string file) {
+		std::ifstream fin("./res/gui_data/" + file);
+		float x, y;
+		fin >> x >> y;
+		this->setPosition(x, y);
+	}
+	bool moveWithMouse = false;
+
+private:
+	sf::FloatRect rect;
+	std::string textureName;
+	friend class GuiSystem;
+};
+
+class GuiSystem : public System {
+
+	void init() {
+		initFrom<Button>();
+		initFrom<Text>();
+	}
+
+	void add(Component* c) {
+		if (auto b = dynamic_cast<Button*>(c); b) {
+			if (!b->textureName.empty()) {
+				b->setTexture(load<sf::Texture>(b->textureName));
+			}
+		}
+		if (auto t = dynamic_cast<Text*>(c); t) {
+			t->setFont(*load<sf::Font>(t->fontName));
+		}
+	}
+
+	void update() {
+		auto process = [&](auto& components) {
+			for (auto& c : components) {
+				if (c->moveWithMouse && isLeftMouseButtonPressed) {
+					auto mouse = VectorEngine::mousePositon();
+					if (c->getGlobalBounds().contains(mouse)) {
+						c->setPosition(mouse);
+					}
+				}
+			}
+		};
+		process(this->getComponents<Button>());
+		process(this->getComponents<Text>());
+	}
+
+	void handleEvent(sf::Event event) {
+		switch (event.type)
+		{
+		case sf::Event::MouseButtonPressed: {
+			if (event.mouseButton.button == sf::Mouse::Left) {
+				isLeftMouseButtonPressed = true;
+				for (auto& b : this->getComponents<Button>())
+					if(b->getGlobalBounds().contains(event.mouseButton.x, event.mouseButton.y))
+						b->onClick(); 
+			}
+			if (event.mouseButton.button == sf::Mouse::Right) {
+				isRightMouseButtonPressed = true;
+			}
+		} break;
+		case sf::Event::MouseButtonReleased: {
+			if (event.mouseButton.button == sf::Mouse::Left) {
+				isLeftMouseButtonPressed = false;
+			}
+			if (event.mouseButton.button == sf::Mouse::Right) {
+				isRightMouseButtonPressed = false;
+			}
+
+		} break;
+		default:
+			break;
+		}
+	}
+
+	void render(sf::RenderTarget& target) {
+		for (auto& b : this->getComponents<Button>())
+			target.draw(*b);
+		for (auto& t : this->getComponents<Text>()) {
+			target.draw(*t);
+		}
+	}
+
+private:
+	bool isLeftMouseButtonPressed = false;
+	bool isRightMouseButtonPressed = false;
+	sf::Vector2f prevMousePos{ 0,0 };
+};
+
+template<typename T>
+class SaveGuiElementPosition : public Script {
+
+public:
+	SaveGuiElementPosition(std::string file, sf::Keyboard::Key key): file(file), key(key) { }
+
+private:
+	void init() {
+		component = getComponent<T>();
+	}
+	void handleEvent(sf::Event event)
+	{
+		switch (event.type) {
+		case sf::Event::KeyPressed:
+			if (event.key.code == key)
+				component->savePosition(file);
+		}
+	}
+
+private:
+	std::string file;
+	sf::Keyboard::Key key;
+	T* component;
+};
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	sf::ContextSettings settings = sf::ContextSettings();
@@ -136,16 +282,17 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::setVSync(false);
 	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 
-	VectorEngine::addSystem(new AnimationSystem());
 	VectorEngine::addSystem(new FpsCounterSystem(sf::Color::White));
 	VectorEngine::addSystem(new ParticleSystem());
+	VectorEngine::addSystem(new GuiSystem());
+	VectorEngine::addSystem(new AnimationSystem());
 	//VectorEngine::addSystem(new DebugEntitySystem());
 	//VectorEngine::addSystem(new DebugParticleSystem());
 
 	Entity player;
 	player.addComponent<Transform>();
 	player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-	player.addComponent<PixelParticles>(200, sf::seconds(10), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+	player.addComponent<PixelParticles>(2'000, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 	player.addScript<MovePlayer>(400, 180);
 	player.Register();
 
@@ -153,6 +300,24 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	image.addComponent<Transform>()->setPosition(VectorEngine::center());
 	image.addComponent<Mesh>("toaleta.jpg", false);
 	//image.Register();
+
+	Entity button;
+	//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
+	auto b = button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
+	b->setFillColor(sf::Color(240, 240, 240));
+	b->setOutlineColor(sf::Color::Black);
+	b->setOutlineThickness(3);
+	b->moveWithMouse = true;
+	b->loadPosition("mama");
+	b->setOrigin(b->getSize() / 2.f);
+	int i = 1;
+	b->onClick = [&]() { std::cout << "\nclick " << i++; };
+	auto t = button.addComponent<Text>();
+	t->setOrigin(b->getOrigin());
+	t->setPosition(b->getPosition() + b->getSize() / 3.5f);
+	t->setString("ma-ta");
+	t->setFillColor(sf::Color::Black);
+	button.Register();
 
 	using namespace ParticleScripts;
 
@@ -183,7 +348,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	grass.addScript<EmittFromMouse>();
 
 	Entity trail;
-	trail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
+	trail.addComponent<PointParticles>(2000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
 	trail.addScript<EmittFromMouse>();
 	trail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 	trail.addScript<TraillingEffect>();
@@ -205,10 +370,10 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//rainbow.Register();
 	//fire.Register();
 
-	auto fwEntities = makeFireWorksEntities(100, fireParticles, false);
+	auto fwEntities = makeFireWorksEntities(2000, fireParticles, false);
 	for (auto& e : fwEntities) {
 		e.setAction(Action::SpawnLater, 10);
-		//e.Register();
+		e.Register();
 	}
 
 	auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);

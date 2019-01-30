@@ -110,6 +110,12 @@ inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
 	}
 }
 
+template <typename T>
+sf::Vector2f centerOfRect(sf::Rect<T> rect)
+{
+	return { rect.left + rect.width / 2.f, rect.top + rect.height / 2.f };
+}
+
 inline std::vector<std::string> splitOnSpace(std::string string)
 {
 	std::stringstream ss(string);

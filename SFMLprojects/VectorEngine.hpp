@@ -194,8 +194,6 @@ protected:
 	template <typename... Ts>
 	void addComponentType()
 	{
-		(std::cout << ... << Ts::id);
-		std::cout << '\n';
 		static_assert((... && is_component_v<Ts>));
 		((this->componentTable[Component<Ts>::id] = Component<Ts>::Vector()),...);
 	}

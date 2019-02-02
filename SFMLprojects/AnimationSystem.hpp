@@ -2,7 +2,7 @@
 #include "VectorEngine.hpp"
 #include "Quad.hpp"
 
-struct Mesh : public Data<Mesh> {
+struct Mesh : public Component<Mesh> {
 
 	Mesh(std::string fileName, bool smoothTexture = false)
 		:fileName(fileName), smoothTexture(smoothTexture), uvRect(0,0,0,0), repeatTexture(false) { }
@@ -27,11 +27,10 @@ private:
 	friend class AnimationSystem;
 };
 
-struct Animation : public Data<Animation> {
+struct Animation : public Component<Animation> {
 
 	Animation(std::string fileName, sf::Vector2u frameCount, sf::Time frameTime, int row, bool smoothTexture)
-	: fileName(fileName), frameCount(frameCount), frameTime(frameTime), row(row), smoothTexture(smoothTexture)
-	{ }
+		: fileName(fileName), frameCount(frameCount), frameTime(frameTime), row(row), smoothTexture(smoothTexture) { }
 
 	sf::Time frameTime;
 	int row;
@@ -63,12 +62,7 @@ private:
 class AnimationSystem : public System {
 
 public:
-	void init() override {
-		initFrom<Animation>();
-		initFrom<Mesh>();
-	}
-
-	void add(Component* c) override;
+	void init() override;
 
 	void update() override;
 

@@ -22,26 +22,26 @@ inline decltype(auto) Animation::get()
 	else if constexpr (N == 5) return (this->uvRect);
 }
 
-void AnimationSystem::add(Component * c)
+void AnimationSystem::init()
 {
-	if (auto a = dynamic_cast<Animation*>(c); a) {
-		a->texture = load<sf::Texture>(a->fileName);
-		a->uvRect.width = a->texture->getSize().x / (float)a->frameCount.x;
-		a->uvRect.height = a->texture->getSize().y / (float)a->frameCount.y;
-		a->elapsedTime = sf::seconds(0);
-		a->currentFrame.x = 0;
-	}
-	if (auto mesh = dynamic_cast<Mesh*>(c); mesh) {
-		mesh->texture = load<sf::Texture>(mesh->fileName);
-		mesh->entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh->texture->getSize()) / 2.f);
-		auto[a, b, c, d] = mesh->uvRect;
+	forEach<Animation>([](auto& a) {
+		a.texture = load<sf::Texture>(a.fileName);
+		a.uvRect.width = a.texture->getSize().x / (float)a.frameCount.x;
+		a.uvRect.height = a.texture->getSize().y / (float)a.frameCount.y;
+		a.elapsedTime = sf::seconds(0);
+		a.currentFrame.x = 0;
+	});
+	forEach<Mesh>([](auto& mesh) {
+		mesh.texture = load<sf::Texture>(mesh.fileName);
+		mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
+		auto[a, b, c, d] = mesh.uvRect;
 		if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
-			mesh->uvRect.width = mesh->texture->getSize().x;
-			mesh->uvRect.height = mesh->texture->getSize().y;
-			mesh->uvRect.left = 0;
-			mesh->uvRect.top = 0;
+			mesh.uvRect.width = mesh.texture->getSize().x;
+			mesh.uvRect.height = mesh.texture->getSize().y;
+			mesh.uvRect.left = 0;
+			mesh.uvRect.top = 0;
 		}
-		mesh->vertices.updatePosTex(mesh->uvRect);
+		mesh.vertices.updatePosTex(mesh.uvRect);
 		//sf::IntRect uvRect;
 		//if (mesh->flipX) {
 		//	uvRect.left = uvRect.width;
@@ -55,13 +55,15 @@ void AnimationSystem::add(Component * c)
 		//} else {
 		//	uvRect.top = 0;
 		//}
-	}
+	});
+
 }
 
 void AnimationSystem::update()
 {
-	for (auto animation : this->getComponents<Animation>()) {
-		auto&[row, frameCount, frameTime, currentFrame, elapsedTime, uvRect] = *animation;
+	//for (auto animation : this->getComponents<Animation>()) {
+	forEach<Animation>([](auto& animation) {
+		auto&[row, frameCount, frameTime, currentFrame, elapsedTime, uvRect] = animation;
 
 		currentFrame.y = row;
 		elapsedTime += VectorEngine::deltaTime();
@@ -72,14 +74,14 @@ void AnimationSystem::update()
 				currentFrame.x = 0;
 		}
 
-		if (animation->flipX) {
+		if (animation.flipX) {
 			uvRect.left = (currentFrame.x + 1) * std::abs(uvRect.width);
 			uvRect.width = -std::abs(uvRect.width);
 		} else {
 			uvRect.left = currentFrame.x * uvRect.width;
 			uvRect.width = std::abs(uvRect.width);
-		} 
-		if (animation->flipY) {
+		}
+		if (animation.flipY) {
 			uvRect.top = (currentFrame.y + 1) * std::abs(uvRect.height);
 			uvRect.height = -std::abs(uvRect.height);
 		} else {
@@ -87,24 +89,24 @@ void AnimationSystem::update()
 			uvRect.height = std::abs(uvRect.height);
 		}
 
-		animation->vertices.updatePosTex(uvRect);
-	}
+		animation.vertices.updatePosTex(uvRect);
+	});
 }
 
 void AnimationSystem::render(sf::RenderTarget & target)
 {
 	sf::RenderStates rs;
-	for (auto mesh : this->getComponents<Mesh>()) {
-		mesh->texture->setRepeated(mesh->repeatTexture);
-		mesh->texture->setSmooth(mesh->smoothTexture);
-		rs.texture = mesh->texture;
-		rs.transform = *mesh->entity()->getComponent<Transform>();
-		target.draw(mesh->vertices.data(), 4, sf::TriangleStrip, rs);
-	}
-	for (auto animation : this->getComponents<Animation>()) {
-		animation->texture->setSmooth(animation->smoothTexture);
-		rs.texture = animation->texture;
-		rs.transform = *animation->entity()->getComponent<Transform>();
-		target.draw(animation->vertices.data(), 4, sf::TriangleStrip, rs);
-	}
+	forEach<Mesh>([&](auto& mesh){
+		mesh.texture->setRepeated(mesh.repeatTexture);
+		mesh.texture->setSmooth(mesh.smoothTexture);
+		rs.texture = mesh.texture;
+		rs.transform = *mesh.entity()->getComponent<Transform>();
+		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);
+	});
+	forEach<Animation>([&](auto& animation){
+		animation.texture->setSmooth(animation.smoothTexture);
+		rs.texture = animation.texture;
+		rs.transform = *animation.entity()->getComponent<Transform>();
+		target.draw(animation.vertices.data(), 4, sf::TriangleStrip, rs);
+	});
 }

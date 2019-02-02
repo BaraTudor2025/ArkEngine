@@ -264,10 +264,12 @@ namespace ParticleScripts::Action {
 	{
 		std::thread waitToSpawn([&e, a = std::move(a)]() {
 			auto p = e.getComponent<PointParticles>();
+			p->setActive(false);
 			p->spawn = false;
 			auto seconds = std::any_cast<int>(a);
 			std::this_thread::sleep_for(std::chrono::seconds(seconds));
 			p->spawn = true;
+			p->setActive(true);
 		});
 		waitToSpawn.detach();
 	}

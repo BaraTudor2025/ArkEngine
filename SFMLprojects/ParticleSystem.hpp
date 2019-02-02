@@ -6,13 +6,12 @@
 #include <optional>
 #include <vector>
 #include "RandomNumbers.hpp"
-#include "gsl.hpp"
 #include "VectorEngine.hpp"
 #include "Quad.hpp"
 
 static inline constexpr auto PI = 3.14159f;
 
-struct PointParticles final : public Data<PointParticles> {
+struct PointParticles final : public Component<PointParticles> {
 
 	COPYABLE(PointParticles)
 
@@ -65,21 +64,26 @@ struct PointParticles final : public Data<PointParticles> {
 	}
 
 private:
+	struct InternalData {
+		sf::Vector2f speed;
+		sf::Time lifeTime = sf::Time::Zero;
+	};
+	std::vector<sf::Vertex>	vertices;
+	std::vector<InternalData> data;
 	sf::Time deathTimer = sf::Time::Zero;
 	Distribution<float> lifeTimeDistribution;
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
-
 };
 
-struct PixelParticles : public Data<PixelParticles> {
+struct PixelParticles : public Component<PixelParticles> {
 
 	using Colors = std::pair<sf::Color, sf::Color>;
 
 	COPYABLE(PixelParticles)
 
 	PixelParticles(size_t count, sf::Time lifeTime, sf::Vector2f size, Colors colors)
-		:count(count), particlesPerSecond(count),size(size), colors(colors), lifeTime(lifeTime) { }
+		:count(count), particlesPerSecond(count), size(size), colors(colors), lifeTime(lifeTime) { }
 
 	size_t count;
 	float particlesPerSecond;
@@ -94,8 +98,14 @@ struct PixelParticles : public Data<PixelParticles> {
 	sf::FloatRect platform; // particles can't go through this
 
 private:
+	struct InternalData {
+		sf::Vector2f speed;
+		sf::Time lifeTime = sf::Time::Zero;
+	};
 	float particlesToSpawn = 0; // internal counter of particles to spawn per second
 	int spawnBeingPos = 0;
+	std::vector<Quad> quads;
+	std::vector<InternalData> data;
 	sf::Time deathTimer = sf::Time::Zero;
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
@@ -134,9 +144,9 @@ static auto makeBlue = []() {
 
 static inline std::vector<std::function<sf::Color()>> makeColorsVector{ makeRed, makeGreen, makeBlue, makeColor };
 
-inline PointParticles getFireParticles() 
+inline PointParticles getFireParticles(int count=1000) 
 {
-	PointParticles fireParticles = { 1000, sf::seconds(3), { 1, 100 } };
+	PointParticles fireParticles = { count, sf::seconds(3), { 1, 100 } };
 	fireParticles.getColor = makeRed;
 	return fireParticles;
 }
@@ -168,24 +178,12 @@ private:
 
 	void update() override;
 	void fixedUpdate(sf::Time) override;
-	void add(Component*) override;
-	void remove(Component*) override;
 	void render(sf::RenderTarget& target) override;
 
-	struct InternalData {
-		sf::Vector2f speed;
-		sf::Time lifeTime = sf::Time::Zero;
-	};
-
-	void updatePointBatch(const PointParticles&, gsl::span<sf::Vertex>, gsl::span<InternalData>);
-	void updatePixelBatch(PixelParticles&, gsl::span<Quad>, gsl::span<InternalData>);
+	void updatePointBatch(PointParticles&);
+	void updatePixelBatch(PixelParticles&);
 	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
 	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
 
 private:
-	// benchmark-ul spune ca memory layout-ul asta nu ajuta, are acelasi fps
-	std::vector<sf::Vertex>	pointVertices;
-	std::vector<InternalData> pointParticles;
-	std::vector<Quad> pixelQuads;
-	std::vector<InternalData> pixelParticles;
 };

@@ -72,33 +72,33 @@ class DebugParticleSystem : public DebugSystem {
 	void init() { this->pressEnterToDisplay = true; }
 
 	void displayInfo() {
-		std::cout << "number of particle components " << getComponents<PointParticles>().size() << std::endl;
-		for (auto p : getComponents<PointParticles>()) {
-			std::cout
-				<< "\n count: " << p->count
-				<< "\n applyTransform:" << p->applyTransform
-				<< "\n fireworks: " << p->fireworks
-				<< "\n spawn: " << p->spawn
-				<< "\n emitter: " << p->emitter.x << ' ' << p->emitter.y
-				<< "\n life time: " << p->lifeTime.asSeconds()
-				<< std::endl;
-				if (p->entity() == nullptr)
-					std::cout << "\ninvalid entity";
-				else {
-					std::cout << "entity id: " << p->entity()->id() << std::endl;
-					// cast tag to string?
-					//std::cout << "entity id: " << p->entity()->tag << std::endl;
-				}
-		}
+		//std::cout << "number of particle components " << getComponents<PointParticles>().size() << std::endl;
+		//for (auto& p : getComponents<PointParticles>()) {
+		//	std::cout
+		//		<< "\n count: " << p.count
+		//		<< "\n applyTransform:" << p.applyTransform
+		//		<< "\n fireworks: " << p.fireworks
+		//		<< "\n spawn: " << p.spawn
+		//		<< "\n emitter: " << p.emitter.x << ' ' << p.emitter.y
+		//		<< "\n life time: " << p.lifeTime.asSeconds()
+		//		<< std::endl;
+		//		if (p.entity() == nullptr)
+		//			std::cout << "\ninvalid entity";
+		//		else {
+		//			std::cout << "entity id: " << p.entity()->id() << std::endl;
+		//			// cast tag to string?
+		//			//std::cout << "entity id: " << p->entity()->tag << std::endl;
+		//		}
+		//}
 	}
 };
 
 class DebugEntitySystem : public DebugSystem {
 	void init() { this->pressEnterToDisplay = true; }
 	void displayInfo() {
-		std::cout << "number of entities " << getComponents<Entity>().size() << std::endl;
-		for (auto e : getEntities()) {
-			std::cout << "id: " << e->id() << '\n';
-		}
+		//std::cout << "number of entities " << getComponents<Entity>().size() << std::endl;
+		//for (auto& e : getEntities()) {
+		//	std::cout << "id: " << e->id() << '\n';
+		//}
 	}
 };

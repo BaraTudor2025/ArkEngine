@@ -12,100 +12,30 @@
 
 System::~System() { }
 
-void Script::Register()
-{ 
-	if(!this->registered)
-		scripts.push_back(this);
-	registered = true; 
-}
-
-void Script::unRegister() 
-{
-	if (this->registered)
-		erase(scripts, this);
-	registered = false;
-}
-
-Entity::~Entity()
-{
-	for (auto& s : scripts)
-		s->entity_ = nullptr;
-	for (auto& c : components)
-		c->entity_ = nullptr;
-	this->unRegister();
-}
+Entity::~Entity() { }
 
 Entity& Entity::operator=(Entity&& other)
 {
+	std::cout << "move\n";
 	if (this != &other) {
 		this->id_ = other.id_;
 		this->tag = std::move(other.tag);
 		this->components = std::move(other.components);
 		this->scripts = std::move(other.scripts);
+		for (auto s : this->scripts)
+			s->entity_ = this;
 		this->action = std::move(other.action);
 		this->actionArgs = std::move(other.actionArgs);
-		if (other.registered) {
-			erase(entities, &other);
-			other.registered = false;
-			this->Register();
-		} else {
-			this->registered = false;
-		}
+		//TODO: forEach component.entity = this
+		//if (other.registered && this->scene) {
+		//	erase(scene->entities, &other);
+		//	other.registered = false;
+		//	this->Register();
+		//} else {
+		//	this->registered = false;
+		//}
 	}
 	return *this;
-}
-
-void Entity::Register()
-{
-	if (!registered) {
-		entities.push_back(this);
-		for (auto& c : components) {
-			c->entity_ = this;
-			c->Register();
-		}
-		for (auto& s : scripts) {
-			s->entity_ = this;
-			s->Register();
-		}
-		if (VectorEngine::running())
-			for (auto& s : scripts)
-				s->init();
-		registered = true;
-	}
-}
-
-void Entity::unRegister()
-{
-	if (!registered)
-		return;
-	for (auto& s : scripts)
-		s->unRegister();
-	for (auto& c : components)
-		c->unRegister();
-	erase(entities, this);
-	registered = false;
-}
-
-Component* Entity::addComponent(std::unique_ptr<Component> c)
-{
-	if (registered) {
-		c->entity_ = this;
-		c->Register();
-	}
-	components.push_back(std::move(c));
-	return components.back().get();
-}
-
-Script* Entity::addScript(std::unique_ptr<Script> s)
-{
-	if (registered) {
-		s->entity_ = this;
-		s->Register();
-	}
-	if (VectorEngine::running())
-		s->init();
-	scripts.push_back(std::move(s));
-	return scripts.back().get();
 }
 
 void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
@@ -120,6 +50,11 @@ void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
 	}
 }
 
+std::vector<Entity*>& System::getEntities()
+{
+	return VectorEngine::currentScene->entities;
+}
+
 void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, sf::ContextSettings settings)
 {
 	frameTime = fixedUT;
@@ -130,22 +65,17 @@ void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, 
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
 }
 
-void VectorEngine::addSystem(System* s)
+void VectorEngine::initScene()
 {
-	systems.push_back(s);
-}
+	currentScene->init();
 
-void VectorEngine::run()
-{
-	debug_log("start init systems");
-	for (auto& s : systems)
-		s->init();
-	
-	debug_log("start init scripts");
-	for (auto s : Script::scripts)
+	for (auto& s : currentScene->systems)
 		s->init();
 
-	for (auto& e : Entity::entities)
+	for (auto& s : currentScene->scripts)
+		s->init();
+
+	for (auto& e : currentScene->entities)
 		if (e->action) {
 			if (e->actionArgs && e->actionArgs->has_value()) {
 				e->action(*e, std::move(*e->actionArgs));
@@ -153,7 +83,10 @@ void VectorEngine::run()
 				e->action(*e, nullptr);
 			}
 		}
+}
 
+void VectorEngine::run()
+{
 	auto scriptsLag = sf::Time::Zero;
 	auto systemsLag = sf::Time::Zero;
 
@@ -174,9 +107,9 @@ void VectorEngine::run()
 				//window.setView(view);
 			}	break;
 			default:
-				for (auto& s : systems)
+				for (auto& s : currentScene->systems)
 					s->handleEvent(event);
-				for (auto& s : Script::scripts)
+				for (auto& s : currentScene->scripts)
 					s->handleEvent(event);
 				break;
 			}
@@ -185,27 +118,27 @@ void VectorEngine::run()
 
 		delta_time = clock.restart();
 
-		for (auto s : Script::scripts)
+		for (auto& s : currentScene->scripts)
 			s->update();
 
 		scriptsLag += deltaTime();
 		while (scriptsLag >= frameTime) {
 			scriptsLag -= frameTime;
-			for (auto s : Script::scripts)
+			for (auto& s : currentScene->scripts)
 				s->fixedUpdate(frameTime);
 		}
 
-		for (auto system : systems)
+		for (auto& system : currentScene->systems)
 			system->update();
 
 		systemsLag += deltaTime();
 		while (systemsLag >= frameTime) {
 			systemsLag -= frameTime;
-			for (auto system : systems)
+			for (auto& system : currentScene->systems)
 				system->fixedUpdate(frameTime);
 		}
 
-		for (auto system : systems)
+		for (auto& system : currentScene->systems)
 			system->render(window);
 
 		window.display();

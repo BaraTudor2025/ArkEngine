@@ -1,111 +1,76 @@
 #include <iostream>
 #include "ParticleSystem.hpp"
 #include "Util.hpp"
-#include "ResourceManager.hpp"
 
 void ParticleSystem::init()
 {
-	this->initFrom<PointParticles>();
-	this->initFrom<PixelParticles>();
-	auto initPixelP = [](PixelParticles& p, gsl::span<Quad> quads) {
-		for (auto& q : quads) {
-			//q.updatePosition({ {0,0}, p.size });
+	forEach<PointParticles>([](auto& p) { 
+		p.vertices.resize(p.count);
+		p.data.resize(p.count);
+		if (p.spawn)
+			p.deathTimer = sf::Time::Zero;
+		else
+			p.deathTimer = p.lifeTime;
+	});
+
+	forEach<PixelParticles>([](auto& p) {
+		p.quads.resize(p.count);
+		p.data.resize(p.count);
+		for (auto& q : p.quads)
 			q.setColors(p.colors.first, p.colors.second);
-		}
-	};
-	forEachSpan(initPixelP, this->getComponents<PixelParticles>(), this->pixelQuads);
-}
-
-void ParticleSystem::add(Component* data)
-{
-	auto addSize = [](size_t count, auto&... ranges) { (ranges.resize(ranges.size() + count) , ...); };
-	if (auto p = dynamic_cast<PointParticles*>(data); p) {
-		addSize(p->count, this->pointVertices, this->pointParticles);
-		if (p->spawn)
-			p->deathTimer = sf::Time::Zero;
+		if (p.spawn)
+			p.deathTimer = sf::Time::Zero;
 		else
-			p->deathTimer = p->lifeTime;
-	} 
-	if (auto p = dynamic_cast<PixelParticles*>(data); p) {
-		addSize(p->count, this->pixelQuads, this->pixelParticles);
-		if (p->spawn)
-			p->deathTimer = sf::Time::Zero;
-		else
-			p->deathTimer = p->lifeTime;
-	}
-}
-
-void ParticleSystem::remove(Component* data)
-{
-	auto removeSize = [](size_t count, auto&... ranges) { (ranges.resize(ranges.size() - count), ...); };
-	if (auto p = dynamic_cast<PointParticles*>(data); p) {
-		removeSize(p->count, this->pointVertices, this->pointParticles);
-	}
-	if (auto p = dynamic_cast<PixelParticles*>(data); p) {
-		// ?
-		removeSize(p->count, this->pixelQuads, this->pixelParticles);
-	}
+			p.deathTimer = p.lifeTime;
+	});
 }
 
 void ParticleSystem::render(sf::RenderTarget& target)
 {
-	auto drawPoints = [&](PointParticles& ps, gsl::span<sf::Vertex> v) {
-		if (ps.areDead())
+	forEach<PointParticles>([&](auto& p) {
+		if (p.areDead())
 			return;
-		//if (ps.applyTransformOnEmitter) {
-			//auto t = ps.entity()->getComponent<Transform>();
-			//ps.emitter = t->getTransform().transformPoint(ps.emitter);
-		//}
-		if (ps.applyTransform) {
+		if (p.applyTransform) {
 			sf::RenderStates rs;
-			rs.transform = *ps.entity()->getComponent<Transform>();
-			target.draw(v.data(), v.size(), sf::Points, rs);
+			rs.transform = *p.entity()->getComponent<Transform>();
+			target.draw(p.vertices.data(), p.vertices.size(), sf::Points, rs);
 		}
 		else {
-			target.draw(v.data(), v.size(), sf::Points);
+			target.draw(p.vertices.data(), p.vertices.size(), sf::Points);
 		}
-	};
+	});
 
-	forEachSpan(drawPoints, this->getComponents<PointParticles>(), this->pointVertices);
-
-	//auto pixelParticlesBuff = reinterpret_cast<sf::Vertex*>(this->pixelQuads.data());
-	//target.draw(pixelParticlesBuff, this->pixelQuads.size() * 4, sf::Quads);
-	auto drawPixels = [&](PixelParticles& ps, gsl::span<Quad> quads) {
-		if (ps.areDead())
+	forEach<PixelParticles>([&](auto& p) {
+		if (p.areDead())
 			return;
-		//if (auto t = ps.entity()->getComponent<Transform>(); t)
-			//ps.emitter = t->getTransform().transformPoint(ps.emitter);
-		//target.draw(quads.data()->data(), quads.size() * 4, sf::TriangleStrip);
-		for (auto& q : quads) {
+		for (auto& q : p.quads) {
 			target.draw(q.data(), 4, sf::TriangleStrip);
 		}
-	};
-	forEachSpan(drawPixels, this->getComponents<PixelParticles>(), this->pixelQuads);
+	});
 }
 
 void ParticleSystem::update()
 {
-	forEachSpan(&ParticleSystem::updatePointBatch, this, this->getComponents<PointParticles>(), this->pointVertices, this->pointParticles);
-	forEachSpan(&ParticleSystem::updatePixelBatch, this, this->getComponents<PixelParticles>(), this->pixelQuads, this->pixelParticles);
+	forEach<PointParticles>([this](auto& p) { updatePointBatch(p); });
+	forEach<PixelParticles>([this](auto& p) { updatePixelBatch(p); });
 }
 
 void ParticleSystem::fixedUpdate(sf::Time dt)
 {
-	auto processDeathTime = [dt](auto& ps) {
-		for (auto& p : ps) {
-			if (p->spawn) {
-				p->deathTimer = sf::Time::Zero;
-			} else {
-				if (!p->areDead())
-					p->deathTimer += dt;
-			}
+	auto processDeathTime = [dt](auto& p) {
+		if (p.spawn) {
+			p.deathTimer = sf::Time::Zero;
+		} else {
+			if (!p.areDead())
+				p.deathTimer += dt;
 		}
 	};
-	processDeathTime(this->getComponents<PointParticles>());
-	processDeathTime(this->getComponents<PixelParticles>());
-	for (auto& pixels : this->getComponents<PixelParticles>())
-		if(pixels->spawn)
-			pixels->particlesToSpawn += pixels->particlesPerSecond * dt.asSeconds();
+	forEach<PointParticles>(processDeathTime);
+	forEach<PixelParticles>(processDeathTime);
+	forEach<PixelParticles>([&](auto& pixels) {
+		if (pixels.spawn)
+			pixels.particlesToSpawn += pixels.particlesPerSecond * dt.asSeconds(); 
+	});
 }
 
 inline void ParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
@@ -115,7 +80,6 @@ inline void ParticleSystem::respawnPointParticle(const PointParticles& ps, sf::V
 
 	vertex.position = ps.emitter;
 	vertex.color = ps.getColor();
-	//speed = sf::Vector2f(std::cos(angle) * speedMag, std::sin(angle) * speedMag);
 	speed = toCartesian({ speedMag, angle });
 
 	if (ps.fireworks) {
@@ -132,31 +96,31 @@ inline void ParticleSystem::respawnPointParticle(const PointParticles& ps, sf::V
 		lifeTime = sf::milliseconds(static_cast<int>(time));
 }
 
-void ParticleSystem::updatePointBatch(const PointParticles& ps, gsl::span<sf::Vertex> vertices, gsl::span<InternalData> pointParticles)
+void ParticleSystem::updatePointBatch(PointParticles& ps)
 {
 	if (ps.areDead())
 		return;
 
 	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
-	for (int i = 0; i < vertices.size(); i++) {
-		pointParticles[i].lifeTime -= deltaTime;
-		if (pointParticles[i].lifeTime > sf::Time::Zero) { // if alive
+	for (int i = 0; i < ps.vertices.size(); i++) {
+		ps.data[i].lifeTime -= deltaTime;
+		if (ps.data[i].lifeTime > sf::Time::Zero) { // if alive
 
 			if (hasUniversalGravity)
-				pointParticles[i].speed += gravityVector * dt;
+				ps.data[i].speed += gravityVector * dt;
 			else {
-				auto r = gravityPoint - vertices[i].position;
+				auto r = gravityPoint - ps.vertices[i].position;
 				auto dist = std::hypot(r.x, r.y);
 				auto g = r / (dist * dist);
-				pointParticles[i].speed += gravityMagnitude * 1000.f * g * dt;
+				ps.data[i].speed += gravityMagnitude * 1000.f * g * dt;
 			}
-			vertices[i].position += pointParticles[i].speed * dt;
+			ps.vertices[i].position += ps.data[i].speed * dt;
 
-			float ratio = pointParticles[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
-			vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
+			float ratio = ps.data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
+			ps.vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
 		} else if (ps.spawn)
-			respawnPointParticle(ps, vertices[i], pointParticles[i].speed, pointParticles[i].lifeTime);
+			respawnPointParticle(ps, ps.vertices[i], ps.data[i].speed, ps.data[i].lifeTime);
 	}
 }
 
@@ -175,7 +139,7 @@ inline void ParticleSystem::respawnPixelParticle(const PixelParticles& ps, Quad&
 	lifeTime = sf::milliseconds(time);
 }
 
-void ParticleSystem::updatePixelBatch(PixelParticles& ps, gsl::span<Quad> quads, gsl::span<InternalData> pixelParticles)
+void ParticleSystem::updatePixelBatch(PixelParticles& ps)
 {
 	if (ps.areDead())
 		return;
@@ -185,21 +149,21 @@ void ParticleSystem::updatePixelBatch(PixelParticles& ps, gsl::span<Quad> quads,
 	if(particleNum >= 1)
 		ps.particlesToSpawn -= particleNum;
 
-	for (int i = 0; i < quads.size(); i++) {
-		pixelParticles[i].lifeTime -= deltaTime;
-		if (pixelParticles[i].lifeTime > sf::Time::Zero) {
-			if (ps.platform.intersects(quads[i].getGlobalRect())) 
+	for (int i = 0; i < ps.quads.size(); i++) {
+		ps.data[i].lifeTime -= deltaTime;
+		if (ps.data[i].lifeTime > sf::Time::Zero) {
+			if (ps.platform.intersects(ps.quads[i].getGlobalRect())) 
 				continue;
-			pixelParticles[i].speed += ps.gravity * dt;
-			quads[i].move(pixelParticles[i].speed * dt);
+			ps.data[i].speed += ps.gravity * dt;
+			ps.quads[i].move(ps.data[i].speed * dt);
 		} 
 		else
-			quads[i].setAlpha(0);
+			ps.quads[i].setAlpha(0);
 	}
 
 	auto process = [&](int begin, int end) { 
 		for (int i = begin; i < end; i++)
-			respawnPixelParticle(ps, quads[i], pixelParticles[i].speed, pixelParticles[i].lifeTime);
+			respawnPixelParticle(ps, ps.quads[i], ps.data[i].speed, ps.data[i].lifeTime);
 	};
 
 	if (particleNum != 0 && ps.spawn)

@@ -4,11 +4,11 @@
 #include <fstream>
 
 // ? 
-struct TextBox : Data<TextBox> {
+struct TextBox : Component<TextBox> {
 
 };
 
-struct Text : Data<Text>, sf::Text { 
+struct Text : Component<Text>, sf::Text { 
 
 	Text(std::string fontName = "KeepCalm-Medium.ttf") : fontName(fontName) { }
 
@@ -19,7 +19,7 @@ private:
 	friend class GuiSystem;
 };
 
-struct Button : Data<Button>, sf::RectangleShape {
+struct Button : Component<Button>, sf::RectangleShape {
 
 	Button(sf::FloatRect rect, std::string texture = "")
 		: textureName(texture), rect(rect)
@@ -52,34 +52,26 @@ private:
 class GuiSystem : public System {
 
 	void init() {
-		initFrom<Button>();
-		initFrom<Text>();
-	}
-
-	void add(Component* c) {
-		if (auto b = dynamic_cast<Button*>(c); b) {
-			if (!b->textureName.empty()) {
-				b->setTexture(load<sf::Texture>(b->textureName));
-			}
-		}
-		if (auto t = dynamic_cast<Text*>(c); t) {
-			t->setFont(*load<sf::Font>(t->fontName));
-		}
+		forEach<Button>([](auto& b) {
+			if (!b.textureName.empty())
+				b.setTexture(load<sf::Texture>(b.textureName)); 
+		});
+		forEach<Text>([](auto& t) {
+			t.setFont(*load<sf::Font>(t.fontName));
+		});
 	}
 
 	void update() {
-		auto process = [&](auto& components) {
-			for (auto& c : components) {
-				if (c->moveWithMouse && isLeftMouseButtonPressed) {
-					auto mouse = VectorEngine::mousePositon();
-					if (c->getGlobalBounds().contains(mouse)) {
-						c->setPosition(mouse);
-					}
+		auto process = [&](auto& c) {
+			if (c.moveWithMouse && isLeftMouseButtonPressed) {
+				auto mouse = VectorEngine::mousePositon();
+				if (c.getGlobalBounds().contains(mouse)) {
+					c.setPosition(mouse);
 				}
 			}
 		};
-		process(this->getComponents<Button>());
-		process(this->getComponents<Text>());
+		forEach<Button>(process);
+		forEach<Text>(process);
 	}
 
 	void handleEvent(sf::Event event) {
@@ -88,9 +80,10 @@ class GuiSystem : public System {
 		case sf::Event::MouseButtonPressed: {
 			if (event.mouseButton.button == sf::Mouse::Left) {
 				isLeftMouseButtonPressed = true;
-				for (auto& b : this->getComponents<Button>())
-					if(b->getGlobalBounds().contains(event.mouseButton.x, event.mouseButton.y))
-						b->onClick(); 
+				forEach<Button>([&](auto& b){
+						if (b.getGlobalBounds().contains(event.mouseButton.x, event.mouseButton.y))
+							b.onClick();
+				});
 			}
 			if (event.mouseButton.button == sf::Mouse::Right) {
 				isRightMouseButtonPressed = true;
@@ -111,11 +104,9 @@ class GuiSystem : public System {
 	}
 
 	void render(sf::RenderTarget& target) {
-		for (auto& b : this->getComponents<Button>())
-			target.draw(*b);
-		for (auto& t : this->getComponents<Text>()) {
-			target.draw(*t);
-		}
+		auto proc = [&](auto& t) { target.draw(t); };
+		forEach<Button>(proc);
+		forEach<Text>(proc);
 	}
 
 private:

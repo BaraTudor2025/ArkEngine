@@ -20,74 +20,53 @@
 class Entity;
 class System;
 
+template <typename T>
 struct VECTOR_ENGINE_API Component {
+
+private:
+	static int getUniqueComponentID();
 
 public:
 	Entity* entity() { return entity_; }
 	const Entity* entity() const { return entity_; }
-	virtual ~Component() = default;
+
+	void setActive(bool b)
+	{
+		auto index = entity()->components[id];
+		active[index] = b;
+	}
+	static inline const int id = getUniqueComponentID();
 
 protected:
 	Entity* entity_;
 
 private:
-	virtual void Register() = 0;
-	virtual void unRegister() = 0;
+	static inline std::vector<T> components;
+	static inline std::vector<bool> active;
 
+	friend class System;
 	friend class Entity;
 };
 
-
-template <typename T>
-struct VECTOR_ENGINE_API Data : Component {
-
-public:
-	virtual ~Data() { unRegister();  }
-
-protected:
-	static inline System* system = nullptr;
-
-private:
-	void Register() override;
-	void unRegister() override;
-
-	bool registered = false;
-	static inline std::vector<T*> components;
-	friend class System;
-};
-
-template <typename T> using is_component = std::is_base_of<Component, T>;
+template <typename T> using is_component = std::is_base_of<Component<T>, T>;
 template <typename T> bool is_component_v = is_component<T>::value;
 
-struct VECTOR_ENGINE_API Transform : public Data<Transform>, sf::Transformable {
+struct VECTOR_ENGINE_API Transform : public Component<Transform>, sf::Transformable {
 	using sf::Transformable::Transformable;
 	operator const sf::Transform&() const { return this->getTransform();  }
 	operator const sf::RenderStates&() const { return this->getTransform(); }
 };
 
-/* convinient alias, 
- * use only if entity has transformable component
- * use: getComponent<Transform>();
-*/
-
-// using Transform = sf::Transformable;
-
-//// TODO: special rectangle shape class
-//struct VECTOR_ENGINE_API RectangleShape : public Data<RectangleShape>, sf::RectangleShape { 
-//	using sf::RectangleShape::RectangleShape;
-//};
-
-
 class VECTOR_ENGINE_API Script : public NonCopyable {
 
 public:
 	Script() = default;
-	virtual ~Script() { unRegister(); };
+	virtual ~Script() = default;
 
 protected:
 	virtual void init() { }
 	virtual void update() { }
-	virtual void fixedUpdate(sf::Time) { } // should be used for physics
+	virtual void fixedUpdate(sf::Time) { } // maybe use fixedTime
 	virtual void handleEvent(sf::Event) { }
 	template <typename T> T* getComponent();
 	template <typename T> T* getScript();
@@ -95,13 +74,8 @@ protected:
 	const Entity* entity() const { return entity_; }
 
 private:
-	void Register();
-	void unRegister();
-
 	Entity* entity_ = nullptr;
-	bool registered = false;
 
-	static inline std::vector<Script*> scripts;
 	friend class VectorEngine;
 	friend class Entity;
 };
@@ -109,87 +83,83 @@ private:
 template <typename T> using is_script = std::is_base_of<Script, T>;
 template <typename T> bool is_script_v = is_script<T>::value;
 
+class Scene;
+
 class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
 public:
-	explicit Entity(std::any tag = nullptr) : tag(tag), id_(idCounter++) { };
+	explicit Entity(std::any tag = std::any()) : tag(tag), id_(idCounter++) { };
 	Entity(Entity&& other) { *this = std::move(other); }
 	Entity& operator=(Entity&& other);
 	~Entity();
-
-	void Register();
 
 	std::any tag;
 
 	int id() { return id_; }
 
-	template <typename T> T* getComponent(); 
-	template <typename T> T* getScript();
-
-	Component* addComponent(std::unique_ptr<Component> c);
-	Script* addScript(std::unique_ptr<Script> s);
+	// TODO: ?
+	void setActive(bool b){ }
 
 	void setAction(std::function<void(Entity&, std::any)> f, std::any args = std::any());
 
-	template <typename T, typename... Args>
-	T* addComponent(Args&&... args) {
-		return static_cast<T*>(addComponent(std::make_unique<T>(std::forward<Args>(args)...)));
+	template <typename T> T* getScript();
+
+	template <typename T>
+	T* getComponent()
+	{
+		try {
+			auto index = this->components.at(Component<T>::id);
+			return &Component<T>::components[index];
+		}
+		catch (const std::out_of_range& e) {
+			std::cerr << "didn't find component\n";
+			std::cerr << e.what() << '\n';
+			return nullptr;
+		}
+	}
+
+	template <typename T, typename...Args> 
+	T* addComponent(Args&&...args)
+	{
+		Component<T>::components.emplace_back(std::forward<Args>(args)...);
+		Component<T>::active.emplace_back(true);
+		this->components[Component<T>::id] = Component<T>::components.size() - 1;
+		auto& ref = Component<T>::components.back();
+		ref.entity_ = this;
+		return &ref;
 	}
 
 	template <typename T, typename... Args>
-	Script* addScript(Args&&... args) {
-		return addScript(std::make_unique<T>(std::forward<Args>(args)...));
+	Script* addScript(Args&&... args)
+	{
+		auto script = std::make_unique<T>(std::forward<Args>(args)...);
+		script->entity_ = this;
+		if (VectorEngine::running())
+			script->init();
+		auto ref = script.get();
+		this->scene->scripts.push_back(std::move(script));
+		this->scripts.push_back(ref);
+		return ref;
 	}
 
 private:
-	void unRegister();
-
-private:
-	std::vector<std::unique_ptr<Component>> components;
-	std::vector<std::unique_ptr<Script>> scripts;
+	using ComponentTypeID = int;
+	using ComponentIndex = int;
+	std::unordered_map<ComponentTypeID, ComponentIndex> components;
+	std::vector<Script*> scripts;
 	std::function<void(Entity&, std::any)> action = nullptr;
 	std::unique_ptr<std::any> actionArgs;
 	int id_;
-	bool registered = false;
+	Scene* scene;
 
 	static inline int idCounter = 1;
-	static inline std::vector<Entity*> entities;
 
+	template <class> friend struct Component;
 	friend class VectorEngine;
+	friend class Scene;
 	friend class Script;
 	friend class System;
 };
-
-// helpers
-
-template <typename T>
-inline void registerEntities(std::vector<T>& v)
-{
-	if constexpr(std::is_same_v<std::unique_ptr<Entity>, T> || 
-	             std::is_same_v<std::shared_ptr<Entity>, T>)
-		for (auto& e : v)
-			e->Register();
-	else
-		for (auto& e : v)
-			e.Register();
-}
-
-template <typename T, typename...Args>
-void constructVector(std::vector<std::unique_ptr<T>>& range, int n, const Args&...args)
-{
-	range.reserve(n);
-	for (int i = 0; i < n; i++)
-		range.emplace_back(std::make_unique<T>(args...));
-}
-
-template <typename T>
-std::vector<Entity> makeEntitiesFromComponents(std::vector<std::unique_ptr<T>> comps)
-{
-	std::vector<Entity> entities(comps.size());
-	for (int i = 0; i < comps.size(); i++)
-		entities[i].addComponent(std::move(comps[i]));
-	return entities;
-}
 
 // fiecare sistem ar trebui sa aiba o singura instanta
 class VECTOR_ENGINE_API System : public NonCopyable{
@@ -199,22 +169,17 @@ public:
 	virtual ~System() = 0;
 
 protected:
-	template <typename Comp>
-	void initFrom() {
-		Comp::system = this;
-		for (Comp* c : Comp::components) {
-			this->add(c);
-		}
+
+	template <typename T, typename F>
+	void forEach(F f)
+	{
+		auto size = Component<T>::components.size();
+		for (int i = 0; i < size; i++)
+			if (Component<T>::active[i])
+				std::invoke(f, Component<T>::components[i]);
 	}
 
-	template <typename T>
-	std::vector<T*>& getComponents() {
-			return Data<T>::components;
-	}
-
-	std::vector<Entity*> getEntities() {
-		return Entity::entities;
-	}
+	std::vector<Entity*>& getEntities();
 
 private:
 	virtual void init() { }
@@ -222,13 +187,50 @@ private:
 	virtual void update() { }
 	virtual void fixedUpdate(sf::Time) { }
 	virtual void render(sf::RenderTarget& target) { }
-	virtual void add(Component*) { }
-	virtual void remove(Component*) { }
 
 	friend class VectorEngine;
-	template <typename T> friend struct Data;
+	template <typename T> friend struct Component;
 };
 
+class VECTOR_ENGINE_API Scene {
+
+public:
+	Scene() = default;
+	virtual void init() = 0;
+	virtual ~Scene() = default;
+
+protected:
+
+	template <typename T, typename...Args>
+	void addSystem(Args&&...args) {
+		systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+	}
+
+	template <typename T>
+	void removeSystem() {
+		for (auto& system : systems)
+			if (auto s = dynamic_cast<T*>(system.get()); s)
+				erase(systems, [&](auto& sys) { return sys.get() == s; });
+	}
+
+	void registerEntity(Entity& e) { 
+		e.scene = this;
+		entities.push_back(&e);
+	}
+
+	void registerEntity(Entity* e) { 
+		registerEntity(*e);
+	}
+
+private:
+	friend class VectorEngine;
+	friend class Script;
+	friend class Entity;
+	friend class System;
+	std::vector<Entity*> entities;
+	std::vector<std::unique_ptr<Script>> scripts;
+	std::vector<std::unique_ptr<System>> systems;
+};
 
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable {
 
@@ -242,17 +244,19 @@ public:
 
 	static sf::Vector2u windowSize() { return { width, height }; }
 
-	static void addSystem(System* s);
-
 	static void run();
 
 	static void setVSync(bool enabled) { window.setVerticalSyncEnabled(enabled); }
 
 	static void setFPSlimit(int fps) { window.setFramerateLimit(fps); }
 
+	template <typename T>
+	static void setScene() { currentScene = std::make_unique<T>(); initScene(); }
+
 	static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
 
 	static sf::Time deltaTime() { return delta_time + clock.getElapsedTime(); }
+	static sf::Time fixedTime() { return frameTime; }
 
 	static bool running() { return running_; }
 
@@ -261,9 +265,11 @@ public:
 	static inline sf::Color backGroundColor;
 	
 	// should be used only for debuging purpose
-	static sf::RenderWindow& degubGetWindow() { return window; }
+	static sf::RenderWindow& debugGetWindow() { return window; }
 
 private:
+
+	static void initScene();
 
 	static inline sf::RenderWindow window;
 	static inline sf::View view;
@@ -272,7 +278,8 @@ private:
 	static inline sf::Clock clock;
 	static inline uint32_t width, height;
 	static inline bool running_ = false;
-	static inline std::vector<System*> systems;
+	static inline std::unique_ptr<Scene> currentScene;
+	friend class System;
 };
 
 
@@ -284,22 +291,10 @@ template <typename T> T* Script::getComponent() { return entity_->getComponent<T
 template <typename T> T* Script::getScript() { return entity_->getScript<T>(); }
 
 template<typename T>
-T* Entity::getComponent() 
-{
-	for (auto& c : components) {
-		auto p = dynamic_cast<T*>(c.get());
-		if (p)
-			return p;
-	}
-	std::cerr << "entity id(" << this->id() << "): nu am gasit componenta :( \n";
-	return nullptr;
-}
-
-template<typename T>
 T* Entity::getScript()
 {
 	for (auto& s : scripts) {
-		auto p = dynamic_cast<T*>(s.get());
+		auto p = dynamic_cast<T*>(s);
 		if (p)
 			return p;
 	}
@@ -308,23 +303,8 @@ T* Entity::getScript()
 }
 
 template<typename T>
-inline void Data<T>::Register()
+int Component<T>::getUniqueComponentID()
 {
-	if (!registered) {
-		components.push_back(dynamic_cast<T*>(this));
-		registered = true;
-		if (VectorEngine::running() && system)
-			system->add(this);
-	}
-}
-
-template<typename T>
-inline void Data<T>::unRegister()
-{
-	if (registered) {
-		erase(components, dynamic_cast<T*>(this));
-		registered = false;
-		if(VectorEngine::running() && system)
-			system->remove(this);
-	}
+	static int id = 1;
+	return id++;
 }

@@ -240,9 +240,9 @@ namespace ParticleScripts {
 		void init() override
 		{
 			log_init();
-			if (is_script_v<T>)
+			if constexpr (is_script_v<T>)
 				p = getScript<T>();
-			if (std::is_same_v<PointParticles, T>)
+			if constexpr (std::is_same_v<PointParticles, T>)
 				p = getComponent<T>();
 		}
 		void handleEvent(sf::Event event)

@@ -109,7 +109,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
-      <DisableSpecificWarnings>C4244; C4267; </DisableSpecificWarnings>
+      <DisableSpecificWarnings>4244; 4267; </DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -152,6 +152,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4244; 4267;</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -184,6 +185,7 @@
     <ClInclude Include="RandomNumbers.hpp" />
     <ClInclude Include="ResourceManager.hpp" />
     <ClInclude Include="Scripts.hpp" />
+    <ClInclude Include="static_any.hpp" />
     <ClInclude Include="Util.hpp" />
     <ClInclude Include="VectorEngine.hpp" />
   </ItemGroup>

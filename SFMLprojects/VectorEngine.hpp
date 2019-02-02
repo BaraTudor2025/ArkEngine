@@ -6,6 +6,7 @@
 #include <any>
 #include <iostream>
 #include "Util.hpp"
+#include "static_any.hpp"
 
 //#define VENGINE_BUILD_DLL 0
 //
@@ -18,38 +19,36 @@
 #define VECTOR_ENGINE_API
 
 class Entity;
-class System;
+class Scene;
+
+extern int getUniqueComponentID();
 
 template <typename T>
 struct VECTOR_ENGINE_API Component {
 
-private:
-	static int getUniqueComponentID();
-
 public:
 	Entity* entity() { return entity_; }
-	const Entity* entity() const { return entity_; }
 
-	void setActive(bool b)
-	{
-		auto index = entity()->components[id];
-		active[index] = b;
-	}
+	void setActive(bool b);
+
 	static inline const int id = getUniqueComponentID();
 
 protected:
 	Entity* entity_;
+	Scene* scene_;
+
+	struct Vector { 
+		std::vector<T> data; 
+		std::vector<bool> active; 
+	};
 
 private:
-	static inline std::vector<T> components;
-	static inline std::vector<bool> active;
-
-	friend class System;
+	friend class Scene;
 	friend class Entity;
 };
 
 template <typename T> using is_component = std::is_base_of<Component<T>, T>;
-template <typename T> bool is_component_v = is_component<T>::value;
+template <typename T> constexpr bool is_component_v = is_component<T>::value;
 
 struct VECTOR_ENGINE_API Transform : public Component<Transform>, sf::Transformable {
 	using sf::Transformable::Transformable;
@@ -81,7 +80,7 @@ private:
 };
 
 template <typename T> using is_script = std::is_base_of<Script, T>;
-template <typename T> bool is_script_v = is_script<T>::value;
+template <typename T> constexpr bool is_script_v = is_script<T>::value;
 
 class Scene;
 
@@ -89,9 +88,11 @@ class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
 public:
 	explicit Entity(std::any tag = std::any()) : tag(tag), id_(idCounter++) { };
+
+	// move ctor is broken, don't use
 	Entity(Entity&& other) { *this = std::move(other); }
 	Entity& operator=(Entity&& other);
-	~Entity();
+	~Entity() = default;
 
 	std::any tag;
 
@@ -105,42 +106,13 @@ public:
 	template <typename T> T* getScript();
 
 	template <typename T>
-	T* getComponent()
-	{
-		try {
-			auto index = this->components.at(Component<T>::id);
-			return &Component<T>::components[index];
-		}
-		catch (const std::out_of_range& e) {
-			std::cerr << "didn't find component\n";
-			std::cerr << e.what() << '\n';
-			return nullptr;
-		}
-	}
+	T* getComponent();
 
 	template <typename T, typename...Args> 
-	T* addComponent(Args&&...args)
-	{
-		Component<T>::components.emplace_back(std::forward<Args>(args)...);
-		Component<T>::active.emplace_back(true);
-		this->components[Component<T>::id] = Component<T>::components.size() - 1;
-		auto& ref = Component<T>::components.back();
-		ref.entity_ = this;
-		return &ref;
-	}
+	T* addComponent(Args&&...args);
 
 	template <typename T, typename... Args>
-	Script* addScript(Args&&... args)
-	{
-		auto script = std::make_unique<T>(std::forward<Args>(args)...);
-		script->entity_ = this;
-		if (VectorEngine::running())
-			script->init();
-		auto ref = script.get();
-		this->scene->scripts.push_back(std::move(script));
-		this->scripts.push_back(ref);
-		return ref;
-	}
+	Script* addScript(Args&&... args);
 
 private:
 	using ComponentTypeID = int;
@@ -171,13 +143,7 @@ public:
 protected:
 
 	template <typename T, typename F>
-	void forEach(F f)
-	{
-		auto size = Component<T>::components.size();
-		for (int i = 0; i < size; i++)
-			if (Component<T>::active[i])
-				std::invoke(f, Component<T>::components[i]);
-	}
+	void forEach(F f);
 
 	std::vector<Entity*>& getEntities();
 
@@ -188,7 +154,9 @@ private:
 	virtual void fixedUpdate(sf::Time) { }
 	virtual void render(sf::RenderTarget& target) { }
 
+	Scene* scene;
 	friend class VectorEngine;
+	friend class Scene;
 	template <typename T> friend struct Component;
 };
 
@@ -203,7 +171,8 @@ protected:
 
 	template <typename T, typename...Args>
 	void addSystem(Args&&...args) {
-		systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+		this->systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+		this->systems.back()->scene = this;
 	}
 
 	template <typename T>
@@ -222,14 +191,47 @@ protected:
 		registerEntity(*e);
 	}
 
+	template <typename... Ts>
+	void addComponentType()
+	{
+		(std::cout << ... << Ts::id);
+		std::cout << '\n';
+		static_assert((... && is_component_v<Ts>));
+		((this->componentTable[Component<Ts>::id] = Component<Ts>::Vector()),...);
+	}
+
 private:
+	template <typename T>
+	auto& getComponents()
+	{
+		using vector_t = typename Component<T>::Vector;
+		using ref_vector_t = vector_t&;
+		auto& comps = this->componentTable.at(Component<T>::id);
+		return any_cast<vector_t>(comps);
+		//return std::any_cast<ref_vector_t>(comps);
+	}
+
+	template <typename T, typename...Args>
+	int pushComponent(Args&&...args)
+	{
+		auto& comps = this->getComponents<T>();
+		comps.data.emplace_back(std::forward<Args>(args)...);
+		comps.active.push_back(true);
+		return comps.data.size() - 1;
+	}
+
+private:
+	std::vector<Entity*> entities;
+	std::vector<std::unique_ptr<Script>> scripts;
+	std::vector<std::unique_ptr<System>> systems;
+	//std::unordered_map<int, std::any> componentTable;
+	std::unordered_map<int, static_any<sizeof(Component<Transform>::Vector)>> componentTable;
+
 	friend class VectorEngine;
 	friend class Script;
 	friend class Entity;
 	friend class System;
-	std::vector<Entity*> entities;
-	std::vector<std::unique_ptr<Script>> scripts;
-	std::vector<std::unique_ptr<System>> systems;
+	template <class> friend struct Component;
 };
 
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable {
@@ -293,6 +295,7 @@ template <typename T> T* Script::getScript() { return entity_->getScript<T>(); }
 template<typename T>
 T* Entity::getScript()
 {
+	static_assert(is_script_v<T>);
 	for (auto& s : scripts) {
 		auto p = dynamic_cast<T*>(s);
 		if (p)
@@ -303,8 +306,59 @@ T* Entity::getScript()
 }
 
 template<typename T>
-int Component<T>::getUniqueComponentID()
+inline T* Entity::getComponent()
 {
-	static int id = 1;
-	return id++;
+	static_assert(is_component_v<T>);
+	try {
+		auto index = this->components.at(Component<T>::id);
+		auto& cs = scene->getComponents<T>();
+		return &cs.data[index];
+	}
+	catch (const std::out_of_range& e) {
+		std::cerr << "didn't find component\n";
+		std::cerr << e.what() << '\n';
+		return nullptr;
+	}
+}
+
+template<typename T, typename ...Args>
+inline T* Entity::addComponent(Args&& ...args)
+{
+	static_assert(is_component_v<T>);
+	auto index = this->scene->pushComponent<T>(std::forward<Args>(args)...);
+	this->components[T::id] = index;
+	auto c = this->getComponent<T>();
+	c->entity_ = this;
+	c->scene_ = this->scene;
+	return c;
+}
+
+template<typename T, typename ...Args>
+inline Script* Entity::addScript(Args && ...args)
+{
+	static_assert(is_script_v<T>);
+	auto script = std::make_unique<T>(std::forward<Args>(args)...);
+	auto ptr = script.get();
+	ptr->entity_ = this;
+	this->scripts.push_back(ptr);
+	this->scene->scripts.push_back(std::move(script));
+	return ptr;
+}
+
+template<typename T>
+inline void Component<T>::setActive(bool b)
+{
+	auto index = entity()->components[id];
+	auto& cs = scene_->getComponents<T>();
+	cs.active[index] = b;
+}
+
+template<typename T, typename F>
+inline void System::forEach(F f)
+{
+	static_assert(is_component_v<T>);
+	auto& cs = scene->getComponents<T>();
+	for (int i = 0; i < cs.data.size(); i++)
+		if (cs.active[i])
+			std::invoke(f, cs.data[i]);
 }

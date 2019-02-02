@@ -10,9 +10,14 @@
 #define debug_log(fmt, ...)
 #endif
 
-System::~System() { }
+int getUniqueComponentID()
+{
+	static int id = 0;
+	id += 1;
+	return id;
+}
 
-Entity::~Entity() { }
+System::~System() { }
 
 Entity& Entity::operator=(Entity&& other)
 {

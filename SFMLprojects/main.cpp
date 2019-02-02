@@ -129,6 +129,11 @@ class TestingEngineScene : public Scene {
 		addSystem<GuiSystem>();
 		addSystem<AnimationSystem>();
 
+		addComponentType<Transform>();
+		addComponentType<Mesh, Animation>();
+		addComponentType<PixelParticles, PointParticles>();
+		addComponentType<Button, Text>();
+
 		registerEntity(button);
 		registerEntity(player);
 		registerEntity(mouseTrail);
@@ -195,7 +200,7 @@ class TestingEngineScene : public Scene {
 		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 		mouseTrail.addScript<TraillingEffect>();
 
-		std::vector<PointParticles> fireWorksParticles(100, fireParticles);
+		std::vector<PointParticles> fireWorksParticles(1000, fireParticles);
 		for (auto& fw : fireWorksParticles) {
 			auto[width, height] = VectorEngine::windowSize();
 			float x = RandomNumber<int>(50, width - 50);
@@ -211,9 +216,9 @@ class TestingEngineScene : public Scene {
 
 		fireWorks.resize(fireWorksParticles.size());
 		for (int i = 0; i < fireWorks.size();i++) {
+			registerEntity(fireWorks[i]);
 			fireWorks[i].setAction(Action::SpawnLater, 10);
 			fireWorks[i].addComponent<PointParticles>(fireWorksParticles[i]);
-			registerEntity(fireWorks[i]);
 		}
 
 		ParticleSystem::hasUniversalGravity = true;

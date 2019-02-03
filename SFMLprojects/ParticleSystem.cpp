@@ -103,25 +103,49 @@ void ParticleSystem::updatePointBatch(PointParticles& ps)
 
 	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
-	for (int i = 0; i < ps.vertices.size(); i++) {
-		ps.data[i].lifeTime -= deltaTime;
-		if (ps.data[i].lifeTime > sf::Time::Zero) { // if alive
+
+	auto vert = ps.vertices.begin();
+	auto data = ps.data.begin();
+	for (; vert != ps.vertices.end() && data != ps.data.end(); ++vert, ++data)
+	{
+		data->lifeTime -= deltaTime;
+		if (data->lifeTime > sf::Time::Zero) { // if alive
 
 			if (hasUniversalGravity)
-				ps.data[i].speed += gravityVector * dt;
+				data->speed += gravityVector * dt;
 			else {
-				auto r = gravityPoint - ps.vertices[i].position;
+				auto r = gravityPoint - vert->position;
 				auto dist = std::hypot(r.x, r.y);
 				auto g = r / (dist * dist);
-				ps.data[i].speed += gravityMagnitude * 1000.f * g * dt;
+				data->speed += gravityMagnitude * 1000.f * g * dt;
 			}
-			ps.vertices[i].position += ps.data[i].speed * dt;
+			vert->position += data->speed * dt;
 
-			float ratio = ps.data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
-			ps.vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
+			float ratio = data->lifeTime.asSeconds() / ps.lifeTime.asSeconds();
+			vert->color.a = static_cast<uint8_t>(ratio * 255);
 		} else if (ps.spawn)
-			respawnPointParticle(ps, ps.vertices[i], ps.data[i].speed, ps.data[i].lifeTime);
+			respawnPointParticle(ps, *vert, data->speed, data->lifeTime);
 	}
+
+	//for (int i = 0; i < ps.vertices.size(); i++) {
+	//	ps.data[i].lifeTime -= deltaTime;
+	//	if (ps.data[i].lifeTime > sf::Time::Zero) { // if alive
+
+	//		if (hasUniversalGravity)
+	//			ps.data[i].speed += gravityVector * dt;
+	//		else {
+	//			auto r = gravityPoint - ps.vertices[i].position;
+	//			auto dist = std::hypot(r.x, r.y);
+	//			auto g = r / (dist * dist);
+	//			ps.data[i].speed += gravityMagnitude * 1000.f * g * dt;
+	//		}
+	//		ps.vertices[i].position += ps.data[i].speed * dt;
+
+	//		float ratio = ps.data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
+	//		ps.vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
+	//	} else if (ps.spawn)
+	//		respawnPointParticle(ps, ps.vertices[i], ps.data[i].speed, ps.data[i].lifeTime);
+	//}
 }
 
 inline void ParticleSystem::respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime)
@@ -143,6 +167,7 @@ void ParticleSystem::updatePixelBatch(PixelParticles& ps)
 {
 	if (ps.areDead())
 		return;
+
 	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
 	int particleNum = std::floor(ps.particlesToSpawn);

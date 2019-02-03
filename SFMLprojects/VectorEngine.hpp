@@ -33,7 +33,7 @@ public:
 
 	static inline const int id = getUniqueComponentID();
 
-protected:
+private:
 	Entity* entity_;
 	Scene* scene_;
 
@@ -42,7 +42,6 @@ protected:
 		std::vector<bool> active; 
 	};
 
-private:
 	friend class Scene;
 	friend class Entity;
 };
@@ -103,7 +102,8 @@ public:
 
 	void setAction(std::function<void(Entity&, std::any)> f, std::any args = std::any());
 
-	template <typename T> T* getScript();
+	template <typename T> 
+	T* getScript();
 
 	template <typename T>
 	T* getComponent();
@@ -357,6 +357,10 @@ inline void System::forEach(F f)
 	static_assert(is_component_v<T>);
 	auto& cs = scene->getComponents<T>();
 	for (int i = 0; i < cs.data.size(); i++)
-		if (cs.active[i])
-			std::invoke(f, cs.data[i]);
+		if (cs.active[i]) {
+			if constexpr (std::is_member_function_pointer_v<F>)
+				std::invoke(f, this, cs.data[i]);
+			else
+				std::invoke(f, cs.data[i]);
+		}
 }

@@ -117,13 +117,83 @@ public:
 /* TODO: TexturedParticles */
 /* TODO: Entity.children : vector<Entity*> */
 /* TODO: TileSystem */
-/* TODO: GuiSystem, Button, Text(with fade), TextBox + remove systems from engine */
+/* TODO: Text(with fade), TextBoxe */
 /* TODO: MusicSystem/SoundSystem */
+/* TODO: Shaders */
+
+//template <int index, typename...Ts>
+//struct 
+
+struct SystemBase {
+	virtual void init() = 0;
+	virtual void update() = 0;
+};
+
+template <typename T>
+struct SystemIndividualImpl {
+	virtual void init(T&) = 0;
+	virtual void update(T&) = 0;
+};
+
+template <typename... Ts>
+struct SystemPackImpl {
+	virtual void init(Ts&...) = 0;
+	virtual void update(Ts&...) = 0;
+};
+
+enum class SystemConfig { Individual, Pack };
+
+template <typename...Ts>
+struct SystemIndividualExpand : SystemIndividualImpl<Ts>... { };
+
+template <SystemConfig SysConf, typename... Ts>
+struct TestSystem : SystemBase, 
+	std::conditional_t<SysConf == SystemConfig::Individual,
+		SystemIndividualExpand<Ts...>,
+		SystemPackImpl<Ts...>>
+{
+	static inline constexpr int componentNum = sizeof...(Ts);
+	virtual void init()
+	{
+		std::cout << "mama";
+		//(componentIDs.push_back(T::id), ...);
+		//((forEach<T>(initComponent<T>)), ...);
+	}
+	virtual void update()
+	{
+	}
+};
+
+struct TestParticle { static inline int id = 1; };
+struct TestParticle2 { static inline int id = 2; };
+
+struct TestParticleSystem : public TestSystem<SystemConfig::Individual, TestParticle, TestParticle2> {
+	//void init() override { }
+	void init(TestParticle& p) override
+	{
+
+	}
+	void init(TestParticle2& ) override { }
+	void update(TestParticle&) override { }
+	void update(TestParticle2&) override { }
+};
+
+struct TestParticleSystemPack : public TestSystem<SystemConfig::Pack, TestParticle, TestParticle2> {
+	void init(TestParticle&, TestParticle2&) override { }
+	void update(TestParticle&, TestParticle2&) override { }
+};
 
 class TestingEngineScene : public Scene {
 
 	void init()
 	{
+		TestParticleSystem sys;
+		TestParticleSystemPack sysPack;
+		TestParticle ps;
+		TestParticle2 ps2;
+		sys.init(ps);
+		sysPack.init(ps, ps2);
+		//std::cout << sys.componentIDs.size() << '\n';
 		addSystem<ParticleSystem>();
 		addSystem<FpsCounterSystem>(sf::Color::White);
 		addSystem<GuiSystem>();

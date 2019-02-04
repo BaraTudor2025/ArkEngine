@@ -48,17 +48,32 @@ public:
 
 	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
 
+	void scale(float factor)
+	{
+		transform->scale(factor, factor);
+		particleEmitterOffsetLeft = particleEmitterOffsetLeft * transform->getScale();
+		particleEmitterOffsetRight = particleEmitterOffsetRight * transform->getScale();
+	}
+
 	void init() {
 		animation = getComponent<Animation>();
 
 		transform = getComponent<Transform>();
 		transform->setOrigin(animation->frameSize() / 2.f);
 		transform->move(VectorEngine::center());
-		transform->scale(0.15, 0.15);
+
+		particleEmitterOffsetLeft = { -165, 285 };
+		{
+			auto[x, y] = particleEmitterOffsetLeft;
+			particleEmitterOffsetRight = { -x, y };
+		}
+
+		this->scale(0.10);
 
 		runningParticles = getComponent<PixelParticles>();
 		auto pp = runningParticles;
 		pp->particlesPerSecond = pp->count / 2;
+		pp->size = { 1, 1 };
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
@@ -75,14 +90,14 @@ public:
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
 			transform->move(dx * std::cos(angle), dx * std::sin(angle));
 			runningParticles->angleDistribution = { PI + PI/4, PI / 10, DistributionType::normal };
-			runningParticles->emitter = transform->getPosition() + sf::Vector2f{ -25, 40 };
+			runningParticles->emitter = transform->getPosition() + particleEmitterOffsetLeft;
 			moved = true;
 			animation->flipX = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
 			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
 			runningParticles->angleDistribution = { -PI/4, PI / 10, DistributionType::normal };
-			runningParticles->emitter = transform->getPosition() + sf::Vector2f{ 25, 40 };
+			runningParticles->emitter = transform->getPosition() + particleEmitterOffsetRight;
 			moved = true;
 			animation->flipX = true;
 		}
@@ -137,27 +152,40 @@ struct SystemIndividualImpl {
 
 template <typename... Ts>
 struct SystemPackImpl {
+	std::vector<std::tuple<Ts*...>> comps;
 	virtual void init(Ts&...) = 0;
 	virtual void update(Ts&...) = 0;
+
+	template <typename T, typename F>
+	void forEach(F f)
+	{
+		for (auto& c : comps)
+			std::apply(f, c);
+	}
 };
 
-enum class SystemConfig { Individual, Pack };
+enum class SystemConfig { Simple, Individual, Pack };
 
 template <typename...Ts>
-struct SystemIndividualExpand : SystemIndividualImpl<Ts>... { };
+struct SystemIndividualImplExpand : SystemIndividualImpl<Ts>... { };
 
 template <SystemConfig SysConf, typename... Ts>
-struct TestSystem : SystemBase, 
-	std::conditional_t<SysConf == SystemConfig::Individual,
-		SystemIndividualExpand<Ts...>,
-		SystemPackImpl<Ts...>>
+struct TestSystem : SystemBase, std::conditional_t<SysConf == SystemConfig::Individual, SystemIndividualImplExpand<Ts...>, SystemPackImpl<Ts...>>
 {
 	static inline constexpr int componentNum = sizeof...(Ts);
 	virtual void init()
 	{
-		std::cout << "mama";
-		//(componentIDs.push_back(T::id), ...);
-		//((forEach<T>(initComponent<T>)), ...);
+		if constexpr (SysConf == SystemConfig::Pack)
+		{
+			//std::cout << "mama";
+			//for (auto& e : this->getEntities()) {
+			//	std::tuple<Ts*...> pack = std::make_tuple(e.getComponent<Ts>()...);
+			//	if (std::apply([](auto... c) { return c != nullptr && ...; }, pack)) {
+			//		this->componentNum.push_back(pack);
+			//	}
+			//}
+		}
+		//(forEach<T>(initComponent<T>), ...);
 	}
 	virtual void update()
 	{
@@ -211,10 +239,13 @@ class TestingEngineScene : public Scene {
 		registerEntity(greenPointParticles);
 		registerEntity(firePointParticles);
 		registerEntity(rotatingParticles);
+		fireWorks.resize(0);
+		for (auto& fw : fireWorks)
+			registerEntity(fw);
 
 		player.addComponent<Transform>();
 		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-		player.addComponent<PixelParticles>(2'000, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+		player.addComponent<PixelParticles>(30, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 		player.addScript<MovePlayer>(400, 180);
 		//player.tag = "player";
 
@@ -231,7 +262,6 @@ class TestingEngineScene : public Scene {
 		auto t = button.addComponent<Text>();
 		t->setOrigin(b->getOrigin());
 		t->setPosition(b->getPosition() + b->getSize() / 3.5f);
-		t->setString("ma-ta");
 		t->setFillColor(sf::Color::Black);
 
 		using namespace ParticleScripts;
@@ -270,7 +300,7 @@ class TestingEngineScene : public Scene {
 		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 		mouseTrail.addScript<TraillingEffect>();
 
-		std::vector<PointParticles> fireWorksParticles(1000, fireParticles);
+		std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
 		for (auto& fw : fireWorksParticles) {
 			auto[width, height] = VectorEngine::windowSize();
 			float x = RandomNumber<int>(50, width - 50);
@@ -284,9 +314,7 @@ class TestingEngineScene : public Scene {
 			fw.speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
 		}
 
-		fireWorks.resize(fireWorksParticles.size());
 		for (int i = 0; i < fireWorks.size();i++) {
-			registerEntity(fireWorks[i]);
 			fireWorks[i].setAction(Action::SpawnLater, 10);
 			fireWorks[i].addComponent<PointParticles>(fireWorksParticles[i]);
 		}

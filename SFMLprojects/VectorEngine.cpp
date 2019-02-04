@@ -130,7 +130,7 @@ void VectorEngine::run()
 		while (scriptsLag >= frameTime) {
 			scriptsLag -= frameTime;
 			for (auto& s : currentScene->scripts)
-				s->fixedUpdate(frameTime);
+				s->fixedUpdate();
 		}
 
 		for (auto& system : currentScene->systems)
@@ -140,7 +140,7 @@ void VectorEngine::run()
 		while (systemsLag >= frameTime) {
 			systemsLag -= frameTime;
 			for (auto& system : currentScene->systems)
-				system->fixedUpdate(frameTime);
+				system->fixedUpdate();
 		}
 
 		for (auto& system : currentScene->systems)

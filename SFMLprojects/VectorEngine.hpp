@@ -323,24 +323,30 @@ template<typename T, typename ...Args>
 inline T* Entity::addComponent(Args&& ...args)
 {
 	static_assert(is_component_v<T>);
-	auto index = this->scene->pushComponent<T>(std::forward<Args>(args)...);
-	this->components[T::id] = index;
-	auto c = this->getComponent<T>();
-	c->entity_ = this;
-	c->scene_ = this->scene;
-	return c;
+	if (scene) {
+		auto index = this->scene->pushComponent<T>(std::forward<Args>(args)...);
+		this->components[T::id] = index;
+		auto c = this->getComponent<T>();
+		c->entity_ = this;
+		c->scene_ = this->scene;
+		return c;
+	}
+	return nullptr;
 }
 
 template<typename T, typename ...Args>
 inline Script* Entity::addScript(Args && ...args)
 {
 	static_assert(is_script_v<T>);
-	auto script = std::make_unique<T>(std::forward<Args>(args)...);
-	auto ptr = script.get();
-	ptr->entity_ = this;
-	this->scripts.push_back(ptr);
-	this->scene->scripts.push_back(std::move(script));
-	return ptr;
+	if (scene) {
+		auto script = std::make_unique<T>(std::forward<Args>(args)...);
+		auto ptr = script.get();
+		ptr->entity_ = this;
+		this->scripts.push_back(ptr);
+		this->scene->scripts.push_back(std::move(script));
+		return ptr;
+	}
+	return nullptr;
 }
 
 template<typename T>

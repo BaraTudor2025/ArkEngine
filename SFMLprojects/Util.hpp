@@ -36,6 +36,13 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
+template <typename...Ts>
+struct overloaded : Ts... {
+	using Ts::operator()...;
+};
+
+template <typename...Ts> overloaded(Ts...)->overloaded<Ts...>;
+
 template <typename T, typename U>
 sf::Vector2<T> operator*(sf::Vector2<T> v1, sf::Vector2<U> v2)
 {
@@ -46,68 +53,6 @@ template <typename T, typename U>
 sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
 {
 	return { v1.x / v2.x, v1.y / v2.y };
-}
-
-/* Params
- * f : function, if is member func then pass 'this' as the next args
- * this: if f is member func
- * v : range with member 'count', represents how many elements in each span
- * spans...
-*/
-template <typename F, typename...Args>
-inline void forEachSpan(F f, Args&&...args)
-{
-	if constexpr (std::is_member_function_pointer_v<F>)
-		forEachSpanImplMemberFunc(f, std::forward<Args>(args)...);
-	else 
-		forEachSpanImplNormalFunc(f, std::forward<Args>(args)...);
-}
-
-template<typename F, typename V, typename...Spans>
-inline void forEachSpanImplNormalFunc(F f, V& v, Spans&...spans)
-{
-	int pos = 0;
-	for (auto p : v) {
-		size_t count;
-		if constexpr (std::is_pointer_v<V::value_type>)
-			count = p->count;
-		else
-			count = p.count;
-
-		std::invoke(
-			f,
-			*p,
-			gsl::span<Spans::value_type>{ spans.data() + pos, count } ...);
-
-		if constexpr (std::is_pointer_v<V::value_type>)
-			pos += p->count;
-		else
-			pos += p.count;
-	}
-}
-
-template<typename F, class C, typename V, typename...Spans>
-inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
-{
-	int pos = 0;
-	for (auto p : v) {
-		size_t count;
-		if constexpr (std::is_pointer_v<V::value_type>)
-			count = p->count;
-		else
-			count = p.count;
-
-		std::invoke(
-			f,
-			pThis,
-			*p,
-			gsl::span<Spans::value_type>{ spans.data() + pos, count } ...);
-
-		if constexpr (std::is_pointer_v<V::value_type>)
-			pos += p->count;
-		else
-			pos += p.count;
-	}
 }
 
 template <typename T>
@@ -197,7 +142,67 @@ private:
 	T var_;
 };
 
-//static const std::string dataPath("C:\\Users\\tudor\\Documents\\Visual Studio 2017\\Projects\\SFMLprojects\\res\\");
+/* Params
+ * f : function, if is member func then pass 'this' as the next args
+ * this: if f is member func
+ * v : range with member 'count', represents how many elements in each span
+ * spans...
+*/
+template <typename F, typename...Args>
+inline void forEachSpan(F f, Args&&...args)
+{
+	if constexpr (std::is_member_function_pointer_v<F>)
+		forEachSpanImplMemberFunc(f, std::forward<Args>(args)...);
+	else 
+		forEachSpanImplNormalFunc(f, std::forward<Args>(args)...);
+}
+
+template<typename F, typename V, typename...Spans>
+inline void forEachSpanImplNormalFunc(F f, V& v, Spans&...spans)
+{
+	int pos = 0;
+	for (auto p : v) {
+		size_t count;
+		if constexpr (std::is_pointer_v<V::value_type>)
+			count = p->count;
+		else
+			count = p.count;
+
+		std::invoke(
+			f,
+			*p,
+			gsl::span<Spans::value_type>{ spans.data() + pos, count } ...);
+
+		if constexpr (std::is_pointer_v<V::value_type>)
+			pos += p->count;
+		else
+			pos += p.count;
+	}
+}
+
+template<typename F, class C, typename V, typename...Spans>
+inline void forEachSpanImplMemberFunc(F f, C* pThis, V& v, Spans&...spans)
+{
+	int pos = 0;
+	for (auto p : v) {
+		size_t count;
+		if constexpr (std::is_pointer_v<V::value_type>)
+			count = p->count;
+		else
+			count = p.count;
+
+		std::invoke(
+			f,
+			pThis,
+			*p,
+			gsl::span<Spans::value_type>{ spans.data() + pos, count } ...);
+
+		if constexpr (std::is_pointer_v<V::value_type>)
+			pos += p->count;
+		else
+			pos += p.count;
+	}
+}
 
 #if false
 template <typename R, typename... Args>

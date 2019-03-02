@@ -142,8 +142,8 @@ public:
 
 protected:
 
-	template <typename T, typename F, typename...Args>
-	void forEach(F f, Args&&...);
+	template <typename T, typename F>
+	void forEach(F f);
 
 	std::vector<Entity*>& getEntities();
 
@@ -154,10 +154,62 @@ private:
 	virtual void fixedUpdate() { }
 	virtual void render(sf::RenderTarget& target) { }
 
+protected:
 	Scene* scene;
 	friend class VectorEngine;
 	friend class Scene;
 	template <typename T> friend struct Component;
+};
+
+template <typename T>
+class SpecializedSystemDecl {
+protected:
+	using ThisComponent = T;
+	virtual void initC(T&) = 0;
+	virtual void updateC(T&) = 0;
+	virtual void fixedUpdateC(T&) = 0;
+	virtual void renderC(sf::RenderTarget&, T&) = 0;
+};
+
+template <typename... Systems>
+class SpecializedSystemImpl : public System, public Systems... {
+
+protected:
+
+	using Systems::initC...;
+	using Systems::updateC...;
+	using Systems::fixedUpdateC...;
+	using Systems::renderC...;
+
+	void init() override
+	{
+		((this->forEach<Systems::ThisComponent>([this](auto& c) { this->initC(c); })), ...);
+		//((this->forEach<Components>(&this->initC)), ...);
+	}
+
+	void update() override
+	{
+		//((this->forEach<Components>([this](auto& c) { this->updateC(c); })), ...);
+		((this->forEach<Systems::ThisComponent>([this](auto& c) { this->updateC(c); })), ...);
+	}
+
+	void fixedUpdate() override
+	{
+		//((this->forEach<Components>([this](auto& c) { this->fixedUpdateC(c); })), ...);
+		((this->forEach<Systems::ThisComponent>([this](auto& c) { this->fixedUpdateC(c); })), ...);
+	}
+
+	void render(sf::RenderTarget& target) override
+	{
+		//((this->forEachTarget<Components>(&priv::SpecializedSystemImpl<Components>::render, target)), ...);
+		//((this->forEach<Components>([&target, this](auto& c) { this->renderC(target, c); })), ...);
+		((this->forEach<Systems::ThisComponent>([&target, this](auto& c) { this->renderC(target, c); })), ...);
+	}
+};
+
+template <typename... Components>
+class SpecializedSystem : public SpecializedSystemImpl<SpecializedSystemDecl<Components>...> {
+
 };
 
 class VECTOR_ENGINE_API Scene {
@@ -229,6 +281,7 @@ private:
 	friend class Script;
 	friend class Entity;
 	friend class System;
+	template <class...> friend class SpecializedSystem;
 	template <class> friend struct Component;
 };
 
@@ -357,16 +410,16 @@ inline void Component<T>::setActive(bool b)
 	cs.active[index] = b;
 }
 
-template<typename T, typename F, typename... Args>
-inline void System::forEach(F f, Args&&...args)
+template<typename T, typename F>
+inline void System::forEach(F f)
 {
 	static_assert(is_component_v<T>);
 	auto& cs = scene->getComponents<T>();
 	for (int i = 0; i < cs.data.size(); i++)
 		if (cs.active[i]) {
-			//if constexpr (std::is_member_function_pointer_v<F>)
-				//std::invoke(f, this, std::forward<Args>(args)..., cs.data[i]);
-			//else
-				std::invoke(f, std::forward<Args>(args)..., cs.data[i]);
+			if constexpr (std::is_member_function_pointer_v<F>)
+				std::invoke(f, this, cs.data[i]);
+			else
+				std::invoke(f, cs.data[i]);
 		}
 }

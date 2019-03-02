@@ -2,6 +2,9 @@
 #include "ParticleSystem.hpp"
 #include "Util.hpp"
 
+//#define HAHA
+
+#ifdef HAHA
 void ParticleSystem::init()
 {
 	forEach<PointParticles>([](auto& p) { 
@@ -25,6 +28,33 @@ void ParticleSystem::init()
 	});
 }
 
+#else
+
+void ParticleSystem::initC(PointParticles& p)
+{
+	p.vertices.resize(p.count);
+	p.data.resize(p.count);
+	if (p.spawn)
+		p.deathTimer = sf::Time::Zero;
+	else
+		p.deathTimer = p.lifeTime;
+}
+
+void ParticleSystem::initC(PixelParticles& p)
+{
+	p.quads.resize(p.count);
+	p.data.resize(p.count);
+	for (auto& q : p.quads)
+		q.setColors(p.colors.first, p.colors.second);
+	if (p.spawn)
+		p.deathTimer = sf::Time::Zero;
+	else
+		p.deathTimer = p.lifeTime;
+}
+
+#endif
+
+#ifdef HAHA
 void ParticleSystem::render(sf::RenderTarget& target)
 {
 	forEach<PointParticles>([&](auto& p) {
@@ -49,12 +79,49 @@ void ParticleSystem::render(sf::RenderTarget& target)
 	});
 }
 
+#else
+void ParticleSystem::renderC(sf::RenderTarget& target, PointParticles& p)
+{
+	if (p.areDead())
+		return;
+	if (p.applyTransform) {
+		sf::RenderStates rs;
+		rs.transform = *p.entity()->getComponent<Transform>();
+		target.draw(p.vertices.data(), p.vertices.size(), sf::Points, rs);
+	} else {
+		target.draw(p.vertices.data(), p.vertices.size(), sf::Points);
+	}
+}
+
+void ParticleSystem::renderC(sf::RenderTarget& target, PixelParticles& p)
+{
+	if (p.areDead())
+		return;
+	for (auto& q : p.quads) {
+		target.draw(q.data(), 4, sf::TriangleStrip);
+	}
+}
+#endif
+
+#ifdef HAHA
 void ParticleSystem::update()
 {
 	forEach<PointParticles>([this](auto& p) { updatePointBatch(p); });
 	forEach<PixelParticles>([this](auto& p) { updatePixelBatch(p); });
 }
+#else
+void ParticleSystem::updateC(PointParticles& p)
+{
+	updatePointBatch(p);
+}
+void ParticleSystem::updateC(PixelParticles& p)
+{
+	updatePixelBatch(p);
+}
 
+#endif
+
+#ifdef HAHA
 void ParticleSystem::fixedUpdate()
 {
 	auto processDeathTime = [](auto& p) {
@@ -72,6 +139,30 @@ void ParticleSystem::fixedUpdate()
 			pixels.particlesToSpawn += pixels.particlesPerSecond * VectorEngine::fixedTime().asSeconds(); 
 	});
 }
+#else
+
+void ParticleSystem::fixedUpdateC(PointParticles& p)
+{
+	if (p.spawn) {
+		p.deathTimer = sf::Time::Zero;
+	} else {
+		if (!p.areDead())
+			p.deathTimer += VectorEngine::fixedTime();
+	}
+}
+
+void ParticleSystem::fixedUpdateC(PixelParticles& p)
+{
+	if (p.spawn) {
+		p.deathTimer = sf::Time::Zero;
+	} else {
+		if (!p.areDead())
+			p.deathTimer += VectorEngine::fixedTime();
+	}
+	if (p.spawn)
+		p.particlesToSpawn += p.particlesPerSecond * VectorEngine::fixedTime().asSeconds(); 
+}
+#endif
 
 inline void ParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
 {
@@ -104,48 +195,48 @@ void ParticleSystem::updatePointBatch(PointParticles& ps)
 	auto deltaTime = VectorEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
 
-	auto vert = ps.vertices.begin();
-	auto data = ps.data.begin();
-	for (; vert != ps.vertices.end() && data != ps.data.end(); ++vert, ++data)
-	{
-		data->lifeTime -= deltaTime;
-		if (data->lifeTime > sf::Time::Zero) { // if alive
-
-			if (hasUniversalGravity)
-				data->speed += gravityVector * dt;
-			else {
-				auto r = gravityPoint - vert->position;
-				auto dist = std::hypot(r.x, r.y);
-				auto g = r / (dist * dist);
-				data->speed += gravityMagnitude * 1000.f * g * dt;
-			}
-			vert->position += data->speed * dt;
-
-			float ratio = data->lifeTime.asSeconds() / ps.lifeTime.asSeconds();
-			vert->color.a = static_cast<uint8_t>(ratio * 255);
-		} else if (ps.spawn)
-			respawnPointParticle(ps, *vert, data->speed, data->lifeTime);
-	}
-
-	//for (int i = 0; i < ps.vertices.size(); i++) {
-	//	ps.data[i].lifeTime -= deltaTime;
-	//	if (ps.data[i].lifeTime > sf::Time::Zero) { // if alive
+	//auto vert = ps.vertices.begin();
+	//auto data = ps.data.begin();
+	//for (; vert != ps.vertices.end() && data != ps.data.end(); ++vert, ++data)
+	//{
+	//	data->lifeTime -= deltaTime;
+	//	if (data->lifeTime > sf::Time::Zero) { // if alive
 
 	//		if (hasUniversalGravity)
-	//			ps.data[i].speed += gravityVector * dt;
+	//			data->speed += gravityVector * dt;
 	//		else {
-	//			auto r = gravityPoint - ps.vertices[i].position;
+	//			auto r = gravityPoint - vert->position;
 	//			auto dist = std::hypot(r.x, r.y);
 	//			auto g = r / (dist * dist);
-	//			ps.data[i].speed += gravityMagnitude * 1000.f * g * dt;
+	//			data->speed += gravityMagnitude * 1000.f * g * dt;
 	//		}
-	//		ps.vertices[i].position += ps.data[i].speed * dt;
+	//		vert->position += data->speed * dt;
 
-	//		float ratio = ps.data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
-	//		ps.vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
+	//		float ratio = data->lifeTime.asSeconds() / ps.lifeTime.asSeconds();
+	//		vert->color.a = static_cast<uint8_t>(ratio * 255);
 	//	} else if (ps.spawn)
-	//		respawnPointParticle(ps, ps.vertices[i], ps.data[i].speed, ps.data[i].lifeTime);
+	//		respawnPointParticle(ps, *vert, data->speed, data->lifeTime);
 	//}
+
+	for (int i = 0; i < ps.vertices.size(); i++) {
+		ps.data[i].lifeTime -= deltaTime;
+		if (ps.data[i].lifeTime > sf::Time::Zero) { // if alive
+
+			if (hasUniversalGravity)
+				ps.data[i].speed += gravityVector * dt;
+			else {
+				auto r = gravityPoint - ps.vertices[i].position;
+				auto dist = std::hypot(r.x, r.y);
+				auto g = r / (dist * dist);
+				ps.data[i].speed += gravityMagnitude * 1000.f * g * dt;
+			}
+			ps.vertices[i].position += ps.data[i].speed * dt;
+
+			float ratio = ps.data[i].lifeTime.asSeconds() / ps.lifeTime.asSeconds();
+			ps.vertices[i].color.a = static_cast<uint8_t>(ratio * 255);
+		} else if (ps.spawn)
+			respawnPointParticle(ps, ps.vertices[i], ps.data[i].speed, ps.data[i].lifeTime);
+	}
 }
 
 inline void ParticleSystem::respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime)
@@ -191,6 +282,7 @@ void ParticleSystem::updatePixelBatch(PixelParticles& ps)
 			respawnPixelParticle(ps, ps.quads[i], ps.data[i].speed, ps.data[i].lifeTime);
 	};
 
+	// go round robin
 	if (particleNum != 0 && ps.spawn)
 		if (ps.spawnBeingPos + particleNum > ps.count) {
 			process(ps.spawnBeingPos, ps.count);

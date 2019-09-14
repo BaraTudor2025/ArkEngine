@@ -38,7 +38,7 @@ private:
 	Scene* scene_;
 
 	struct Vector { 
-		std::vector<T> data; 
+		std::deque<T> data; 
 		std::vector<bool> active; 
 	};
 
@@ -81,12 +81,11 @@ private:
 template <typename T> using is_script = std::is_base_of<Script, T>;
 template <typename T> constexpr bool is_script_v = is_script<T>::value;
 
-class Scene;
 
 class VECTOR_ENGINE_API Entity final : public NonCopyable {
 
 public:
-	explicit Entity(std::any tag = std::any()) : tag(tag), id_(idCounter++) { };
+	Entity() : tag(std::any()), id_(idCounter++) { };
 
 	// move ctor is broken, don't use
 	Entity(Entity&& other) { *this = std::move(other); }
@@ -142,8 +141,8 @@ public:
 
 protected:
 
-	template <typename T, typename F, typename...Args>
-	void forEach(F f, Args&&...);
+	template <typename T, typename F>
+	void forEach(F f);
 
 	std::vector<Entity*>& getEntities();
 
@@ -199,6 +198,7 @@ protected:
 	}
 
 private:
+
 	template <typename T>
 	auto& getComponents()
 	{
@@ -208,6 +208,7 @@ private:
 		return any_cast<vector_t>(comps);
 		//return std::any_cast<ref_vector_t>(comps);
 	}
+
 
 	template <typename T, typename...Args>
 	int pushComponent(Args&&...args)
@@ -223,7 +224,8 @@ private:
 	std::vector<std::unique_ptr<Script>> scripts;
 	std::vector<std::unique_ptr<System>> systems;
 	//std::unordered_map<int, std::any> componentTable;
-	std::unordered_map<int, static_any<sizeof(Component<Transform>::Vector)>> componentTable;
+	using any = static_any<sizeof(Component<Transform>::Vector)>;
+	std::unordered_map<int, any> componentTable;
 
 	friend class VectorEngine;
 	friend class Script;
@@ -357,16 +359,13 @@ inline void Component<T>::setActive(bool b)
 	cs.active[index] = b;
 }
 
-template<typename T, typename F, typename... Args>
-inline void System::forEach(F f, Args&&...args)
+template<typename T, typename F>
+inline void System::forEach(F f)
 {
 	static_assert(is_component_v<T>);
 	auto& cs = scene->getComponents<T>();
 	for (int i = 0; i < cs.data.size(); i++)
 		if (cs.active[i]) {
-			//if constexpr (std::is_member_function_pointer_v<F>)
-				//std::invoke(f, this, std::forward<Args>(args)..., cs.data[i]);
-			//else
-				std::invoke(f, std::forward<Args>(args)..., cs.data[i]);
+			std::invoke(f, cs.data[i]);
 		}
 }

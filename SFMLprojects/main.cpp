@@ -73,7 +73,7 @@ public:
 		runningParticles = getComponent<PixelParticles>();
 		auto pp = runningParticles;
 		pp->particlesPerSecond = pp->count / 2;
-		pp->size = { 3, 3 };
+		pp->size = { 1, 1 };
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
@@ -136,43 +136,131 @@ public:
 /* TODO: MusicSystem/SoundSystem */
 /* TODO: Shaders */
 
+namespace priv {
+	template <typename T>
+	struct SpecializedSystemImpl {
+		virtual void init(T&) = 0;
+		virtual void update(T&) = 0;
+	};
+}
+
+template <typename... Components>
+class SpecializedSystem : public System, priv::SpecializedSystemImpl<Components>... {
+
+	void init() override
+	{
+		((this->forEach<Components>(this->init, this)),...);
+	}
+
+	void update() override
+	{
+		((this->forEach<Components>(this->update, this)), ...);
+	}
+
+	void fixedUpdate() override
+	{
+		((this->forEach<Components>(this->fixedUpdate, this)), ...);
+	}
+
+	void render(sf::RenderTarget& target) override
+	{
+		((this->forEach<Components>(this->render, this, target)), ...);
+	}
+
+};
+
+template <typename... Components>
+class PackSystem : public System {
+
+};
+
+
+struct SystemBase {
+	virtual void init() = 0;
+	virtual void update() = 0;
+};
+
+template <typename T>
+struct SystemIndividualImpl {
+	virtual void init(T&) = 0;
+	virtual void update(T&) = 0;
+};
+
 template <typename... Ts>
 struct SystemPackImpl {
 	std::vector<std::tuple<Ts*...>> comps;
-	virtual void initP(Ts&...) = 0;
+	virtual void init(Ts&...) = 0;
+	virtual void update(Ts&...) = 0;
 
 	template <typename T, typename F>
 	void forEach(F f)
 	{
-		//auto removePtr = [](std::tuple<Ts*...> tuple) { return std::apply([](auto... elems){ return std::make_tuple((*elems)...); }, tuple); };
+		//auto removePtr = [](std::tuple<Ts*...> tuple) { return std::apply(); };
 		//for (auto& c : comps)
 		//	std::apply(f, removePtr(c));
 	}
-		/* initSystem */
-		//for (auto& e : this->getEntities()) {
-		//	std::tuple<Ts*...> pack = std::make_tuple(e.getComponent<Ts>()...);
-		//	if (std::apply([](auto... c) { return c != nullptr && ...; }, pack)) {
-		//		this->componentNum.push_back(pack);
-		//	}
-		//}
 };
 
-template <typename...Args>
-using state_t = std::function<void(Args*...)>;
+enum class SystemConfig { Simple, Individual, Pack };
 
-template <typename Enum>
-class State {
+template <typename...Ts>
+struct SystemIndividualImplExpand : SystemIndividualImpl<Ts>... { };
 
-protected:
-	Enum state;
+template <SystemConfig SysConf, typename... Ts>
+struct TestSystem : SystemBase, std::conditional_t<SysConf == SystemConfig::Individual, SystemIndividualImplExpand<Ts...>, SystemPackImpl<Ts...>>
+{
+	static inline constexpr int componentNum = sizeof...(Ts);
+	virtual void init()
+	{
+		if constexpr (SysConf == SystemConfig::Pack)
+		{
+			//std::cout << "mama";
+			//for (auto& e : this->getEntities()) {
+			//	std::tuple<Ts*...> pack = std::make_tuple(e.getComponent<Ts>()...);
+			//	if (std::apply([](auto... c) { return c != nullptr && ...; }, pack)) {
+			//		this->componentNum.push_back(pack);
+			//	}
+			//}
+		}
+		//(forEach<T>(initComponent<T>), ...);
+	}
+	virtual void update()
+	{
+	}
+};
+
+struct TestParticle { static inline int id = 1; };
+struct TestParticle2 { static inline int id = 2; };
+
+struct TestParticleSystem : public TestSystem<SystemConfig::Individual, TestParticle, TestParticle2> {
+	//void init() override { }
+	void init(TestParticle& p) override
+	{
+
+	}
+	void init(TestParticle2& ) override { }
+	void update(TestParticle&) override { }
+	void update(TestParticle2&) override { }
+};
+
+struct TestParticleSystemPack : public TestSystem<SystemConfig::Pack, TestParticle, TestParticle2> {
+	void init(TestParticle&, TestParticle2&) override { }
+	void update(TestParticle&, TestParticle2&) override { }
 };
 
 class TestingEngineScene : public Scene {
 
 	void init()
 	{
-		addSystem<FpsCounterSystem>(sf::Color::White);
+		TestParticleSystem sys;
+		TestParticleSystemPack sysPack;
+		TestParticle ps;
+		TestParticle2 ps2;
+		sys.init(ps);
+		sysPack.init(ps, ps2);
+		//std::cout << sys.componentIDs.size() << '\n';
 		addSystem<ParticleSystem>();
+		addSystem<FpsCounterSystem>(sf::Color::White);
 		addSystem<GuiSystem>();
 		addSystem<AnimationSystem>();
 
@@ -194,7 +282,7 @@ class TestingEngineScene : public Scene {
 
 		player.addComponent<Transform>();
 		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+		player.addComponent<PixelParticles>(30, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 		player.addScript<MovePlayer>(400, 180);
 		//player.tag = "player";
 

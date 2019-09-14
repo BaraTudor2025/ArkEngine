@@ -165,8 +165,7 @@ inline PointParticles getGreenParticles()
 	return greenParticles;
 }
 
-class ParticleSystem final : public SpecializedSystem<PointParticles, PixelParticles> {
-//class ParticleSystem final : public System {
+class ParticleSystem final : public System {
 
 public:
 	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
@@ -175,46 +174,16 @@ public:
 	static inline bool hasUniversalGravity = true;
 
 private:
-	//void init(PointParticles& p) override
-	//{
-	//	std::cout << "mata";
-	//	p.vertices.resize(p.count);
-	//	p.data.resize(p.count);
-	//	if (p.spawn)
-	//		p.deathTimer = sf::Time::Zero;
-	//	else
-	//		p.deathTimer = p.lifeTime;
-	//}
+	void init() override;
 
-	//void init(PixelParticles& p) override
-	//{
-	//	p.quads.resize(p.count);
-	//	p.data.resize(p.count);
-	//	for (auto& q : p.quads)
-	//		q.setColors(p.colors.first, p.colors.second);
-	//	if (p.spawn)
-	//		p.deathTimer = sf::Time::Zero;
-	//	else
-	//		p.deathTimer = p.lifeTime;
-	//}
-
-	void initC(PointParticles&) override;
-	void initC(PixelParticles&) override;
-	void updateC(PointParticles&) override;
-	void updateC(PixelParticles&) override;
-	void fixedUpdateC(PointParticles&) override;
-	void fixedUpdateC(PixelParticles&) override;
-	void renderC(sf::RenderTarget&, PointParticles&) override;
-	void renderC(sf::RenderTarget&, PixelParticles&) override;
-
-	//void init() override;
-	//void update() override;
-	//void fixedUpdate() override;
-	//void render(sf::RenderTarget& target) override;
+	void update() override;
+	void fixedUpdate() override;
+	void render(sf::RenderTarget& target) override;
 
 	void updatePointBatch(PointParticles&);
 	void updatePixelBatch(PixelParticles&);
 	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
 	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
-};
 
+private:
+};

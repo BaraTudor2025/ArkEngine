@@ -64,7 +64,7 @@ public:
 protected:
 	virtual void init() { }
 	virtual void update() { }
-	virtual void fixedUpdate(sf::Time) { } // maybe use fixedTime
+	virtual void fixedUpdate() { } // maybe use fixedTime
 	virtual void handleEvent(sf::Event) { }
 	template <typename T> T* getComponent();
 	template <typename T> T* getScript();
@@ -142,8 +142,8 @@ public:
 
 protected:
 
-	template <typename T, typename F>
-	void forEach(F f);
+	template <typename T, typename F, typename...Args>
+	void forEach(F f, Args&&...);
 
 	std::vector<Entity*>& getEntities();
 
@@ -151,7 +151,7 @@ private:
 	virtual void init() { }
 	virtual void handleEvent(sf::Event) { }
 	virtual void update() { }
-	virtual void fixedUpdate(sf::Time) { }
+	virtual void fixedUpdate() { }
 	virtual void render(sf::RenderTarget& target) { }
 
 	Scene* scene;
@@ -357,16 +357,16 @@ inline void Component<T>::setActive(bool b)
 	cs.active[index] = b;
 }
 
-template<typename T, typename F>
-inline void System::forEach(F f)
+template<typename T, typename F, typename... Args>
+inline void System::forEach(F f, Args&&...args)
 {
 	static_assert(is_component_v<T>);
 	auto& cs = scene->getComponents<T>();
 	for (int i = 0; i < cs.data.size(); i++)
 		if (cs.active[i]) {
-			if constexpr (std::is_member_function_pointer_v<F>)
-				std::invoke(f, this, cs.data[i]);
-			else
-				std::invoke(f, cs.data[i]);
+			//if constexpr (std::is_member_function_pointer_v<F>)
+				//std::invoke(f, this, std::forward<Args>(args)..., cs.data[i]);
+			//else
+				std::invoke(f, std::forward<Args>(args)..., cs.data[i]);
 		}
 }

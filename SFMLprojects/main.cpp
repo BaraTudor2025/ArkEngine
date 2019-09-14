@@ -55,7 +55,7 @@ public:
 		particleEmitterOffsetRight = particleEmitterOffsetRight * transform->getScale();
 	}
 
-	void init() {
+	void init() override {
 		animation = getComponent<Animation>();
 
 		transform = getComponent<Transform>();
@@ -81,9 +81,9 @@ public:
 		pp->platform = { VectorEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 	}
 
-	void fixedUpdate(sf::Time frameTime) {
+	void fixedUpdate() override {
 		bool moved = false;
-		auto dt = frameTime.asSeconds();
+		auto dt = VectorEngine::fixedTime().asSeconds();
 		float dx = speed * dt;
 		float angle = toRadians(transform->getRotation());
 
@@ -136,8 +136,44 @@ public:
 /* TODO: MusicSystem/SoundSystem */
 /* TODO: Shaders */
 
-//template <int index, typename...Ts>
-//struct 
+namespace priv {
+	template <typename T>
+	struct SpecializedSystemImpl {
+		virtual void init(T&) = 0;
+		virtual void update(T&) = 0;
+	};
+}
+
+template <typename... Components>
+class SpecializedSystem : public System, priv::SpecializedSystemImpl<Components>... {
+
+	void init() override
+	{
+		((this->forEach<Components>(this->init, this)),...);
+	}
+
+	void update() override
+	{
+		((this->forEach<Components>(this->update, this)), ...);
+	}
+
+	void fixedUpdate() override
+	{
+		((this->forEach<Components>(this->fixedUpdate, this)), ...);
+	}
+
+	void render(sf::RenderTarget& target) override
+	{
+		((this->forEach<Components>(this->render, this, target)), ...);
+	}
+
+};
+
+template <typename... Components>
+class PackSystem : public System {
+
+};
+
 
 struct SystemBase {
 	virtual void init() = 0;
@@ -159,8 +195,9 @@ struct SystemPackImpl {
 	template <typename T, typename F>
 	void forEach(F f)
 	{
-		for (auto& c : comps)
-			std::apply(f, c);
+		//auto removePtr = [](std::tuple<Ts*...> tuple) { return std::apply(); };
+		//for (auto& c : comps)
+		//	std::apply(f, removePtr(c));
 	}
 };
 

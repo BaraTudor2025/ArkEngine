@@ -39,7 +39,7 @@ namespace ParticleScripts {
 			p = getComponent<PointParticles>();
 		}
 
-		void fixedUpdate(sf::Time) override
+		void fixedUpdate() override
 		{
 			if (spawn) {
 				auto dv = p->emitter - prevEmitter;

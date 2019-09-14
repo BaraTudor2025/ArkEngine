@@ -55,21 +55,21 @@ void ParticleSystem::update()
 	forEach<PixelParticles>([this](auto& p) { updatePixelBatch(p); });
 }
 
-void ParticleSystem::fixedUpdate(sf::Time dt)
+void ParticleSystem::fixedUpdate()
 {
-	auto processDeathTime = [dt](auto& p) {
+	auto processDeathTime = [](auto& p) {
 		if (p.spawn) {
 			p.deathTimer = sf::Time::Zero;
 		} else {
 			if (!p.areDead())
-				p.deathTimer += dt;
+				p.deathTimer += VectorEngine::fixedTime();
 		}
 	};
 	forEach<PointParticles>(processDeathTime);
 	forEach<PixelParticles>(processDeathTime);
 	forEach<PixelParticles>([&](auto& pixels) {
 		if (pixels.spawn)
-			pixels.particlesToSpawn += pixels.particlesPerSecond * dt.asSeconds(); 
+			pixels.particlesToSpawn += pixels.particlesPerSecond * VectorEngine::fixedTime().asSeconds(); 
 	});
 }
 

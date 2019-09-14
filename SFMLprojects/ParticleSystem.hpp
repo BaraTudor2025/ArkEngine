@@ -177,7 +177,7 @@ private:
 	void init() override;
 
 	void update() override;
-	void fixedUpdate(sf::Time) override;
+	void fixedUpdate() override;
 	void render(sf::RenderTarget& target) override;
 
 	void updatePointBatch(PointParticles&);

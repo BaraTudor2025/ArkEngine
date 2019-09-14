@@ -73,7 +73,7 @@ public:
 		runningParticles = getComponent<PixelParticles>();
 		auto pp = runningParticles;
 		pp->particlesPerSecond = pp->count / 2;
-		pp->size = { 1, 1 };
+		pp->size = { 6, 3 };
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
@@ -282,7 +282,8 @@ class TestingEngineScene : public Scene {
 
 		player.addComponent<Transform>();
 		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-		player.addComponent<PixelParticles>(30, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
+		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 		player.addScript<MovePlayer>(400, 180);
 		//player.tag = "player";
 
@@ -297,6 +298,7 @@ class TestingEngineScene : public Scene {
 		b->setOrigin(b->getSize() / 2.f);
 		b->onClick = []() { std::cout << "\nclick "; };
 		auto t = button.addComponent<Text>();
+		t->setString("buton");
 		t->setOrigin(b->getOrigin());
 		t->setPosition(b->getPosition() + b->getSize() / 3.5f);
 		t->setFillColor(sf::Color::Black);

@@ -1,6 +1,7 @@
 #pragma once
 #include "VectorEngine.hpp"
 #include "Quad.hpp"
+#include <variant>
 
 struct Mesh : public Component<Mesh> {
 
@@ -29,13 +30,28 @@ private:
 
 struct Animation : public Component<Animation> {
 
+	// frameCount: number of frames of every row and number of rows; example: sf::Vector2u{6, 2} means 6 frames and 2 rows
 	Animation(std::string fileName, sf::Vector2u frameCount, sf::Time frameTime, int row, bool smoothTexture)
 		: fileName(fileName), frameCount(frameCount), frameTime(frameTime), row(row), smoothTexture(smoothTexture) { }
+
+	// frameCount: numbers of frames of each row
+	Animation(std::string fileName, std::initializer_list<uint32_t> frameCount, sf::Time frameTime, int row, bool smoothTexture)
+		: fileName(fileName), 
+		frameCount(std::pair{ *std::max_element(frameCount.begin(), frameCount.end()), frameCount }), 
+		frameTime(frameTime), row(row), smoothTexture(smoothTexture)
+	{
+	}
 
 	sf::Time frameTime;
 	int row;
 	bool flipX = false;
 	bool flipY = false;
+
+	// plays animation one time and then plays the normal animation
+	//struct {
+	//	int row;
+	//	sf::Time frameTime;
+	//} intermediary;
 
 	sf::Vector2f frameSize() { 
 	    return static_cast<sf::Vector2f>(
@@ -43,9 +59,11 @@ struct Animation : public Component<Animation> {
 	}
 
 private:
+
 	const bool smoothTexture;
 	const std::string fileName;
-	const sf::Vector2u frameCount;
+	std::variant<const sf::Vector2u, 
+		std::pair<uint32_t, std::vector<uint32_t>>> frameCount;
 	sf::Vector2u currentFrame;
 	sf::Time elapsedTime;
 	sf::IntRect uvRect;

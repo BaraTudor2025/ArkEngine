@@ -44,6 +44,26 @@ std::deque<Entity>& System::getEntities()
 	return VectorEngine::currentScene->entities;
 }
 
+Entity* Scene::createEntity()
+{
+	this->entities.emplace_back();
+	Entity* e = &this->entities.back();
+	e->scene = this;
+	return e;
+}
+
+void Scene::setComponentActive(int typeId, int index, bool b)
+{
+	auto& data = this->componentTable.at(typeId);
+	data.active.at(index) = b;
+}
+
+inline int Scene::getComponentSize(int id)
+{
+	auto& data = this->componentTable.at(id);
+	return data.sizeOfComponent;
+}
+
 void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, sf::ContextSettings settings)
 {
 	frameTime = fixedUT;

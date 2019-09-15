@@ -157,51 +157,32 @@ class VECTOR_ENGINE_API Scene {
 
 public:
 	Scene() = default;
-	virtual void init() = 0;
 	virtual ~Scene() = default;
 
 protected:
 
+	virtual void init() = 0;
+
 	template <typename T, typename...Args>
-	void addSystem(Args&&...args) {
-		this->systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
-		this->systems.back()->scene = this;
-	}
+	void addSystem(Args&& ...args);
 
 	template <typename T>
-	void removeSystem() {
-		for (auto& system : systems)
-			if (auto s = dynamic_cast<T*>(system.get()); s)
-				erase(systems, [&](auto& sys) { return sys.get() == s; });
-	}
+	void addComponentType();
 
-	Entity* createEntity()
-	{
-		this->entities.emplace_back();
-		Entity* e = &this->entities.back();
-		e->scene = this;
-		return e;
-	}
+	template <typename T>
+	void removeSystem();
+
+	Entity* createEntity();
 
 	template <typename Range>
-	void createEntity(Range& range)
-	{
+	void createEntity(Range& range) {
 		for (auto& e : range)
 			e = createEntity();
 	}
 
-	template <typename T> using ComponentContainer = std::deque<T>;
-
-	template <typename T>
-	void addComponentType() 
-	{
-		static_assert(is_component_v<T>);
-		this->componentTable[T::id] = InternalComponentsData();
-		this->componentTable.at(T::id).components = ComponentContainer<T>();
-		this->componentTable.at(T::id).sizeOfComponent = sizeof(T);
-	}
-
 private:
+
+	template <typename T> using ComponentContainer = std::deque<T>;
 
 	// structure used by readers
 	template <typename T>
@@ -212,38 +193,15 @@ private:
 	};
 
 	template <typename T>
-	ComponentsData<T> getComponentsData()
-	{
-		static_assert(is_component_v<T>);
-		auto& data = this->componentTable.at(T::id);
-		return ComponentsData<T>{
-			any_cast<ComponentContainer<T>>(data.components),
-			data.active,
-			data.sizeOfComponent
-		};
-	}
+	ComponentsData<T> getComponentsData();
 
-	void setComponentActive(int typeId, int index, bool b)
-	{
-		auto& data = this->componentTable.at(typeId);
-		data.active.at(index) = b;
-	}
+	void setComponentActive(int typeId, int index, bool b);
 
-	int getComponentSize(int id)
-	{
-		auto& data = this->componentTable.at(id);
-		return data.sizeOfComponent;
-	}
+	int getComponentSize(int id);
 
-	// returns [pointer to comp, index of comp]
+	// returns std::pair{pointer to component, index of component}
 	template <typename T, typename...Args>
-	auto createComponent(bool isActive, Args&&...args)
-	{
-		auto data = this->getComponentsData<T>();
-		data.components.emplace_back(std::forward<Args>(args)...);
-		data.active.push_back(isActive);
-		return std::pair{&data.components.back(), data.components.size() - 1};
-	}
+	auto createComponent(bool isActive, Args&& ...args);
 
 private:
 	std::deque<Entity> entities;
@@ -251,7 +209,7 @@ private:
 	std::vector<std::unique_ptr<System>> systems;
 
 	// size of component container
-	static inline constexpr std::size_t sizeOfCC= sizeof(ComponentContainer<Component<Transform>>);
+	static inline constexpr std::size_t sizeOfCC = sizeof(ComponentContainer<Component<Transform>>);
 
 	// structure that is stored inside table
 	// we use static_any to erase the type of the container
@@ -261,6 +219,7 @@ private:
 		int sizeOfComponent;
 	};
 
+	// the key is the id of the component type
 	std::unordered_map<int, InternalComponentsData> componentTable;
 
 	friend class VectorEngine;
@@ -406,4 +365,50 @@ inline void System::forEach(F f)
 		if (data.active[i]) {
 			std::invoke(f, data.components[i]);
 		}
+}
+
+template<typename T, typename ...Args>
+inline void Scene::addSystem(Args&& ...args)
+{
+	this->systems.push_back(std::make_unique<T>(std::forward<Args>(args)...));
+	this->systems.back()->scene = this;
+}
+
+template<typename T>
+inline void Scene::removeSystem()
+{
+	for (auto& system : systems)
+		if (auto s = dynamic_cast<T*>(system.get()); s)
+			erase(systems, [&](auto& sys) { return sys.get() == s; });
+}
+
+template<typename T>
+inline void Scene::addComponentType()
+{
+	static_assert(is_component_v<T>);
+	this->componentTable[T::id] = InternalComponentsData();
+	this->componentTable.at(T::id).components = ComponentContainer<T>();
+	this->componentTable.at(T::id).sizeOfComponent = sizeof(T);
+}
+
+template<typename T>
+inline Scene::ComponentsData<T> Scene::getComponentsData()
+{
+	static_assert(is_component_v<T>);
+	auto& data = this->componentTable.at(T::id);
+	return ComponentsData<T>{
+		any_cast<ComponentContainer<T>>(data.components),
+			data.active,
+			data.sizeOfComponent
+	};
+}
+
+// returns [pointer to comp, index of comp]
+template<typename T, typename ...Args>
+inline auto Scene::createComponent(bool isActive, Args&& ...args)
+{
+	auto data = this->getComponentsData<T>();
+	data.components.emplace_back(std::forward<Args>(args)...);
+	data.active.push_back(isActive);
+	return std::pair{&data.components.back(), data.components.size() - 1};
 }

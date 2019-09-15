@@ -19,30 +19,6 @@ int getUniqueComponentID()
 
 System::~System() { }
 
-Entity& Entity::operator=(Entity&& other)
-{
-	std::cout << "move\n";
-	if (this != &other) {
-		this->id_ = other.id_;
-		this->tag = std::move(other.tag);
-		this->components = std::move(other.components);
-		this->scripts = std::move(other.scripts);
-		for (auto s : this->scripts)
-			s->entity_ = this;
-		this->action = std::move(other.action);
-		this->actionArgs = std::move(other.actionArgs);
-		//TODO: forEach component.entity = this
-		//if (other.registered && this->scene) {
-		//	erase(scene->entities, &other);
-		//	other.registered = false;
-		//	this->Register();
-		//} else {
-		//	this->registered = false;
-		//}
-	}
-	return *this;
-}
-
 void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
 {
 	this->action = f;
@@ -50,12 +26,12 @@ void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
 		this->action(*this, std::move(args));
 	else {
 		if(args.has_value())
-			// if not running save arguments unitl VectorEngine::run is called
+			// save argumets until VectorEngine::run() is called
 			this->actionArgs = std::make_unique<std::any>(std::move(args));
 	}
 }
 
-std::vector<Entity*>& System::getEntities()
+std::deque<Entity>& System::getEntities()
 {
 	return VectorEngine::currentScene->entities;
 }
@@ -81,11 +57,11 @@ void VectorEngine::initScene()
 		s->init();
 
 	for (auto& e : currentScene->entities)
-		if (e->action) {
-			if (e->actionArgs && e->actionArgs->has_value()) {
-				e->action(*e, std::move(*e->actionArgs));
+		if (e.action) {
+			if (e.actionArgs && e.actionArgs->has_value()) {
+				e.action(e, std::move(*e.actionArgs));
 			} else {
-				e->action(*e, nullptr);
+				e.action(e, nullptr);
 			}
 		}
 }

@@ -64,7 +64,7 @@ public:
 protected:
 	virtual void init() { }
 	virtual void update() { }
-	virtual void fixedUpdate() { } // maybe use fixedTime
+	virtual void fixedUpdate() { }
 	virtual void handleEvent(sf::Event) { }
 	template <typename T> T* getComponent();
 	template <typename T> T* getScript();
@@ -82,14 +82,10 @@ template <typename T> using is_script = std::is_base_of<Script, T>;
 template <typename T> constexpr bool is_script_v = is_script<T>::value;
 
 
-class VECTOR_ENGINE_API Entity final : public NonCopyable {
+class VECTOR_ENGINE_API Entity final : public NonCopyable, public NonMovable {
 
 public:
 	Entity() : tag(std::any()), id_(idCounter++) { };
-
-	// move ctor is broken, don't use
-	Entity(Entity&& other) { *this = std::move(other); }
-	Entity& operator=(Entity&& other);
 	~Entity() = default;
 
 	std::any tag;
@@ -121,7 +117,7 @@ private:
 	std::function<void(Entity&, std::any)> action = nullptr;
 	std::unique_ptr<std::any> actionArgs;
 	int id_;
-	Scene* scene;
+	Scene* scene = nullptr;
 
 	static inline int idCounter = 1;
 
@@ -144,16 +140,16 @@ protected:
 	template <typename T, typename F>
 	void forEach(F f);
 
-	std::vector<Entity*>& getEntities();
+	std::deque<Entity>& getEntities();
 
 private:
 	virtual void init() { }
-	virtual void handleEvent(sf::Event) { }
 	virtual void update() { }
 	virtual void fixedUpdate() { }
+	virtual void handleEvent(sf::Event) { }
 	virtual void render(sf::RenderTarget& target) { }
 
-	Scene* scene;
+	Scene* scene = nullptr;
 	friend class VectorEngine;
 	friend class Scene;
 	template <typename T> friend struct Component;
@@ -181,13 +177,20 @@ protected:
 				erase(systems, [&](auto& sys) { return sys.get() == s; });
 	}
 
-	void registerEntity(Entity& e) { 
-		e.scene = this;
-		entities.push_back(&e);
+	Entity* createEntity()
+	{
+		this->entities.emplace_back();
+		Entity* e = &this->entities.back();
+		e->scene = this;
+		return e;
 	}
 
-	void registerEntity(Entity* e) { 
-		registerEntity(*e);
+	template <typename Range>
+	void createEntity(Range& range)
+	{
+		for (auto& e : range) {
+			e = createEntity();
+		}
 	}
 
 	template <typename... Ts>
@@ -203,10 +206,9 @@ private:
 	auto& getComponents()
 	{
 		using vector_t = typename Component<T>::Vector;
-		using ref_vector_t = vector_t&;
 		auto& comps = this->componentTable.at(Component<T>::id);
 		return any_cast<vector_t>(comps);
-		//return std::any_cast<ref_vector_t>(comps);
+		//return std::any_cast<vector_t&>(comps);
 	}
 
 
@@ -220,7 +222,7 @@ private:
 	}
 
 private:
-	std::vector<Entity*> entities;
+	std::deque<Entity> entities;
 	std::vector<std::unique_ptr<Script>> scripts;
 	std::vector<std::unique_ptr<System>> systems;
 	//std::unordered_map<int, std::any> componentTable;
@@ -332,8 +334,10 @@ inline T* Entity::addComponent(Args&& ...args)
 		c->entity_ = this;
 		c->scene_ = this->scene;
 		return c;
+	} else {
+		std::cerr << "entity isn't attached to scene\n";
+		return nullptr;
 	}
-	return nullptr;
 }
 
 template<typename T, typename ...Args>
@@ -347,8 +351,10 @@ inline Script* Entity::addScript(Args && ...args)
 		this->scripts.push_back(ptr);
 		this->scene->scripts.push_back(std::move(script));
 		return ptr;
+	} else {
+		std::cerr << "entity isn't attached to scene\n";
+		return nullptr;
 	}
-	return nullptr;
 }
 
 template<typename T>

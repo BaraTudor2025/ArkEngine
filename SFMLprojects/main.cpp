@@ -147,31 +147,34 @@ class TestingEngineScene : public Scene {
 		addSystem<AnimationSystem>();
 
 		addComponentType<Transform>();
-		addComponentType<Mesh, Animation>();
-		addComponentType<PixelParticles, PointParticles>();
-		addComponentType<Button, Text>();
+		addComponentType<Mesh>();
+		addComponentType<Animation>();
+		addComponentType<PixelParticles>();
+		addComponentType<PointParticles>();
+		addComponentType<Button>();
+		addComponentType<Text>();
 
-		registerEntity(button);
-		registerEntity(player);
-		registerEntity(mouseTrail);
-		registerEntity(rainbowPointParticles);
-		registerEntity(greenPointParticles);
-		registerEntity(firePointParticles);
-		registerEntity(rotatingParticles);
-		fireWorks.resize(0);
-		for (auto& fw : fireWorks)
-			registerEntity(fw);
+		button = createEntity();
+		player = createEntity();
+		mouseTrail = createEntity();
+		rainbowPointParticles = createEntity();
+		greenPointParticles = createEntity();
+		firePointParticles = createEntity();
+		rotatingParticles = createEntity();
 
-		player.addComponent<Transform>();
-		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
+		//fireWorks.resize(0);
+		//createEntity(fireWorks);
+
+		player->addComponent<Transform>();
+		player->addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		player.addScript<MovePlayer>(400, 180);
+		player->addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+		player->addScript<MovePlayer>(400, 180);
 		//player.tag = "player";
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
 		//button.tag = "button";
-		auto b = button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
+		auto b = button->addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
 		b->setFillColor(sf::Color(240, 240, 240));
 		b->setOutlineColor(sf::Color::Black);
 		b->setOutlineThickness(3);
@@ -179,7 +182,7 @@ class TestingEngineScene : public Scene {
 		b->loadPosition("mama");
 		b->setOrigin(b->getSize() / 2.f);
 		b->onClick = []() { std::cout << "\nclick "; };
-		auto t = button.addComponent<Text>();
+		auto t = button->addComponent<Text>();
 		t->setString("buton");
 		t->setOrigin(b->getOrigin());
 		t->setPosition(b->getPosition() + b->getSize() / 3.5f);
@@ -191,35 +194,35 @@ class TestingEngineScene : public Scene {
 		auto greenParticles = getGreenParticles();
 
 		//rainbowPointParticles.tag = "rainbow particles";
-		rainbowPointParticles.addComponent<PointParticles>(rainbowParticles);
-		rainbowPointParticles.addScript<SpawnOnRightClick>();
-		rainbowPointParticles.addScript<EmittFromMouse>();
+		rainbowPointParticles->addComponent<PointParticles>(rainbowParticles);
+		rainbowPointParticles->addScript<SpawnOnRightClick>();
+		rainbowPointParticles->addScript<EmittFromMouse>();
 
 		//firePointParticles.tag = "fire particles";
-		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
-		firePointParticles.addScript<SpawnOnLeftClick>();
-		firePointParticles.addScript<EmittFromMouse>();
+		firePointParticles->addComponent<PointParticles>(getFireParticles(1'000));
+		firePointParticles->addScript<SpawnOnLeftClick>();
+		firePointParticles->addScript<EmittFromMouse>();
 
-		auto grassP = greenPointParticles.addComponent<PointParticles>(greenParticles);
+		auto grassP = greenPointParticles->addComponent<PointParticles>(greenParticles);
 		grassP->spawn = true;
-		greenPointParticles.addScript<DeSpawnOnMouseClick<>>();
+		greenPointParticles->addScript<DeSpawnOnMouseClick<>>();
 		//grass.addScript<ReadColorFromConsole>();
-		greenPointParticles.addScript<EmittFromMouse>();
+		greenPointParticles->addScript<EmittFromMouse>();
 
-		rotatingParticles.addComponent<Transform>();
-		auto plimb = rotatingParticles.addComponent<PointParticles>(rainbowParticles);
+		rotatingParticles->addComponent<Transform>();
+		auto plimb = rotatingParticles->addComponent<PointParticles>(rainbowParticles);
 		plimb->spawn = true;
 		//plimb->emitter = VectorEngine::center();
 		//plimb->emitter.x += 100;
 		//plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
-		rotatingParticles.addScript<RoatateEmitter>(360, VectorEngine::center(), 100);
-		rotatingParticles.addScript<TraillingEffect>();
+		rotatingParticles->addScript<RoatateEmitter>(360, VectorEngine::center(), 100);
+		rotatingParticles->addScript<TraillingEffect>();
 		//plimbarica.addScript<ReadColorFromConsole>();
 
-		mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
-		mouseTrail.addScript<EmittFromMouse>();
-		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
-		mouseTrail.addScript<TraillingEffect>();
+		mouseTrail->addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
+		mouseTrail->addScript<EmittFromMouse>();
+		mouseTrail->addScript<DeSpawnOnMouseClick<TraillingEffect>>();
+		mouseTrail->addScript<TraillingEffect>();
 
 		std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
 		for (auto& fw : fireWorksParticles) {
@@ -236,8 +239,8 @@ class TestingEngineScene : public Scene {
 		}
 
 		for (int i = 0; i < fireWorks.size();i++) {
-			fireWorks[i].setAction(Action::SpawnLater, 10);
-			fireWorks[i].addComponent<PointParticles>(fireWorksParticles[i]);
+			fireWorks[i]->setAction(Action::SpawnLater, 10);
+			fireWorks[i]->addComponent<PointParticles>(fireWorksParticles[i]);
 		}
 
 		ParticleSystem::hasUniversalGravity = true;
@@ -249,15 +252,15 @@ class TestingEngineScene : public Scene {
 		//registerEntity(particleFountains);
 	}
 
-	Entity player;
-	Entity button;
-	Entity rainbowPointParticles;
-	Entity firePointParticles;
-	Entity greenPointParticles;
-	Entity mouseTrail;
-	Entity rotatingParticles;
-	std::vector<Entity> fireWorks;
-	std::vector<Entity> particleFountains;
+	Entity* player;
+	Entity* button;
+	Entity* rainbowPointParticles;
+	Entity* firePointParticles;
+	Entity* greenPointParticles;
+	Entity* mouseTrail;
+	Entity* rotatingParticles;
+	std::vector<Entity*> fireWorks;
+	std::vector<Entity*> particleFountains;
 };
 
 int main() // are nevoie de c++17 si SFML 2.5.1

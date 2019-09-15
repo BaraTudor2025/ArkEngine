@@ -4,6 +4,7 @@
 #include <functional>
 #include <deque>
 #include <any>
+#include <optional>
 #include <iostream>
 #include "Util.hpp"
 #include "static_any.hpp"
@@ -36,11 +37,6 @@ public:
 private:
 	Entity* entity_;
 	Scene* scene_;
-
-	struct Vector { 
-		std::deque<T> data; 
-		std::vector<bool> active; 
-	};
 
 	friend class Scene;
 	friend class Entity;
@@ -84,16 +80,16 @@ template <typename T> constexpr bool is_script_v = is_script<T>::value;
 
 class VECTOR_ENGINE_API Entity final : public NonCopyable, public NonMovable {
 
-public:
 	Entity() : tag(std::any()), id_(idCounter++) { };
+
+public:
 	~Entity() = default;
 
 	std::any tag;
 
 	int id() { return id_; }
 
-	// TODO: ?
-	void setActive(bool b){ }
+	void setActive(bool b);
 
 	void setAction(std::function<void(Entity&, std::any)> f, std::any args = std::any());
 
@@ -117,6 +113,7 @@ private:
 	std::function<void(Entity&, std::any)> action = nullptr;
 	std::unique_ptr<std::any> actionArgs;
 	int id_;
+	bool isActive = true;
 	Scene* scene = nullptr;
 
 	static inline int idCounter = 1;
@@ -126,6 +123,7 @@ private:
 	friend class Scene;
 	friend class Script;
 	friend class System;
+	friend struct std::_Default_allocator_traits<std::allocator<Entity>>; // for visual studio 2019
 };
 
 // fiecare sistem ar trebui sa aiba o singura instanta
@@ -188,46 +186,82 @@ protected:
 	template <typename Range>
 	void createEntity(Range& range)
 	{
-		for (auto& e : range) {
+		for (auto& e : range)
 			e = createEntity();
-		}
 	}
 
-	template <typename... Ts>
-	void addComponentType()
+	template <typename T> using ComponentContainer = std::deque<T>;
+
+	template <typename T>
+	void addComponentType() 
 	{
-		static_assert((... && is_component_v<Ts>));
-		((this->componentTable[Component<Ts>::id] = Component<Ts>::Vector()),...);
+		static_assert(is_component_v<T>);
+		this->componentTable[T::id] = InternalComponentsData();
+		this->componentTable.at(T::id).components = ComponentContainer<T>();
+		this->componentTable.at(T::id).sizeOfComponent = sizeof(T);
 	}
 
 private:
 
+	// structure used by readers
 	template <typename T>
-	auto& getComponents()
+	struct ComponentsData {
+		ComponentContainer<T>& components;
+		std::vector<bool>& active;
+		const int sizeOfComponent;
+	};
+
+	template <typename T>
+	ComponentsData<T> getComponentsData()
 	{
-		using vector_t = typename Component<T>::Vector;
-		auto& comps = this->componentTable.at(Component<T>::id);
-		return any_cast<vector_t>(comps);
-		//return std::any_cast<vector_t&>(comps);
+		static_assert(is_component_v<T>);
+		auto& data = this->componentTable.at(T::id);
+		return ComponentsData<T>{
+			any_cast<ComponentContainer<T>>(data.components),
+			data.active,
+			data.sizeOfComponent
+		};
 	}
 
-
-	template <typename T, typename...Args>
-	int pushComponent(Args&&...args)
+	void setComponentActive(int typeId, int index, bool b)
 	{
-		auto& comps = this->getComponents<T>();
-		comps.data.emplace_back(std::forward<Args>(args)...);
-		comps.active.push_back(true);
-		return comps.data.size() - 1;
+		auto& data = this->componentTable.at(typeId);
+		data.active.at(index) = b;
+	}
+
+	int getComponentSize(int id)
+	{
+		auto& data = this->componentTable.at(id);
+		return data.sizeOfComponent;
+	}
+
+	// returns [pointer to comp, index of comp]
+	template <typename T, typename...Args>
+	auto createComponent(bool isActive, Args&&...args)
+	{
+		auto data = this->getComponentsData<T>();
+		data.components.emplace_back(std::forward<Args>(args)...);
+		data.active.push_back(isActive);
+		return std::pair{&data.components.back(), data.components.size() - 1};
 	}
 
 private:
 	std::deque<Entity> entities;
 	std::vector<std::unique_ptr<Script>> scripts;
 	std::vector<std::unique_ptr<System>> systems;
-	//std::unordered_map<int, std::any> componentTable;
-	using any = static_any<sizeof(Component<Transform>::Vector)>;
-	std::unordered_map<int, any> componentTable;
+
+	// size of component container
+	static inline constexpr std::size_t sizeOfCC= sizeof(ComponentContainer<Component<Transform>>);
+
+	// structure that is stored inside table
+	// we use static_any to erase the type of the container
+	struct InternalComponentsData {
+		static_any<sizeOfCC> components;
+		std::vector<bool> active;
+		int sizeOfComponent;
+	};
+
+	std::unordered_map<int, InternalComponentsData> componentTable;
 
 	friend class VectorEngine;
 	friend class Script;
@@ -295,7 +329,7 @@ template <typename T> T* Script::getComponent() { return entity_->getComponent<T
 template <typename T> T* Script::getScript() { return entity_->getScript<T>(); }
 
 template<typename T>
-T* Entity::getScript()
+inline T* Entity::getScript()
 {
 	static_assert(is_script_v<T>);
 	for (auto& s : scripts) {
@@ -312,9 +346,9 @@ inline T* Entity::getComponent()
 {
 	static_assert(is_component_v<T>);
 	try {
-		auto index = this->components.at(Component<T>::id);
-		auto& cs = scene->getComponents<T>();
-		return &cs.data[index];
+		auto index = this->components.at(T::id);
+		auto data = scene->getComponentsData<T>();
+		return &data.components[index];
 	}
 	catch (const std::out_of_range& e) {
 		std::cerr << "didn't find component\n";
@@ -328,12 +362,11 @@ inline T* Entity::addComponent(Args&& ...args)
 {
 	static_assert(is_component_v<T>);
 	if (scene) {
-		auto index = this->scene->pushComponent<T>(std::forward<Args>(args)...);
+		auto [comp, index] = this->scene->createComponent<T>(this->isActive, std::forward<Args>(args)...);
 		this->components[T::id] = index;
-		auto c = this->getComponent<T>();
-		c->entity_ = this;
-		c->scene_ = this->scene;
-		return c;
+		comp->entity_ = this;
+		comp->scene_ = this->scene;
+		return comp;
 	} else {
 		std::cerr << "entity isn't attached to scene\n";
 		return nullptr;
@@ -361,17 +394,16 @@ template<typename T>
 inline void Component<T>::setActive(bool b)
 {
 	auto index = entity()->components[id];
-	auto& cs = scene_->getComponents<T>();
-	cs.active[index] = b;
+	entity()->scene->setComponentActive(id, index, b);
 }
 
 template<typename T, typename F>
 inline void System::forEach(F f)
 {
 	static_assert(is_component_v<T>);
-	auto& cs = scene->getComponents<T>();
-	for (int i = 0; i < cs.data.size(); i++)
-		if (cs.active[i]) {
-			std::invoke(f, cs.data[i]);
+	auto data = scene->getComponentsData<T>();
+	for (int i = 0; i < data.components.size(); i++)
+		if (data.active[i]) {
+			std::invoke(f, data.components[i]);
 		}
 }

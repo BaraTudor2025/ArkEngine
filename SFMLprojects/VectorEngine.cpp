@@ -19,6 +19,14 @@ int getUniqueComponentID()
 
 System::~System() { }
 
+void Entity::setActive(bool b)
+{
+	this->isActive = b;
+	for (auto& ids : this->components) {
+		this->scene->setComponentActive(ids.first, ids.second, b);
+	}
+}
+
 void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
 {
 	this->action = f;
@@ -100,13 +108,15 @@ void VectorEngine::run()
 		delta_time = clock.restart();
 
 		for (auto& s : currentScene->scripts)
-			s->update();
+			if(s->entity()->isActive) // TODO: vector<bool> activeScripts; or a 'bool active' member of 'class Script'
+				s->update();
 
 		scriptsLag += deltaTime();
 		while (scriptsLag >= frameTime) {
 			scriptsLag -= frameTime;
 			for (auto& s : currentScene->scripts)
-				s->fixedUpdate();
+				if(s->entity()->isActive)
+					s->fixedUpdate();
 		}
 
 		for (auto& system : currentScene->systems)

@@ -51,6 +51,9 @@ struct VECTOR_ENGINE_API Transform : public Component<Transform>, sf::Transforma
 	operator const sf::RenderStates&() const { return this->getTransform(); }
 };
 
+
+
+
 class VECTOR_ENGINE_API Script : public NonCopyable {
 
 public:
@@ -78,14 +81,19 @@ template <typename T> using is_script = std::is_base_of<Script, T>;
 template <typename T> constexpr bool is_script_v = is_script<T>::value;
 
 
+
+
 class VECTOR_ENGINE_API Entity final : public NonCopyable, public NonMovable {
 
-	Entity() : tag(std::any()), id_(idCounter++) { };
+	Entity() : tag(std::any()), name(""),  id_(idCounter++) { };
+	Entity(std::string name) : tag(std::any()), name(name), id_(idCounter++) { };
 
 public:
 	~Entity() = default;
 
 	std::any tag;
+
+	std::string name;
 
 	int id() { return id_; }
 
@@ -105,11 +113,29 @@ public:
 	template <typename T, typename... Args>
 	Script* addScript(Args&&... args);
 
+	bool hasParent() { return this->parent != nullptr; }
+
+	bool hasChildren() { return this->children.size() != 0; }
+
+	Entity* getParent() { return this->parent; }
+
+	void addChild(Entity* child);
+
+	void removeChild(Entity* child);
+
+	void removeFromParent();
+
+	// recursive: retrieves the components of the childrens' children and etc...
+	template <typename T>
+	std::vector<T*> getChildrenComponents();
+
 private:
 	using ComponentTypeID = int;
 	using ComponentIndex = int;
 	std::unordered_map<ComponentTypeID, ComponentIndex> components;
 	std::vector<Script*> scripts;
+	std::vector<Entity*> children;
+	Entity* parent = nullptr;
 	std::function<void(Entity&, std::any)> action = nullptr;
 	std::unique_ptr<std::any> actionArgs;
 	int id_;
@@ -125,6 +151,9 @@ private:
 	friend class System;
 	friend struct std::_Default_allocator_traits<std::allocator<Entity>>; // for visual studio 2019
 };
+
+
+
 
 // fiecare sistem ar trebui sa aiba o singura instanta
 class VECTOR_ENGINE_API System : public NonCopyable{
@@ -153,6 +182,9 @@ private:
 	template <typename T> friend struct Component;
 };
 
+
+
+
 class VECTOR_ENGINE_API Scene {
 
 public:
@@ -172,7 +204,14 @@ protected:
 	template <typename T>
 	void removeSystem();
 
-	Entity* createEntity();
+	Entity* createEntity(std::string name = "");
+	void createEntity(Entity*& entity, std::string name = "") { entity = createEntity(name); }
+
+	template <typename...Ts>
+	void createEntities(Ts& ... args)
+	{
+		((args = createEntity()),...);
+	}
 
 	template <typename Range>
 	void createEntity(Range& range) {
@@ -212,7 +251,7 @@ private:
 	static inline constexpr std::size_t sizeOfCC = sizeof(ComponentContainer<Component<Transform>>);
 
 	// structure that is stored inside table
-	// we use static_any to erase the type of the container
+	// we use static_any to erase the type of the container, the type being ComponentContainer<T>
 	struct InternalComponentsData {
 		static_any<sizeOfCC> components;
 		std::vector<bool> active;
@@ -228,6 +267,9 @@ private:
 	friend class System;
 	template <class> friend struct Component;
 };
+
+
+
 
 class VECTOR_ENGINE_API VectorEngine final : public NonCopyable {
 
@@ -310,8 +352,7 @@ inline T* Entity::getComponent()
 		return &data.components[index];
 	}
 	catch (const std::out_of_range& e) {
-		std::cerr << "didn't find component\n";
-		std::cerr << e.what() << '\n';
+		std::cerr << "didn't find component, error msg: " << e.what() << '\n' ;
 		return nullptr;
 	}
 }
@@ -347,6 +388,23 @@ inline Script* Entity::addScript(Args && ...args)
 		std::cerr << "entity isn't attached to scene\n";
 		return nullptr;
 	}
+}
+
+template<typename T>
+std::vector<T*> Entity::getChildrenComponents()
+{
+	if (!this->hasChildren())
+		return {};
+	std::vector<T*> comps;
+	for (auto e : this->children) {
+		if (auto c = e->getComponent<T>(); c)
+			comps.push_back(c);
+		if (e->hasChildren()) {
+			std::vector<T*> childComps = e->getChildrenComponents<T>();
+			comps.insert(comps.end(), childComps.begin(), childComps.end());
+		}
+	}
+	return comps;
 }
 
 template<typename T>

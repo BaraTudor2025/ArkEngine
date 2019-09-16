@@ -39,14 +39,33 @@ void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
 	}
 }
 
+void Entity::addChild(Entity* child)
+{
+	if (child->parent && child->parent != this)
+		child->removeFromParent();
+	this->children.push_back(child);
+	child->parent = this;
+}
+
+void Entity::removeChild(Entity* child)
+{
+	if (child->parent == this)
+		erase(this->children, child);
+}
+
+void Entity::removeFromParent()
+{
+	this->parent->removeChild(this);
+}
+
 std::deque<Entity>& System::getEntities()
 {
 	return VectorEngine::currentScene->entities;
 }
 
-Entity* Scene::createEntity()
+Entity* Scene::createEntity(std::string name)
 {
-	this->entities.emplace_back();
+	this->entities.emplace_back(name);
 	Entity* e = &this->entities.back();
 	e->scene = this;
 	return e;
@@ -58,15 +77,15 @@ void Scene::setComponentActive(int typeId, int index, bool b)
 	data.active.at(index) = b;
 }
 
-inline int Scene::getComponentSize(int id)
+int Scene::getComponentSize(int id)
 {
 	auto& data = this->componentTable.at(id);
 	return data.sizeOfComponent;
 }
 
-void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUT, sf::ContextSettings settings)
+void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)
 {
-	frameTime = fixedUT;
+	frameTime = fixedUpdateTime;
 	width = vm.width;
 	height = vm.height;
 	view.setSize(vm.width, vm.height);

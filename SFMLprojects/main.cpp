@@ -130,16 +130,19 @@ public:
 //enum class GameTag { Bullet, Player, Wall };
 
 /* TODO: TexturedParticles */
-/* TODO: Entity.children : vector<Entity*> */
+/* TODO: ColisionSystem */
 /* TODO: TileSystem */
 /* TODO: Text(with fade), TextBoxe */
 /* TODO: MusicSystem/SoundSystem */
 /* TODO: Shaders */
 
+class TemplateScene : public Scene {
 
-class TestingEngineScene : public Scene {
+protected:
 
-	void init()
+	virtual void init() = 0;
+
+	void setup()
 	{
 		addSystem<ParticleSystem>();
 		addSystem<FpsCounterSystem>(sf::Color::White);
@@ -153,6 +156,14 @@ class TestingEngineScene : public Scene {
 		addComponentType<PointParticles>();
 		addComponentType<Button>();
 		addComponentType<Text>();
+	}
+};
+
+class TestingEngineScene : public TemplateScene {
+
+	void init()
+	{
+		this->setup();
 
 		button = createEntity();
 		player = createEntity();
@@ -263,6 +274,38 @@ class TestingEngineScene : public Scene {
 	std::vector<Entity*> particleFountains;
 };
 
+class ChildTestScene : public TemplateScene {
+
+	void init()
+	{
+		this->setup();
+		createEntities(parent, child1, child2, grandson);
+
+		parent->addChild(child1);
+		parent->addChild(child2);
+		child1->addChild(grandson);
+
+		child1->addComponent<PointParticles>(getFireParticles());
+		child2->addComponent<PointParticles>(getGreenParticles());
+		grandson->addComponent<PointParticles>(getRainbowParticles());
+		grandson->addComponent<Transform>();
+
+		std::vector<PointParticles*> pps = parent->getChildrenComponents<PointParticles>();
+		std::cout << pps.size() << std::endl; // 3
+		auto cs = parent->getChildrenComponents<Transform>();
+		std::cout << cs.size() << std::endl; // 1
+		auto none = parent->getChildrenComponents<Mesh>();
+		std::cout << none.size() << std::endl; // 0
+		auto none2 = child2->getChildrenComponents<PointParticles>();
+		std::cout << none2.size() << std::endl; // 0
+	}
+
+	Entity* parent;
+	Entity* child1;
+	Entity* child2;
+	Entity* grandson;
+};
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	sf::ContextSettings settings = sf::ContextSettings();
@@ -272,6 +315,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::setVSync(false);
 	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 	VectorEngine::setScene<TestingEngineScene>();
+	VectorEngine::setScene<ChildTestScene>();
 
 	VectorEngine::run();
 

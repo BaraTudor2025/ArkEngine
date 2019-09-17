@@ -49,6 +49,7 @@ private:
 	friend class GuiSystem;
 };
 
+
 class GuiSystem : public System {
 
 	void init() {
@@ -104,7 +105,10 @@ class GuiSystem : public System {
 	}
 
 	void render(sf::RenderTarget& target) {
-		auto proc = [&](auto& t) { target.draw(t); };
+		auto proc = [&](auto& t) { 
+			target.draw(t);
+		};
+
 		forEach<Button>(proc);
 		forEach<Text>(proc);
 	}
@@ -115,27 +119,96 @@ private:
 	sf::Vector2f prevMousePos{ 0,0 };
 };
 
-template<typename T>
-class SaveGuiElementPosition : public Script {
+namespace GuiScripts {
 
-public:
-	SaveGuiElementPosition(std::string file, sf::Keyboard::Key key): file(file), key(key) { }
+	// component T must have getGlobalBounds() defined
+	// momentan nefunctional
+	template <typename T>
+	class MoveWithMouse : public Script {
+		
+		static_assert(is_component_v<T>);
+		bool isLeftMouseButtonPressed = false;
+		bool isRightMouseButtonPressed = false;
+		sf::Mouse::Button mouseButton;
+		Transform* transform;
+		T* component;
 
-private:
-	void init() {
-		component = getComponent<T>();
-	}
-	void handleEvent(sf::Event event)
-	{
-		switch (event.type) {
-		case sf::Event::KeyPressed:
-			if (event.key.code == key)
-				component->savePosition(file);
+	public:
+		MoveWithMouse(sf::Mouse::Button mouseButton = sf::Mouse::Left) : mouseButton(mouseButton) {}
+
+	private:
+		void init() override
+		{
+			component = getComponent<T>();
+			transform = getComponent<Transform>();
 		}
-	}
 
-private:
-	std::string file;
-	sf::Keyboard::Key key;
-	T* component;
-};
+		void handleEvent(sf::Event event) override
+		{
+			switch (event.type) 
+			{
+			case sf::Event::MouseButtonPressed: {
+				if (event.mouseButton.button == sf::Mouse::Left)
+					isLeftMouseButtonPressed = true;
+				if (event.mouseButton.button == sf::Mouse::Right)
+					isRightMouseButtonPressed = true;
+			} break;
+
+			case sf::Event::MouseButtonReleased: {
+				if (event.mouseButton.button == sf::Mouse::Left)
+					isLeftMouseButtonPressed = false;
+				if (event.mouseButton.button == sf::Mouse::Right)
+					isRightMouseButtonPressed = false;
+
+			} break;
+
+			default:
+				break;
+			}
+		}
+
+		void update() override
+		{
+			auto procces = [&]() {
+				auto mouse = VectorEngine::mousePositon();
+				// daca componenta mosteneste de la sf::Transformable atunci asta nu prea merge
+				// TODO? : tre' sa transform rect-ul de la globalBounds cu componenta transform
+				if (component->getGlobalBounds().contains(mouse))
+					transform->setPosition(mouse);
+			};
+
+			if (mouseButton == sf::Mouse::Left && isLeftMouseButtonPressed)
+				procces();
+			else if(mouseButton == sf::Mouse::Right && isRightMouseButtonPressed)
+				procces();
+		}
+	};
+
+
+
+	template<typename T>
+	class SaveGuiElementPosition : public Script {
+
+	public:
+		SaveGuiElementPosition(std::string file, sf::Keyboard::Key key): file(file), key(key) { }
+
+	private:
+		void init() {
+			component = getComponent<T>();
+		}
+		void handleEvent(sf::Event event)
+		{
+			switch (event.type) {
+			case sf::Event::KeyPressed:
+				if (event.key.code == key)
+					component->savePosition(file);
+			}
+		}
+
+	private:
+		std::string file;
+		sf::Keyboard::Key key;
+		T* component;
+	};
+}
+

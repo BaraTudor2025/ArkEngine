@@ -62,14 +62,14 @@ void ParticleSystem::fixedUpdate()
 			p.deathTimer = sf::Time::Zero;
 		} else {
 			if (!p.areDead())
-				p.deathTimer += VectorEngine::fixedTime();
+				p.deathTimer += ArkEngine::fixedTime();
 		}
 	};
 	forEach<PointParticles>(processDeathTime);
 	forEach<PixelParticles>(processDeathTime);
 	forEach<PixelParticles>([&](auto& pixels) {
 		if (pixels.spawn)
-			pixels.particlesToSpawn += pixels.particlesPerSecond * VectorEngine::fixedTime().asSeconds(); 
+			pixels.particlesToSpawn += pixels.particlesPerSecond * ArkEngine::fixedTime().asSeconds(); 
 	});
 }
 
@@ -101,7 +101,7 @@ void ParticleSystem::updatePointBatch(PointParticles& ps)
 	if (ps.areDead())
 		return;
 
-	auto deltaTime = VectorEngine::deltaTime();
+	auto deltaTime = ArkEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
 
 	auto vert = ps.vertices.begin();
@@ -168,7 +168,7 @@ void ParticleSystem::updatePixelBatch(PixelParticles& ps)
 	if (ps.areDead())
 		return;
 
-	auto deltaTime = VectorEngine::deltaTime();
+	auto deltaTime = ArkEngine::deltaTime();
 	auto dt = deltaTime.asSeconds();
 	int particleNum = std::floor(ps.particlesToSpawn);
 	if(particleNum >= 1)

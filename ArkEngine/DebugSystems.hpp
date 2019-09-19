@@ -21,7 +21,7 @@ private:
 	}
 
 	void update() {
-		updateElapsed += VectorEngine::deltaTime();
+		updateElapsed += ArkEngine::deltaTime();
 		updateFPS += 1;
 		if (updateElapsed.asMilliseconds() >= 1000) {
 			updateElapsed -= sf::milliseconds(1000);
@@ -56,7 +56,7 @@ private:
 			};
 			std::call_once(flag, spawnThread);
 		} else {
-			elapsedTime += VectorEngine::deltaTime();
+			elapsedTime += ArkEngine::deltaTime();
 			if (elapsedTime > timeBetweenDisplays) {
 				displayInfo();
 				elapsedTime -= timeBetweenDisplays;

@@ -60,7 +60,7 @@ public:
 
 		transform = getComponent<Transform>();
 		transform->setOrigin(animation->frameSize() / 2.f);
-		transform->move(VectorEngine::center());
+		transform->move(ArkEngine::center());
 
 		particleEmitterOffsetLeft = { -165, 285 };
 		{
@@ -77,13 +77,13 @@ public:
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
-		auto[w, h] = VectorEngine::windowSize();
-		pp->platform = { VectorEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
+		auto[w, h] = ArkEngine::windowSize();
+		pp->platform = { ArkEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 	}
 
 	void fixedUpdate() override {
 		bool moved = false;
-		auto dt = VectorEngine::fixedTime().asSeconds();
+		auto dt = ArkEngine::fixedTime().asSeconds();
 		float dx = speed * dt;
 		float angle = toRadians(transform->getRotation());
 
@@ -223,10 +223,10 @@ class TestingEngineScene : public TemplateScene {
 		rotatingParticles->addComponent<Transform>();
 		auto plimb = rotatingParticles->addComponent<PointParticles>(rainbowParticles);
 		plimb->spawn = true;
-		//plimb->emitter = VectorEngine::center();
+		//plimb->emitter = ArkEngine::center();
 		//plimb->emitter.x += 100;
-		//plimbarica.addScript<Rotate>(360/2, VectorEngine::center());
-		rotatingParticles->addScript<RoatateEmitter>(360, VectorEngine::center(), 100);
+		//plimbarica.addScript<Rotate>(360/2, ArkEngine::center());
+		rotatingParticles->addScript<RoatateEmitter>(360, ArkEngine::center(), 100);
 		rotatingParticles->addScript<TraillingEffect>();
 		//plimbarica.addScript<ReadColorFromConsole>();
 
@@ -237,7 +237,7 @@ class TestingEngineScene : public TemplateScene {
 
 		std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
 		for (auto& fw : fireWorksParticles) {
-			auto[width, height] = VectorEngine::windowSize();
+			auto[width, height] = ArkEngine::windowSize();
 			float x = RandomNumber<int>(50, width - 50);
 			float y = RandomNumber<int>(50, height - 50);
 			fw.count = 1000;
@@ -257,7 +257,7 @@ class TestingEngineScene : public TemplateScene {
 		ParticleSystem::hasUniversalGravity = true;
 		ParticleSystem::gravityVector = { 0, 0 };
 		ParticleSystem::gravityMagnitude = 100;
-		ParticleSystem::gravityPoint = VectorEngine::center();
+		ParticleSystem::gravityPoint = ArkEngine::center();
 		
 		//registerEntity(fireWorks);
 		//registerEntity(particleFountains);
@@ -311,13 +311,13 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
-	VectorEngine::create(VectorEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
-	VectorEngine::setVSync(false);
-	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
-	VectorEngine::setScene<TestingEngineScene>();
-	//VectorEngine::setScene<ChildTestScene>();
+	ArkEngine::create(ArkEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
+	ArkEngine::setVSync(false);
+	ArkEngine::backGroundColor = sf::Color(50, 50, 50);
+	ArkEngine::setScene<TestingEngineScene>();
+	//ArkEngine::setScene<ChildTestScene>();
 
-	VectorEngine::run();
+	ArkEngine::run();
 
 	//std::string prop("");
 	//std::getline(std::cin, prop);

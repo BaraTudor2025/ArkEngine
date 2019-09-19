@@ -23,7 +23,7 @@ namespace ParticleScripts {
 		}
 		void update() override
 		{
-			p->emitter = VectorEngine::mousePositon();
+			p->emitter = ArkEngine::mousePositon();
 		}
 	};
 
@@ -152,7 +152,7 @@ namespace ParticleScripts {
 
 		void update()
 		{
-			t.rotate(angleSpeed * VectorEngine::deltaTime().asSeconds(), around);
+			t.rotate(angleSpeed * ArkEngine::deltaTime().asSeconds(), around);
 			p->emitter = t.transformPoint(around + distance);
 		}
 	};
@@ -176,7 +176,7 @@ namespace ParticleScripts {
 		}
 
 		void update() {
-			t->rotate(angle * VectorEngine::deltaTime().asSeconds());
+			t->rotate(angle * ArkEngine::deltaTime().asSeconds());
 		}
 	};
 

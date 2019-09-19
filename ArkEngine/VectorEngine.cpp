@@ -30,11 +30,11 @@ void Entity::setActive(bool b)
 void Entity::setAction(std::function<void(Entity&, std::any)> f, std::any args)
 {
 	this->action = f;
-	if (VectorEngine::running())
+	if (ArkEngine::running())
 		this->action(*this, std::move(args));
 	else {
 		if(args.has_value())
-			// save argumets until VectorEngine::run() is called
+			// save argumets until ArkEngine::run() is called
 			this->actionArgs = std::make_unique<std::any>(std::move(args));
 	}
 }
@@ -60,7 +60,7 @@ void Entity::removeFromParent()
 
 std::deque<Entity>& System::getEntities()
 {
-	return VectorEngine::currentScene->entities;
+	return ArkEngine::currentScene->entities;
 }
 
 Entity* Scene::createEntity(std::string name)
@@ -83,7 +83,7 @@ int Scene::getComponentSize(int id)
 	return data.sizeOfComponent;
 }
 
-void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)
+void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)
 {
 	frameTime = fixedUpdateTime;
 	width = vm.width;
@@ -93,7 +93,7 @@ void VectorEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpda
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
 }
 
-void VectorEngine::initScene()
+void ArkEngine::initScene()
 {
 	currentScene->init();
 
@@ -113,7 +113,7 @@ void VectorEngine::initScene()
 		}
 }
 
-void VectorEngine::run()
+void ArkEngine::run()
 {
 	auto scriptsLag = sf::Time::Zero;
 	auto systemsLag = sf::Time::Zero;

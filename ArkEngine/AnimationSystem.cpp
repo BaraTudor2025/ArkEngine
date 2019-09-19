@@ -80,7 +80,7 @@ void AnimationSystem::update()
 		}, frameCount);
 
 		currentFrame.y = row;
-		elapsedTime += VectorEngine::deltaTime();
+		elapsedTime += ArkEngine::deltaTime();
 		if (elapsedTime >= frameTime) {
 			elapsedTime -= frameTime;
 			currentFrame.x += 1;

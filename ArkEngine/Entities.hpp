@@ -54,7 +54,7 @@
 //	std::vector<PointParticles> particles;
 //
 //	for (auto& ps : particles) {
-//		auto[width, height] = VectorEngine::windowSize();
+//		auto[width, height] = ArkEngine::windowSize();
 //		float x = RandomNumber<int>(50, width - 50);
 //		float y = RandomNumber<int>(50, height - 50);
 //		ps.spawn = spawn;

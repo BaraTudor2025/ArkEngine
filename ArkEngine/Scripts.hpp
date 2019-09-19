@@ -34,7 +34,7 @@ namespace GeneralScripts
 		void update()
 		{
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
-				path.push_back(VectorEngine::mousePositon());
+				path.push_back(ArkEngine::mousePositon());
 		}
 
 		~RegisterMousePath()

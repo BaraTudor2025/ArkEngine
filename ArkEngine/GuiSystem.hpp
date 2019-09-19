@@ -65,7 +65,7 @@ class GuiSystem : public System {
 	void update() {
 		auto process = [&](auto& c) {
 			if (c.moveWithMouse && isLeftMouseButtonPressed) {
-				auto mouse = VectorEngine::mousePositon();
+				auto mouse = ArkEngine::mousePositon();
 				if (c.getGlobalBounds().contains(mouse)) {
 					c.setPosition(mouse);
 				}
@@ -170,7 +170,7 @@ namespace GuiScripts {
 		void update() override
 		{
 			auto procces = [&]() {
-				auto mouse = VectorEngine::mousePositon();
+				auto mouse = ArkEngine::mousePositon();
 				// daca componenta mosteneste de la sf::Transformable atunci asta nu prea merge
 				// TODO? : tre' sa transform rect-ul de la globalBounds cu componenta transform
 				if (component->getGlobalBounds().contains(mouse))

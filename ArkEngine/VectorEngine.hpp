@@ -12,12 +12,12 @@
 //#define VENGINE_BUILD_DLL 0
 //
 //#if VENGINE_BUILD_DLL
-//	#define VECTOR_ENGINE_API __declspec(dllexport)
+//	#define ARK_ENGINE_API __declspec(dllexport)
 //#else
-//	#define VECTOR_ENGINE_API __declspec(dllimport)
+//	#define ARK_ENGINE_API __declspec(dllimport)
 //#endif
 
-#define VECTOR_ENGINE_API
+#define ARK_ENGINE_API
 
 class Entity;
 class Scene;
@@ -25,7 +25,7 @@ class Scene;
 extern int getUniqueComponentID();
 
 template <typename T>
-struct VECTOR_ENGINE_API Component {
+struct ARK_ENGINE_API Component {
 
 public:
 	Entity* entity() { return entity_; }
@@ -45,7 +45,7 @@ private:
 template <typename T> using is_component = std::is_base_of<Component<T>, T>;
 template <typename T> constexpr bool is_component_v = is_component<T>::value;
 
-struct VECTOR_ENGINE_API Transform : public Component<Transform>, sf::Transformable {
+struct ARK_ENGINE_API Transform : public Component<Transform>, sf::Transformable {
 	using sf::Transformable::Transformable;
 	operator const sf::Transform&() const { return this->getTransform();  }
 	operator const sf::RenderStates&() const { return this->getTransform(); }
@@ -54,7 +54,7 @@ struct VECTOR_ENGINE_API Transform : public Component<Transform>, sf::Transforma
 
 
 
-class VECTOR_ENGINE_API Script : public NonCopyable {
+class ARK_ENGINE_API Script : public NonCopyable {
 
 public:
 	Script() = default;
@@ -73,7 +73,7 @@ protected:
 private:
 	Entity* entity_ = nullptr;
 
-	friend class VectorEngine;
+	friend class ArkEngine;
 	friend class Entity;
 };
 
@@ -83,7 +83,7 @@ template <typename T> constexpr bool is_script_v = is_script<T>::value;
 
 
 
-class VECTOR_ENGINE_API Entity final : public NonCopyable, public NonMovable {
+class ARK_ENGINE_API Entity final : public NonCopyable, public NonMovable {
 
 	Entity() : tag(std::any()), name(""),  id_(idCounter++) { };
 	Entity(std::string name) : tag(std::any()), name(name), id_(idCounter++) { };
@@ -145,7 +145,7 @@ private:
 	static inline int idCounter = 1;
 
 	template <class> friend struct Component;
-	friend class VectorEngine;
+	friend class ArkEngine;
 	friend class Scene;
 	friend class Script;
 	friend class System;
@@ -156,7 +156,7 @@ private:
 
 
 // fiecare sistem ar trebui sa aiba o singura instanta
-class VECTOR_ENGINE_API System : public NonCopyable{
+class ARK_ENGINE_API System : public NonCopyable{
 
 public:
 	System() = default;
@@ -177,7 +177,7 @@ private:
 	virtual void render(sf::RenderTarget& target) { }
 
 	Scene* scene = nullptr;
-	friend class VectorEngine;
+	friend class ArkEngine;
 	friend class Scene;
 	template <typename T> friend struct Component;
 };
@@ -185,7 +185,7 @@ private:
 
 
 
-class VECTOR_ENGINE_API Scene {
+class ARK_ENGINE_API Scene {
 
 public:
 	Scene() = default;
@@ -261,7 +261,7 @@ private:
 	// the key is the id of the component type
 	std::unordered_map<int, InternalComponentsData> componentTable;
 
-	friend class VectorEngine;
+	friend class ArkEngine;
 	friend class Script;
 	friend class Entity;
 	friend class System;
@@ -271,7 +271,7 @@ private:
 
 
 
-class VECTOR_ENGINE_API VectorEngine final : public NonCopyable {
+class ARK_ENGINE_API ArkEngine final : public NonCopyable {
 
 public:
 	static inline const sf::VideoMode resolutionFullHD{1920, 1080};
@@ -299,7 +299,7 @@ public:
 
 	static bool running() { return running_; }
 
-	static sf::Vector2f center() { return static_cast<sf::Vector2f>(VectorEngine::windowSize()) / 2.f; }
+	static sf::Vector2f center() { return static_cast<sf::Vector2f>(ArkEngine::windowSize()) / 2.f; }
 
 	static inline sf::Color backGroundColor;
 	

@@ -168,7 +168,7 @@
     <ClCompile Include="AnimationSystem.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
-    <ClCompile Include="VectorEngine.cpp" />
+    <ClCompile Include="ArkEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationSystem.hpp" />
@@ -188,7 +188,7 @@
     <ClInclude Include="Scripts.hpp" />
     <ClInclude Include="static_any.hpp" />
     <ClInclude Include="Util.hpp" />
-    <ClInclude Include="VectorEngine.hpp" />
+    <ClInclude Include="ArkEngine.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

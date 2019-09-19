@@ -15,12 +15,12 @@
     <Filter Include="Header Files\libs">
       <UniqueIdentifier>{a852d775-726c-462a-86e7-595e770f508e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ArkEngine">
+      <UniqueIdentifier>{4a789863-c6c7-4419-a777-59129fe091b4}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="VectorEngine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ParticleSystem.cpp">
@@ -28,6 +28,9 @@
     </ClCompile>
     <ClCompile Include="AnimationSystem.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ArkEngine.cpp">
+      <Filter>ArkEngine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -38,9 +41,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ParticleScripts.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="VectorEngine.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RandomNumbers.hpp">
@@ -84,6 +84,9 @@
     </ClInclude>
     <ClInclude Include="gsl.hpp">
       <Filter>Header Files\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="ArkEngine.hpp">
+      <Filter>ArkEngine</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

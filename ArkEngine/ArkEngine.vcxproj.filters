@@ -9,12 +9,11 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="Header Files\experimental">
       <UniqueIdentifier>{ed5af11b-7566-4053-9482-9b73baec421a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\libs">
+      <UniqueIdentifier>{a852d775-726c-462a-86e7-595e770f508e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -32,9 +31,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gsl.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Util.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -74,9 +70,6 @@
     <ClInclude Include="DebugSystems.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="gsl-lite.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Quad.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -84,12 +77,13 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="static_any.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\libs</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="res\colors.txt">
-      <Filter>Resource Files</Filter>
-    </Text>
+    <ClInclude Include="gsl-lite.hpp">
+      <Filter>Header Files\libs</Filter>
+    </ClInclude>
+    <ClInclude Include="gsl.hpp">
+      <Filter>Header Files\libs</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

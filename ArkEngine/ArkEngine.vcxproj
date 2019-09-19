@@ -190,9 +190,6 @@
     <ClInclude Include="Util.hpp" />
     <ClInclude Include="VectorEngine.hpp" />
   </ItemGroup>
-  <ItemGroup>
-    <Text Include="res\colors.txt" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

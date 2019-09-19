@@ -315,7 +315,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	VectorEngine::setVSync(false);
 	VectorEngine::backGroundColor = sf::Color(50, 50, 50);
 	VectorEngine::setScene<TestingEngineScene>();
-	VectorEngine::setScene<ChildTestScene>();
+	//VectorEngine::setScene<ChildTestScene>();
 
 	VectorEngine::run();
 

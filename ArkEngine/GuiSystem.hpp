@@ -4,11 +4,11 @@
 #include <fstream>
 
 // ? 
-struct TextBox : Component<TextBox> {
+struct TextBox : Component {
 
 };
 
-struct Text : Component<Text>, sf::Text { 
+struct Text : Component, sf::Text { 
 
 	Text(std::string fontName = "KeepCalm-Medium.ttf") : fontName(fontName) { }
 
@@ -19,7 +19,7 @@ private:
 	friend class GuiSystem;
 };
 
-struct Button : Component<Button>, sf::RectangleShape {
+struct Button : Component, sf::RectangleShape {
 
 	Button(sf::FloatRect rect, std::string texture = "")
 		: textureName(texture), rect(rect)

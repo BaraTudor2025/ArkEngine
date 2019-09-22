@@ -6,6 +6,8 @@
 #include <any>
 #include <optional>
 #include <iostream>
+#include <typeindex>
+#include <bitset>
 #include "Util.hpp"
 #include "static_any.hpp"
 
@@ -22,30 +24,21 @@
 class Entity;
 class Scene;
 
-extern int getUniqueComponentID();
 
-template <typename T>
 struct ARK_ENGINE_API Component {
 
 public:
 	Entity* entity() { return entity_; }
 
-	void setActive(bool b);
-
-	static inline const int id = getUniqueComponentID();
-
 private:
 	Entity* entity_;
-	Scene* scene_;
-
-	friend class Scene;
 	friend class Entity;
 };
 
-template <typename T> using is_component = std::is_base_of<Component<T>, T>;
+template <typename T> using is_component = std::is_base_of<Component, T>;
 template <typename T> constexpr bool is_component_v = is_component<T>::value;
 
-struct ARK_ENGINE_API Transform : public Component<Transform>, sf::Transformable {
+struct ARK_ENGINE_API Transform : public Component, sf::Transformable {
 	using sf::Transformable::Transformable;
 	operator const sf::Transform&() const { return this->getTransform();  }
 	operator const sf::RenderStates&() const { return this->getTransform(); }
@@ -130,9 +123,8 @@ public:
 	std::vector<T*> getChildrenComponents();
 
 private:
-	using ComponentTypeID = int;
 	using ComponentIndex = int;
-	std::unordered_map<ComponentTypeID, ComponentIndex> components;
+	std::unordered_map<std::type_index, ComponentIndex> components;
 	std::vector<Script*> scripts;
 	std::vector<Entity*> children;
 	Entity* parent = nullptr;
@@ -144,11 +136,8 @@ private:
 
 	static inline int idCounter = 1;
 
-	template <class> friend struct Component;
 	friend class ArkEngine;
 	friend class Scene;
-	friend class Script;
-	friend class System;
 	friend struct std::_Default_allocator_traits<std::allocator<Entity>>; // for visual studio 2019
 };
 
@@ -179,7 +168,6 @@ private:
 	Scene* scene = nullptr;
 	friend class ArkEngine;
 	friend class Scene;
-	template <typename T> friend struct Component;
 };
 
 
@@ -229,14 +217,13 @@ private:
 		ComponentContainer<T>& components;
 		std::vector<bool>& active;
 		const int sizeOfComponent;
+		std::string componentName;
 	};
 
 	template <typename T>
 	ComponentsData<T> getComponentsData();
 
-	void setComponentActive(int typeId, int index, bool b);
-
-	int getComponentSize(int id);
+	void setComponentActive(std::type_index typeId, int index, bool b);
 
 	// returns std::pair{pointer to component, index of component}
 	template <typename T, typename...Args>
@@ -248,7 +235,7 @@ private:
 	std::vector<std::unique_ptr<System>> systems;
 
 	// size of component container
-	static inline constexpr std::size_t sizeOfCC = sizeof(ComponentContainer<Component<Transform>>);
+	static inline constexpr std::size_t sizeOfCC = sizeof(ComponentContainer<void*>);
 
 	// structure that is stored inside table
 	// we use static_any to erase the type of the container, the type being ComponentContainer<T>
@@ -256,16 +243,16 @@ private:
 		static_any<sizeOfCC> components;
 		std::vector<bool> active;
 		int sizeOfComponent;
+		std::string componentName;
 	};
 
 	// the key is the id of the component type
-	std::unordered_map<int, InternalComponentsData> componentTable;
+	std::unordered_map<std::type_index, InternalComponentsData> componentTable;
 
 	friend class ArkEngine;
 	friend class Script;
 	friend class Entity;
 	friend class System;
-	template <class> friend struct Component;
 };
 
 
@@ -347,7 +334,7 @@ inline T* Entity::getComponent()
 {
 	static_assert(is_component_v<T>);
 	try {
-		auto index = this->components.at(T::id);
+		auto index = this->components.at(typeid(T));
 		auto data = scene->getComponentsData<T>();
 		return &data.components[index];
 	}
@@ -363,9 +350,8 @@ inline T* Entity::addComponent(Args&& ...args)
 	static_assert(is_component_v<T>);
 	if (scene) {
 		auto [comp, index] = this->scene->createComponent<T>(this->isActive, std::forward<Args>(args)...);
-		this->components[T::id] = index;
+		this->components[typeid(T)] = index;
 		comp->entity_ = this;
-		comp->scene_ = this->scene;
 		return comp;
 	} else {
 		std::cerr << "entity isn't attached to scene\n";
@@ -407,13 +393,6 @@ std::vector<T*> Entity::getChildrenComponents()
 	return comps;
 }
 
-template<typename T>
-inline void Component<T>::setActive(bool b)
-{
-	auto index = entity()->components[id];
-	entity()->scene->setComponentActive(id, index, b);
-}
-
 template<typename T, typename F>
 inline void System::forEach(F f)
 {
@@ -444,20 +423,28 @@ template<typename T>
 inline void Scene::addComponentType()
 {
 	static_assert(is_component_v<T>);
-	this->componentTable[T::id] = InternalComponentsData();
-	this->componentTable.at(T::id).components = ComponentContainer<T>();
-	this->componentTable.at(T::id).sizeOfComponent = sizeof(T);
+	std::type_index id = typeid(T);
+	std::string name = id.name();
+	int index = name.find(' ');
+	name.erase(0, index + 1);
+
+	this->componentTable[id] = InternalComponentsData();
+	auto& data = this->componentTable[id];
+	data.components = ComponentContainer<T>();
+	data.sizeOfComponent = sizeof(T);
+	data.componentName = name;
 }
 
 template<typename T>
 inline Scene::ComponentsData<T> Scene::getComponentsData()
 {
 	static_assert(is_component_v<T>);
-	auto& data = this->componentTable.at(T::id);
+	auto& data = this->componentTable.at(typeid(T));
 	return ComponentsData<T>{
 		any_cast<ComponentContainer<T>>(data.components),
 			data.active,
-			data.sizeOfComponent
+			data.sizeOfComponent,
+			data.componentName
 	};
 }
 
@@ -468,5 +455,5 @@ inline auto Scene::createComponent(bool isActive, Args&& ...args)
 	auto data = this->getComponentsData<T>();
 	data.components.emplace_back(std::forward<Args>(args)...);
 	data.active.push_back(isActive);
-	return std::pair{&data.components.back(), data.components.size() - 1};
+	return std::make_pair(&data.components.back(), data.components.size() - 1);
 }

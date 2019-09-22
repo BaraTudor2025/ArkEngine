@@ -3,7 +3,7 @@
 #include "Quad.hpp"
 #include <variant>
 
-struct Mesh : public Component<Mesh> {
+struct Mesh : public Component {
 
 	Mesh(std::string fileName, bool smoothTexture = false)
 		:fileName(fileName), smoothTexture(smoothTexture), uvRect(0,0,0,0), repeatTexture(false) { }
@@ -28,7 +28,7 @@ private:
 	friend class AnimationSystem;
 };
 
-struct Animation : public Component<Animation> {
+struct Animation : public Component {
 
 	// frameCount: number of frames of every row and number of rows; example: sf::Vector2u{6, 2} means 6 frames and 2 rows
 	Animation(std::string fileName, sf::Vector2u frameCount, sf::Time frameTime, int row, bool smoothTexture)

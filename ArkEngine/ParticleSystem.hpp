@@ -11,7 +11,7 @@
 
 static inline constexpr auto PI = 3.14159f;
 
-struct PointParticles final : public Component<PointParticles> {
+struct PointParticles final : public Component {
 
 	COPYABLE(PointParticles)
 
@@ -76,7 +76,7 @@ private:
 	friend class ParticleSystem;
 };
 
-struct PixelParticles : public Component<PixelParticles> {
+struct PixelParticles : public Component {
 
 	using Colors = std::pair<sf::Color, sf::Color>;
 

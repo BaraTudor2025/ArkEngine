@@ -10,13 +10,6 @@
 #define debug_log(fmt, ...)
 #endif
 
-int getUniqueComponentID()
-{
-	static int id = 0;
-	id += 1;
-	return id;
-}
-
 System::~System() { }
 
 void Entity::setActive(bool b)
@@ -71,16 +64,10 @@ Entity* Scene::createEntity(std::string name)
 	return e;
 }
 
-void Scene::setComponentActive(int typeId, int index, bool b)
+void Scene::setComponentActive(std::type_index typeId, int index, bool b)
 {
 	auto& data = this->componentTable.at(typeId);
 	data.active.at(index) = b;
-}
-
-int Scene::getComponentSize(int id)
-{
-	auto& data = this->componentTable.at(id);
-	return data.sizeOfComponent;
 }
 
 void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)

@@ -43,7 +43,7 @@ namespace ParticleScripts {
 		{
 			if (spawn) {
 				auto dv = p->emitter - prevEmitter;
-				auto[speed, angle] = toPolar(-dv);
+				auto[speed, angle] = Util::toPolar(-dv);
 				if (speed != 0) {
 					p->spawn = true;
 					speed = std::clamp<float>(speed, 0, 5);

@@ -80,7 +80,7 @@ inline void ParticleSystem::respawnPointParticle(const PointParticles& ps, sf::V
 
 	vertex.position = ps.emitter;
 	vertex.color = ps.getColor();
-	speed = toCartesian({ speedMag, angle });
+	speed = Util::toCartesian({ speedMag, angle });
 
 	if (ps.fireworks) {
 		lifeTime = ps.lifeTime;
@@ -153,7 +153,7 @@ inline void ParticleSystem::respawnPixelParticle(const PixelParticles& ps, Quad&
 	quad.setAlpha(ps.colors.first.a);
 	float angle = RandomNumber(ps.angleDistribution);
 	float speedMag = RandomNumber(ps.speed / 2, ps.speed);
-	speed = toCartesian({ speedMag, angle });
+	speed = Util::toCartesian({ speedMag, angle });
 
 	auto center = ps.emitter - ps.size / 2.f;
 	quad.updatePosition({center, ps.size});

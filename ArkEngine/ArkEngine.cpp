@@ -43,7 +43,7 @@ void Entity::addChild(Entity* child)
 void Entity::removeChild(Entity* child)
 {
 	if (child->parent == this)
-		erase(this->children, child);
+		Util::erase(this->children, child);
 }
 
 void Entity::removeFromParent()

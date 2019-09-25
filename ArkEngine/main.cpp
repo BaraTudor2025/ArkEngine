@@ -85,7 +85,7 @@ public:
 		bool moved = false;
 		auto dt = ArkEngine::fixedTime().asSeconds();
 		float dx = speed * dt;
-		float angle = toRadians(transform->getRotation());
+		float angle = Util::toRadians(transform->getRotation());
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
 			transform->move(dx * std::cos(angle), dx * std::sin(angle));

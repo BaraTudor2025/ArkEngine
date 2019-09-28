@@ -12,11 +12,11 @@
     <Filter Include="Header Files\experimental">
       <UniqueIdentifier>{ed5af11b-7566-4053-9482-9b73baec421a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\libs">
-      <UniqueIdentifier>{a852d775-726c-462a-86e7-595e770f508e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ArkEngine">
       <UniqueIdentifier>{4a789863-c6c7-4419-a777-59129fe091b4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="libs">
+      <UniqueIdentifier>{c275730a-35ca-4cd0-949a-90c2b1959645}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -76,16 +76,46 @@
     <ClInclude Include="GuiSystem.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ArkEngine.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
     <ClInclude Include="static_any.hpp">
-      <Filter>Header Files\libs</Filter>
+      <Filter>libs</Filter>
     </ClInclude>
     <ClInclude Include="gsl-lite.hpp">
-      <Filter>Header Files\libs</Filter>
+      <Filter>libs</Filter>
     </ClInclude>
     <ClInclude Include="gsl.hpp">
-      <Filter>Header Files\libs</Filter>
+      <Filter>libs</Filter>
     </ClInclude>
-    <ClInclude Include="ArkEngine.hpp">
+    <ClInclude Include="System.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Entity.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Component.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Script.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Core.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="MessageBus.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Transform.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="State.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Engine.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
   </ItemGroup>

@@ -2,28 +2,14 @@
 
 #include <SFML/Graphics.hpp>
 #include <functional>
-#include <deque>
 #include <any>
 #include <optional>
-#include <iostream>
 #include <typeindex>
-#include <bitset>
-#include "Util.hpp"
 #include "static_any.hpp"
-
-//#define VENGINE_BUILD_DLL 0
-//
-//#if VENGINE_BUILD_DLL
-//	#define ARK_ENGINE_API __declspec(dllexport)
-//#else
-//	#define ARK_ENGINE_API __declspec(dllimport)
-//#endif
-
-#define ARK_ENGINE_API
+#include "Core.hpp"
 
 class Entity;
 class Scene;
-
 
 struct ARK_ENGINE_API Component {
 
@@ -43,8 +29,6 @@ struct ARK_ENGINE_API Transform : public Component, sf::Transformable {
 	operator const sf::Transform&() const { return this->getTransform();  }
 	operator const sf::RenderStates&() const { return this->getTransform(); }
 };
-
-
 
 
 class ARK_ENGINE_API Script : public NonCopyable {
@@ -72,8 +56,6 @@ private:
 
 template <typename T> using is_script = std::is_base_of<Script, T>;
 template <typename T> constexpr bool is_script_v = is_script<T>::value;
-
-
 
 
 class ARK_ENGINE_API Entity final : public NonCopyable, public NonMovable {

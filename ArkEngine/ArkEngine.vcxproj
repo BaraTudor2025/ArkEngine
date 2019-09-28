@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -172,13 +172,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationSystem.hpp" />
+    <ClInclude Include="Component.hpp" />
     <ClInclude Include="const_string.hpp" />
+    <ClInclude Include="Core.hpp" />
     <ClInclude Include="DebugSystems.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
+    <ClInclude Include="Engine.hpp" />
     <ClInclude Include="Entities.hpp" />
+    <ClInclude Include="Entity.hpp" />
     <ClInclude Include="gsl-lite.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
+    <ClInclude Include="State.hpp" />
+    <ClInclude Include="MessageBus.hpp" />
     <ClInclude Include="Quad.hpp" />
+    <ClInclude Include="Scene.hpp" />
+    <ClInclude Include="Script.hpp" />
     <ClInclude Include="SOAvector.hpp" />
     <ClInclude Include="gsl.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />
@@ -187,6 +195,8 @@
     <ClInclude Include="ResourceManager.hpp" />
     <ClInclude Include="Scripts.hpp" />
     <ClInclude Include="static_any.hpp" />
+    <ClInclude Include="System.hpp" />
+    <ClInclude Include="Transform.hpp" />
     <ClInclude Include="Util.hpp" />
     <ClInclude Include="ArkEngine.hpp" />
   </ItemGroup>

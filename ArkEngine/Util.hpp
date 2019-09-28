@@ -75,7 +75,7 @@ namespace Util {
 	}
 
 	template <typename T, typename U>
-	inline void erase(T& range, U elem)
+	inline void erase(T& range, const U& elem)
 	{
 		range.erase(std::remove(range.begin(), range.end(), elem), range.end());
 	}
@@ -84,6 +84,32 @@ namespace Util {
 	inline void erase_if(T& range, F predicate)
 	{
 		range.erase(std::remove_if(range.begin(), range.end(), predicate), range.end());
+	}
+
+	template <typename T>
+	inline void erase_at(T& range, int index)
+	{
+		range.erase(range.begin() + index);
+	}
+
+	template <typename T, typename U>
+	inline std::optional<U&> find(const T& range, const U& elem)
+	{
+		auto it = std::find(std::begin(range), std::end(range), elem);
+		if (it == std::end(range))
+			return {};
+		else
+			return *it;
+	}
+
+	template <typename T, typename F, typename U>
+	inline std::optional<U&> find(const T& range, F f)
+	{
+		auto it = std::find_if(std::begin(range), std::end(range), f);
+		if (it == std::end(range))
+			return {};
+		else
+			return *it;
 	}
 
 	struct PolarVector {

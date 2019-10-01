@@ -26,20 +26,19 @@ public:
 	{
 		Entity e;
 		e.manager = this;
-		std::cout << "name: " << name << std::endl;
+		std::cout << "create name: " << name << std::endl;
 		if (!freeEntities.empty()) {
 			e.id = freeEntities.back();
 			freeEntities.pop_back();
 			auto& entity = getEntity(e);
 			entity.name = name;
-			entity.mask.reset();
 		} else {
 			e.id = entities.size();
-			entities.emplace_back();
-			entities.back().name = name;
-			entities.back().mask.reset();
+			auto& entity = entities.emplace_back();
+			entity.name = name;
+			entity.mask.reset();
+			entity.componentIndexes.fill(-1);
 		}
-
 		return e;
 	}
 
@@ -50,10 +49,6 @@ public:
 		//Entity hClone = createEntity();
 		//auto entity = getEntity(e);
 		//auto clone = getEntity(hClone);
-		//for (auto [compId, compIndex] : entity.componentsIndexes) {
-		//	//componentManager.get
-		//}
-
 	}
 
 	const std::string& getNameOfEntity(Entity e)
@@ -93,19 +88,16 @@ public:
 		freeEntities.push_back(e.id);
 		auto& entity = getEntity(e);
 
-		//for (auto [compId, compIndex] : entity.componentsIndexes)
-			//componentManager.removeComponent(compId, compIndex);
-		for (int i = 0; i < entity.componentsIndexes.size(); i++)
+		for (int i = 0; i < entity.componentIndexes.size(); i++)
 			if (i != -1)
-				componentManager.removeComponent(i, entity.componentsIndexes[i]);
+				componentManager.removeComponent(i, entity.componentIndexes[i]);
 		scriptManager.removeScripts(entity.scriptsIndex);
 
 		//entity.childrenIndex = -1;
 		entity.name.clear();
 		entity.mask.reset();
 		entity.scriptsIndex = -1;
-		//entity.componentsIndexes.fill({-1, -1});
-		entity.componentsIndexes.fill(-1);
+		entity.componentIndexes.fill(-1);
 	}
 
 	// if component already exists, then the existing component is returned
@@ -120,9 +112,7 @@ public:
 		auto [comp, compIndex] = componentManager.addComponent<T>(std::forward<Args>(args)...);
 
 		entity.mask.set(compId);
-		int compNum = entity.mask.count();
-		entity.componentsIndexes.at(compNum-1) = { static_cast<int16_t>(compId), static_cast<int16_t>(compIndex) };
-		auto [id, index] = entity.componentsIndexes.at(compNum-1);
+		entity.componentIndexes.at(compId) = compIndex;
 
 		return *comp;
 	}
@@ -136,13 +126,7 @@ public:
 			// make this an assert
 			std::cerr << "entity " << entity.name << " dosent have component " << typeid(T).name() << '\n';
 		}
-		
-		int compIndex = -1;
-		for (auto [id, index] : entity.componentsIndexes) {
-			if (id == compId)
-				compIndex = index;
-		}
-
+		int compIndex = entity.componentIndexes[compId];
 		return *componentManager.getComponent<T>(compId, compIndex);
 	}
 
@@ -263,15 +247,10 @@ public:
 private:
 
 	struct InternalEntityData {
-		//struct ComponentData {
-		//	int16_t componentId = -1;
-		//	int16_t index = -1;
-		//};
-		//std::array<ComponentData, ComponentManager::MaxComponentTypes> componentsIndexes;
 		//int16_t childrenIndex = -1;
 		//int16_t parentIndex = -1;
 		ComponentManager::ComponentMask mask;
-		std::array<int16_t, ComponentManager::MaxComponentTypes> componentsIndexes;
+		std::array<int16_t, ComponentManager::MaxComponentTypes> componentIndexes;
 		int16_t scriptsIndex = -1;
 		std::string name = "";
 	};

@@ -1,23 +1,18 @@
 #pragma once
 
 #include "Core.hpp"
+#include "Util.hpp"
 #include "static_any.hpp"
 
 #include <bitset>
 #include <unordered_map>
-
-class Entity;
+#include <vector>
 
 struct ARK_ENGINE_API Component {
 
-	//Entity entity() { return m_entity; }
-
-//private:
-	//Entity m_entity;
-	//friend class EntityManager;
 };
 
-class ComponentManager {
+class ComponentManager final : public NonCopyable  { 
 
 public:
 
@@ -47,7 +42,7 @@ public:
 
 		auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
 		if (pos == std::end(this->componentIndexes)) {
-			std::cout << "component manager dosent have component type: " << type.name();
+			std::cout << "component manager dosent have component type: " << type.name() << '\n';
 			return -1;
 		}
 		return pos - std::begin(this->componentIndexes);
@@ -56,38 +51,43 @@ public:
 	template <typename T>
 	int getComponentId()
 	{
-		getComponentId(typeid(T));
+		return getComponentId(typeid(T));
 	}
 
-	// returns [component, index]
+	// returns [component*, index]
 	template <typename T, typename...Args>
-	std::pair<T&, int> addComponent(Args&&... args) 
+	std::pair<T*, int> addComponent(Args&&... args) 
 	{
 		if (!hasComponentType<T>()) {
-			std::cout << "component " << typeid(T).name() " is not supported by any system\n";
+			std::cout << "component " << typeid(T).name() << " is not supported by any system\n";
 		}
 
 		auto compId = getComponentId<T>();
-		auto pool = getComponentPool<T>(compId);
+		auto& pool = getComponentPool<T>(compId, true);
 		auto it = freeComponents.find(compId);
 
-		if (it != freeComponents.end() && !it->empty()) {
-			int index = it->back();
-			pool.at(index) = T(std::forward<Args>(args)...);
-			it->pop_back();
-			return std::make_pair(pool.at(index), index);
-		} else {
-			pool.emplace_back(std::forward<Args>(args)...);
-			return std::make_pair(pool.back(), pool.size() - 1);
+		if (it != freeComponents.end()) {
+			auto& [compId, freeSlots] = *it;
+			if (!freeSlots.empty()) {
+				int index = freeSlots.back();
+				freeSlots.pop_back();
+
+				T* slot = &pool.at(index);
+				new (slot)T(std::forward<Args>(args)...); // construct in place
+
+				return std::make_pair<T*, int>(std::move(slot), std::move(index));
+			}
 		}
 
+		pool.emplace_back(std::forward<Args>(args)...);
+		return std::make_pair<T*, int>(&pool.back(), pool.size() - 1);
 	}
 
 	template <typename T>
-	T& getComponent(int compId, int index)
+	T* getComponent(int compId, int index)
 	{
-		auto pool = getComponentPool<T>(compId);
-		return pool.at(index);
+		auto& pool = getComponentPool<T>(compId, false);
+		return &pool.at(index);
 	}
 
 	void removeComponent(int compId, int index)
@@ -99,25 +99,30 @@ private:
 
 	void addComponentType(std::type_index type)
 	{
+		std::cout << "adding " << type.name() << " as component type\n";
 		if (componentIndexes.size() == MaxComponentTypes) {
-			std::cerr << "nu mai e loc de tipuri de componente, max: " << MaxComponentTypes << std::endl;
+			std::cerr << "nu mai e loc de tipuri de componente, nr. max: " << MaxComponentTypes << std::endl;
 			return;
 		}
 		componentIndexes.push_back(type);
-		componentPools.emplace_back();
 	}
 
 	template <typename T>
-	ComponentPool<T>& getComponentPool(int compId)
+	ComponentPool<T>& getComponentPool(int compId, bool addPool)
 	{
 		auto& any_pool = this->componentPools.at(compId);
+		if (addPool && any_pool.empty())
+			any_pool = ComponentPool<T>();
 		return any_cast<ComponentPool<T>>(any_pool);
 	}
 
 private:
 
 	using any_pool = static_any<sizeof(ComponentPool<void*>)>;
-	std::vector<any_pool> componentPools; // component table
+	//std::vector<any_pool> componentPools; // component table
+	std::array<any_pool, MaxComponentTypes> componentPools; // component table
 	std::vector<std::type_index> componentIndexes; // index of std::type_index represents index of component pool inside component table
 	std::unordered_map<int, std::vector<int>> freeComponents; // indexed by compId, vector<int> holds the indexes of free components
 };
+
+

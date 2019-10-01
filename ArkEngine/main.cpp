@@ -1,5 +1,7 @@
+
 #include <SFML/Graphics.hpp>
 #include <SFML/System/String.hpp>
+
 #include <functional>
 #include <iostream>
 #include <fstream>
@@ -9,12 +11,13 @@
 #include <cstdlib>
 #include <cmath>
 #include <thread>
+
+#include "Engine.hpp"
+#include "Scene.hpp"
 #include "ParticleSystem.hpp"
 #include "ParticleScripts.hpp"
 #include "RandomNumbers.hpp"
-#include "ArkEngine.hpp"
 #include "Util.hpp"
-#include "Entities.hpp"
 #include "Scripts.hpp"
 #include "AnimationSystem.hpp"
 #include "DebugSystems.hpp"
@@ -81,9 +84,9 @@ public:
 		pp->platform = { ArkEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 	}
 
-	void fixedUpdate() override {
+	void update() override {
 		bool moved = false;
-		auto dt = ArkEngine::fixedTime().asSeconds();
+		auto dt = ArkEngine::deltaTime().asSeconds();
 		float dx = speed * dt;
 		float angle = Util::toRadians(transform->getRotation());
 
@@ -135,160 +138,148 @@ public:
 /* TODO: Text(with fade), TextBoxe */
 /* TODO: MusicSystem/SoundSystem */
 /* TODO: Shaders */
+/* TODO: ParticleEmmiter with settings*/
+/* TODO: State Stack*/
+/* TODO: choose with macro if the engine runs at a fixed frame rate or delta time/fluctuating frame rate; always use deltaTime for debug */
 
-class TemplateScene : public Scene {
+class TestingEngineScene : public Scene {
 
-protected:
-
-	virtual void init() = 0;
-
-	void setup()
+	void init() override
 	{
-		addSystem<ParticleSystem>();
-		addSystem<FpsCounterSystem>(sf::Color::White);
-		addSystem<GuiSystem>();
+		addSystem<PointParticleSystem>();
+		addSystem<PixelParticleSystem>();
+		addSystem<FpsCounterSystem>();
+		addSystem<ButtonSystem>();
+		addSystem<TextSystem>();
 		addSystem<AnimationSystem>();
 
-		addComponentType<Transform>();
-		addComponentType<Mesh>();
-		addComponentType<Animation>();
-		addComponentType<PixelParticles>();
-		addComponentType<PointParticles>();
-		addComponentType<Button>();
-		addComponentType<Text>();
-	}
-};
-
-class TestingEngineScene : public TemplateScene {
-
-	void init()
-	{
-		this->setup();
-
-		button = createEntity();
-		player = createEntity();
-		mouseTrail = createEntity();
-		rainbowPointParticles = createEntity();
-		greenPointParticles = createEntity();
-		firePointParticles = createEntity();
-		rotatingParticles = createEntity();
+		button = createEntity("button");
+		player = createEntity("player");
+		mouseTrail = createEntity("mouseTrail");
+		rainbowPointParticles = createEntity("rainbow ps");
+		greenPointParticles = createEntity("green ps");
+		firePointParticles = createEntity("fire ps");
+		rotatingParticles = createEntity("rotating ps");
 
 		//fireWorks.resize(0);
 		//createEntity(fireWorks);
 
-		player->addComponent<Transform>();
-		player->addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
+		player.addComponent<Transform>();
+		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		player->addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		player->addScript<MovePlayer>(400, 180);
-		//player.tag = "player";
+		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+		player.addScript<MovePlayer>(400, 180);
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
-		//button.tag = "button";
-		auto b = button->addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
-		b->setFillColor(sf::Color(240, 240, 240));
-		b->setOutlineColor(sf::Color::Black);
-		b->setOutlineThickness(3);
-		b->moveWithMouse = true;
-		b->loadPosition("mama");
-		b->setOrigin(b->getSize() / 2.f);
-		b->onClick = []() { std::cout << "\nclick "; };
-		auto t = button->addComponent<Text>();
-		t->setString("buton");
-		t->setOrigin(b->getOrigin());
-		t->setPosition(b->getPosition() + b->getSize() / 3.5f);
-		t->setFillColor(sf::Color::Black);
+		button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
+		auto& b = button.getComponent<Button>();
+		b.setFillColor(sf::Color(240, 240, 240));
+		b.setOutlineColor(sf::Color::Black);
+		b.setOutlineThickness(3);
+		b.moveWithMouse = true;
+		b.loadPosition("mama");
+		b.setOrigin(b.getSize() / 2.f);
+		b.onClick = []() { std::cout << "\nclick "; };
+		auto& t = button.addComponent<Text>();
+		t.setString("buton");
+		t.setOrigin(b.getOrigin());
+		t.setPosition(b.getPosition() + b.getSize() / 3.5f);
+		t.setFillColor(sf::Color::Black);
 
 		using namespace ParticleScripts;
-		auto rainbowParticles = getRainbowParticles();
-		auto fireParticles = getFireParticles();
-		auto greenParticles = getGreenParticles();
+		//auto rainbowParticles = getRainbowParticles();
+		//auto fireParticles = getFireParticles();
+		//auto greenParticles = getGreenParticles();
 
-		//rainbowPointParticles.tag = "rainbow particles";
-		rainbowPointParticles->addComponent<PointParticles>(rainbowParticles);
-		rainbowPointParticles->addScript<SpawnOnRightClick>();
-		rainbowPointParticles->addScript<EmittFromMouse>();
+		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
+		rainbowPointParticles.addScript<SpawnOnRightClick>();
+		rainbowPointParticles.addScript<EmittFromMouse>();
 
-		//firePointParticles.tag = "fire particles";
-		firePointParticles->addComponent<PointParticles>(getFireParticles(1'000));
-		firePointParticles->addScript<SpawnOnLeftClick>();
-		firePointParticles->addScript<EmittFromMouse>();
+		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
+		firePointParticles.addScript<SpawnOnLeftClick>();
+		firePointParticles.addScript<EmittFromMouse>();
 
-		auto grassP = greenPointParticles->addComponent<PointParticles>(greenParticles);
-		grassP->spawn = true;
-		greenPointParticles->addScript<DeSpawnOnMouseClick<>>();
+		auto& grassP = greenPointParticles.addComponent<PointParticles>(getGreenParticles());
+		grassP.spawn = true;
+		greenPointParticles.addScript<DeSpawnOnMouseClick<>>();
 		//grass.addScript<ReadColorFromConsole>();
-		greenPointParticles->addScript<EmittFromMouse>();
+		greenPointParticles.addScript<EmittFromMouse>();
 
-		rotatingParticles->addComponent<Transform>();
-		auto plimb = rotatingParticles->addComponent<PointParticles>(rainbowParticles);
-		plimb->spawn = true;
+		rotatingParticles.addComponent<Transform>();
+		auto& plimb = rotatingParticles.addComponent<PointParticles>(getRainbowParticles());
+		plimb.spawn = true;
 		//plimb->emitter = ArkEngine::center();
 		//plimb->emitter.x += 100;
 		//plimbarica.addScript<Rotate>(360/2, ArkEngine::center());
-		rotatingParticles->addScript<RoatateEmitter>(360, ArkEngine::center(), 100);
-		rotatingParticles->addScript<TraillingEffect>();
+		rotatingParticles.addScript<RoatateEmitter>(180, ArkEngine::center(), 100);
+		rotatingParticles.addScript<TraillingEffect>();
 		//plimbarica.addScript<ReadColorFromConsole>();
 
-		mouseTrail->addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
-		mouseTrail->addScript<EmittFromMouse>();
-		mouseTrail->addScript<DeSpawnOnMouseClick<TraillingEffect>>();
-		mouseTrail->addScript<TraillingEffect>();
+		mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
+		mouseTrail.addScript<EmittFromMouse>();
+		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
+		mouseTrail.addScript<TraillingEffect>();
 
-		std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
-		for (auto& fw : fireWorksParticles) {
-			auto[width, height] = ArkEngine::windowSize();
-			float x = RandomNumber<int>(50, width - 50);
-			float y = RandomNumber<int>(50, height - 50);
-			fw.count = 1000;
-			fw.emitter = { x,y };
-			fw.spawn = false;
-			fw.fireworks = true;
-			fw.getColor = makeColorsVector[RandomNumber<size_t>(0, makeColorsVector.size() - 1)];
-			fw.lifeTime = sf::seconds(RandomNumber<float>(2, 8));
-			fw.speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
-		}
+		//std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
+		//for (auto& fw : fireWorksParticles) {
+		//	auto[width, height] = ArkEngine::windowSize();
+		//	float x = RandomNumber<int>(50, width - 50);
+		//	float y = RandomNumber<int>(50, height - 50);
+		//	fw.count = 1000;
+		//	fw.emitter = { x,y };
+		//	fw.spawn = false;
+		//	fw.fireworks = true;
+		//	fw.getColor = makeColorsVector[RandomNumber<size_t>(0, makeColorsVector.size() - 1)];
+		//	fw.lifeTime = sf::seconds(RandomNumber<float>(2, 8));
+		//	fw.speedDistribution = { 0, RandomNumber<float>(40, 70), DistributionType::uniform };
+		//}
 
-		for (int i = 0; i < fireWorks.size();i++) {
-			fireWorks[i]->setAction(Action::SpawnLater, 10);
-			fireWorks[i]->addComponent<PointParticles>(fireWorksParticles[i]);
-		}
+		//for (int i = 0; i < fireWorks.size();i++) {
+		//	fireWorks[i]->setAction(Action::SpawnLater, 10);
+		//	fireWorks[i]->addComponent<PointParticles>(fireWorksParticles[i]);
+		//}
 
-		ParticleSystem::hasUniversalGravity = true;
-		ParticleSystem::gravityVector = { 0, 0 };
-		ParticleSystem::gravityMagnitude = 100;
-		ParticleSystem::gravityPoint = ArkEngine::center();
+		PointParticleSystem::hasUniversalGravity = true;
+		PointParticleSystem::gravityVector = { 0, 0 };
+		PointParticleSystem::gravityMagnitude = 100;
+		PointParticleSystem::gravityPoint = ArkEngine::center();
+
+		PixelParticleSystem::hasUniversalGravity = true;
+		PixelParticleSystem::gravityVector = { 0, 0 };
+		PixelParticleSystem::gravityMagnitude = 100;
+		PixelParticleSystem::gravityPoint = ArkEngine::center();
 		
 		//registerEntity(fireWorks);
 		//registerEntity(particleFountains);
 	}
 
-	Entity* player;
-	Entity* button;
-	Entity* rainbowPointParticles;
-	Entity* firePointParticles;
-	Entity* greenPointParticles;
-	Entity* mouseTrail;
-	Entity* rotatingParticles;
-	std::vector<Entity*> fireWorks;
-	std::vector<Entity*> particleFountains;
+	Entity player;
+	Entity button;
+	Entity rainbowPointParticles;
+	Entity firePointParticles;
+	Entity greenPointParticles;
+	Entity mouseTrail;
+	Entity rotatingParticles;
+	std::vector<Entity> fireWorks;
+	std::vector<Entity> particleFountains;
 };
 
+#if 0
 class ChildTestScene : public TemplateScene {
 
 	void init()
 	{
 		this->setup();
-		createEntities(parent, child1, child2, grandson);
+		createEntities({parent, child1, child2, grandson});
 
-		parent->addChild(child1);
-		parent->addChild(child2);
-		child1->addChild(grandson);
+		parent.addChild(child1);
+		parent.addChild(child2);
+		child1.addChild(grandson);
 
-		child1->addComponent<PointParticles>(getFireParticles());
-		child2->addComponent<PointParticles>(getGreenParticles());
-		grandson->addComponent<PointParticles>(getRainbowParticles());
-		grandson->addComponent<Transform>();
+		child1.addComponent<PointParticles>(getFireParticles());
+		child2.addComponent<PointParticles>(getGreenParticles());
+		grandson.addComponent<PointParticles>(getRainbowParticles());
+		grandson.addComponent<Transform>();
 
 		std::vector<PointParticles*> pps = parent->getChildrenComponents<PointParticles>();
 		std::cout << pps.size() << std::endl; // 3
@@ -305,6 +296,7 @@ class ChildTestScene : public TemplateScene {
 	Entity* child2;
 	Entity* grandson;
 };
+#endif
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -312,8 +304,8 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	settings.antialiasingLevel = 16;
 
 	ArkEngine::create(ArkEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
-	ArkEngine::setVSync(false);
 	ArkEngine::backGroundColor = sf::Color(50, 50, 50);
+	ArkEngine::getWindow().setVerticalSyncEnabled(false);
 	ArkEngine::setScene<TestingEngineScene>();
 	//ArkEngine::setScene<ChildTestScene>();
 

@@ -3,6 +3,9 @@
 #include "Entity.hpp"
 #include "Component.hpp"
 
+#include <SFML/Window/Event.hpp>
+#include <SFML/Graphics/RenderTarget.hpp>
+
 #include <vector>
 
 class Scene;
@@ -10,10 +13,9 @@ class Scene;
 class ARK_ENGINE_API System : public NonCopyable {
 
 public:
-	System() = default;
-	virtual ~System() = 0;
+	System(std::type_index type) : type(type) {}
+	virtual ~System();
 
-	virtual void init() { }
 	virtual void update() { }
 	virtual void fixedUpdate() { }
 	virtual void handleEvent(sf::Event) { }
@@ -34,6 +36,8 @@ protected:
 			f(entity);
 	}
 
+	std::vector<Entity>& getEntities() { return entities; }
+
 	Scene* scene() { return m_scene; }
 
 	virtual void onEntityAdded(Entity) { }
@@ -42,6 +46,7 @@ protected:
 private:
 	void addEntity(Entity e)
 	{
+		std::cout << "On system " << type.name() << ": entity(" << e.name() << ") added\n";
 		entities.push_back(e);
 		onEntityAdded(e);
 	}
@@ -69,6 +74,7 @@ private:
 	ComponentManager::ComponentMask componentMask;
 	std::vector<std::type_index> componentTypes;
 	Scene* m_scene = nullptr;
+	const std::type_index type;
 	friend class SystemManager;
 };
 
@@ -79,18 +85,20 @@ public:
 	SystemManager(ComponentManager& compMgr, Scene& scene): scene(scene), componentManager(compMgr) {}
 	~SystemManager() = default;
 
-	template <typename T>
-	T* addSystem()
+	template <typename T, typename...Args>
+	T* addSystem(Args&&... args)
 	{
 		if (hasSystem<T>())
 			return getSystem<T>();
 
-		auto sys = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+		auto& sys = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 		activeSystems.push_back(sys.get());
-		sys->m_scene = scene;
+		sys->m_scene = &scene;
 		sys->constructMask(componentManager);
+		if (sys->componentMask.none())
+			std::cout << " System " << sys->type.name() << " dosen't have any component requirements\n\n";
 
-		return sys.get();
+		return dynamic_cast<T*>(sys.get());
 	}
 
 	template <typename T>
@@ -111,11 +119,11 @@ public:
 	template <typename T>
 	void removeSystem()
 	{
-		auto system = getSystem<T>();
-		if (system)
+		if (auto system = getSystem<T>(); system) {
 			Util::remove_if(systems, [system](auto& sys) {
 				return sys.get() == system;
 			});
+		}
 	}
 
 	// used by Scene to call handleEvent, handleMessage, update and fixedUpdate
@@ -132,20 +140,22 @@ public:
 		auto system = getSystem<T>();
 		if (!system)
 			return;
+
 		auto activeSystem = Util::find(activeSystems, system);
 
 		if(activeSystem && !active)
 			Util::erase(activeSystems, system);
-		else if (!activeScript && active)
+		else if (!activeSystem && active)
 			activeSystems.push_back(system);
 	}
 
 	void addToSystems(Entity entity) 
 	{
-		auto entityMask = entity.getComponentMask();
+		const auto& entityMask = entity.getComponentMask();
 		for (auto& system : systems)
-			if(system->componentMask == entityMask)
-				system->addEntity(entity);
+			if(system->componentMask.any())
+				if((entityMask & system->componentMask) == system->componentMask)
+					system->addEntity(entity);
 	}
 
 	void removeFromSystems(Entity entity) 

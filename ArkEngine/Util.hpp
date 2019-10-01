@@ -1,15 +1,18 @@
 #pragma once
 
-#include <SFML/System/Vector2.hpp>
+#include "SFML/System/Vector2.hpp"
+#include "SFML/Graphics/Rect.hpp"
+
 #include <type_traits>
 #include <mutex>
 #include <vector>
 #include <sstream>
-#include "gsl.hpp"
-//#include <experimental/generator>
+#include <optional>
+#include <string>
+
 
 #define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
-#define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
+//#define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
 
 #define log_err_impl(fmt, ...) do { log(fmt, __VA_ARGS__); std::exit(EXIT_FAILURE); } while(false)
 #define log_err(fmt, ...) log_err_impl(fmt, __VA_ARGS__)
@@ -148,6 +151,7 @@ namespace Util {
 		return {x, y};
 	}
 
+#if 0
 	template <typename T>
 	class Sync {
 
@@ -232,6 +236,8 @@ namespace Util {
 				pos += p.count;
 		}
 	}
+#endif
+
 } //namespace Util
 
 #if false

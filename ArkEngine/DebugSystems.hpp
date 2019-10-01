@@ -1,26 +1,27 @@
 #pragma once
+
 #include <thread>
-#include "ArkEngine.hpp"
+
+#include "Engine.hpp"
 #include "Util.hpp"
 #include "ResourceManager.hpp"
 
 class FpsCounterSystem : public System {
 	sf::Time updateElapsed;
 	sf::Text text;
-	int updateFPS;
+	int updateFPS = 0;
 
 public:
-	FpsCounterSystem(sf::Color color = sf::Color::White) {
-		text.setFillColor(color);
-	}
 
-private:
-	void init() {
+	FpsCounterSystem() :System(typeid(FpsCounterSystem)) {
 		text.setFont(*load<sf::Font>("KeepCalm-Medium.ttf"));
 		text.setCharacterSize(15);
+		text.setFillColor(sf::Color::White);
 	}
 
-	void update() {
+
+private:
+	void update() override {
 		updateElapsed += ArkEngine::deltaTime();
 		updateFPS += 1;
 		if (updateElapsed.asMilliseconds() >= 1000) {
@@ -31,12 +32,16 @@ private:
 		}
 	}
 
-	void render(sf::RenderTarget& target) {
+	void render(sf::RenderTarget& target) override {
 		target.draw(text);
 	}
 };
 
 class DebugSystem : public System {
+
+public:
+	DebugSystem() : System(typeid(DebugSystem)) { }
+
 protected:
 	sf::Time timeBetweenDisplays;
 	bool pressEnterToDisplay = true;
@@ -47,7 +52,7 @@ private:
 
 	virtual void displayInfo() = 0;
 
-	void update()
+	void update() override
 	{
 		if (pressEnterToDisplay) {
 			auto spawnThread = [this]() { 
@@ -69,7 +74,7 @@ private:
 
 class DebugParticleSystem : public DebugSystem {
 
-	void init() { this->pressEnterToDisplay = true; }
+	DebugParticleSystem() { this->pressEnterToDisplay = true; }
 
 	void displayInfo() {
 		//std::cout << "number of particle components " << getComponents<PointParticles>().size() << std::endl;
@@ -94,7 +99,7 @@ class DebugParticleSystem : public DebugSystem {
 };
 
 class DebugEntitySystem : public DebugSystem {
-	void init() { this->pressEnterToDisplay = true; }
+	DebugEntitySystem() { this->pressEnterToDisplay = true; }
 	void displayInfo() {
 		//std::cout << "number of entities " << getComponents<Entity>().size() << std::endl;
 		//for (auto& e : getEntities()) {

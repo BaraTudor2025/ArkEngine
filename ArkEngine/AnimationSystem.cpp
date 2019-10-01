@@ -1,5 +1,6 @@
 #include "AnimationSystem.hpp"
 #include "ResourceManager.hpp"
+#include "Engine.hpp"
 #include "Util.hpp"
 
 namespace std{
@@ -23,54 +24,30 @@ inline decltype(auto) Animation::get()
 	else if constexpr (N == 5) return (this->uvRect);
 }
 
-void AnimationSystem::init()
+void AnimationSystem::onEntityAdded(Entity entity)
 {
-	forEach<Animation>([](auto& a) {
+	auto& a = entity.getComponent<Animation>();
 
-		auto visitor = [](const std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) {
-			return sf::Vector2u{ frameCounts.first, (uint32_t)frameCounts.second.size() }; // size means the number of columns
-		}; 
-		auto[fcX, fcY] = std::visit(overloaded{
-			visitor,
-			[](sf::Vector2u frameCount) { return frameCount; }
-		}, a.frameCount);
+	auto visitor = [](const std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) {
+		return sf::Vector2u{ frameCounts.first, (uint32_t)frameCounts.second.size() }; // size means the number of columns
+	}; 
+	auto[fcX, fcY] = std::visit(overloaded{
+		visitor,
+		[](sf::Vector2u frameCount) { return frameCount; }
+	}, a.frameCount);
 
-		a.texture = load<sf::Texture>(a.fileName);
-		a.uvRect.width = a.texture->getSize().x / (float)fcX;
-		a.uvRect.height = a.texture->getSize().y / (float)fcY;
-		a.elapsedTime = sf::seconds(0);
-		a.currentFrame.x = 0;
-	});
-	forEach<Mesh>([](auto& mesh) {
-		mesh.texture = load<sf::Texture>(mesh.fileName);
-		mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
-		auto[a, b, c, d] = mesh.uvRect;
-		if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
-			mesh.uvRect.width = mesh.texture->getSize().x;
-			mesh.uvRect.height = mesh.texture->getSize().y;
-			mesh.uvRect.left = 0;
-			mesh.uvRect.top = 0;
-		}
-		mesh.vertices.updatePosTex(mesh.uvRect);
-		//sf::IntRect uvRect;
-		//if (mesh->flipX) {
-		//	uvRect.left = uvRect.width;
-		//	uvRect.width = -uvRect.width;
-		//} else {
-		//	uvRect.left = 0;
-		//} 
-		//if (mesh->flipY) {
-		//	uvRect.top = uvRect.height;
-		//	uvRect.height = -uvRect.height;
-		//} else {
-		//	uvRect.top = 0;
-		//}
-	});
+	a.texture = load<sf::Texture>(a.fileName);
+	a.uvRect.width = a.texture->getSize().x / (float)fcX;
+	a.uvRect.height = a.texture->getSize().y / (float)fcY;
+	a.elapsedTime = sf::seconds(0);
+	a.currentFrame.x = 0;
 }
 
 void AnimationSystem::update()
 {
-	forEach<Animation>([](auto& animation) {
+	for (auto entity : getEntities()) {
+		auto& animation = entity.getComponent<Animation>();
+
 		auto&[row, frameCount, frameTime, currentFrame, elapsedTime, uvRect] = animation;
 
 		auto visitor = [row = row](std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) { return frameCounts.second[row]; };
@@ -104,23 +81,67 @@ void AnimationSystem::update()
 		}
 
 		animation.vertices.updatePosTex(uvRect);
-	});
+	}
 }
 
-void AnimationSystem::render(sf::RenderTarget & target)
+void AnimationSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
-	forEach<Mesh>([&](auto& mesh){
+	for (auto entity : getEntities()) {
+		auto& animation = entity.getComponent<Animation>();
+		auto& transform = entity.getComponent<Transform>();
+
+		animation.texture->setSmooth(animation.smoothTexture);
+		rs.texture = animation.texture;
+		rs.transform = transform.getTransform();
+		target.draw(animation.vertices.data(), 4, sf::TriangleStrip, rs);
+	}
+}
+
+
+void MeshSystem::onEntityAdded(Entity entity)
+{
+	auto& mesh = entity.getComponent<Mesh>();
+	auto& tx = entity.getComponent<Transform>();
+
+	mesh.texture = load<sf::Texture>(mesh.fileName);
+	tx.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
+	//mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
+	auto[a, b, c, d] = mesh.uvRect;
+	if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
+		mesh.uvRect.width = mesh.texture->getSize().x;
+		mesh.uvRect.height = mesh.texture->getSize().y;
+		mesh.uvRect.left = 0;
+		mesh.uvRect.top = 0;
+	}
+	mesh.vertices.updatePosTex(mesh.uvRect);
+	//sf::IntRect uvRect;
+	//if (mesh->flipX) {
+	//	uvRect.left = uvRect.width;
+	//	uvRect.width = -uvRect.width;
+	//} else {
+	//	uvRect.left = 0;
+	//} 
+	//if (mesh->flipY) {
+	//	uvRect.top = uvRect.height;
+	//	uvRect.height = -uvRect.height;
+	//} else {
+	//	uvRect.top = 0;
+	//}
+}
+
+void MeshSystem::render(sf::RenderTarget& target)
+{
+	sf::RenderStates rs;
+	for (auto entity : getEntities()) {
+		auto& mesh = entity.getComponent<Mesh>();
+		auto& transform = entity.getComponent<Transform>();
+
 		mesh.texture->setRepeated(mesh.repeatTexture);
 		mesh.texture->setSmooth(mesh.smoothTexture);
 		rs.texture = mesh.texture;
-		rs.transform = *mesh.entity()->getComponent<Transform>();
+		//rs.transform = *mesh.entity()->getComponent<Transform>();
+		rs.transform = transform.getTransform();
 		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);
-	});
-	forEach<Animation>([&](auto& animation){
-		animation.texture->setSmooth(animation.smoothTexture);
-		rs.texture = animation.texture;
-		rs.transform = *animation.entity()->getComponent<Transform>();
-		target.draw(animation.vertices.data(), 4, sf::TriangleStrip, rs);
-	});
+	}
 }

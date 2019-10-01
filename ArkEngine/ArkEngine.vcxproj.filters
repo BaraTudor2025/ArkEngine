@@ -29,7 +29,7 @@
     <ClCompile Include="AnimationSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ArkEngine.cpp">
+    <ClCompile Include="Engine.cpp">
       <Filter>ArkEngine</Filter>
     </ClCompile>
   </ItemGroup>
@@ -76,9 +76,6 @@
     <ClInclude Include="GuiSystem.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ArkEngine.hpp">
-      <Filter>ArkEngine</Filter>
-    </ClInclude>
     <ClInclude Include="static_any.hpp">
       <Filter>libs</Filter>
     </ClInclude>
@@ -112,10 +109,13 @@
     <ClInclude Include="Transform.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
-    <ClInclude Include="State.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Engine.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="State.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="EntityManager.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
   </ItemGroup>

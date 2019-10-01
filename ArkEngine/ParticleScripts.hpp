@@ -1,9 +1,14 @@
 #pragma once
+
+#include "ParticleSystem.hpp"
+#include "Engine.hpp"
+#include "Transform.hpp"
+#include "Script.hpp"
+
 #include <fstream>
 #include <thread>
 #include <chrono>
-#include "ParticleSystem.hpp"
-#include "ArkEngine.hpp"
+
 
 #if 0
 #define log_init() log("")
@@ -23,6 +28,11 @@ namespace ParticleScripts {
 		}
 		void update() override
 		{
+			//std::cout << "entity " << this->entity().name();
+			//if (p->spawn)
+			//	std::cout << " spawn\n";
+			//else
+			//	std::cout << " no\n";
 			p->emitter = ArkEngine::mousePositon();
 		}
 	};
@@ -33,10 +43,11 @@ namespace ParticleScripts {
 	public:
 		bool spawn = true;
 
-		void init()
+		void init() override
 		{
 			log_init();
 			p = getComponent<PointParticles>();
+			std::cout << "entity: " << entity().name() << "\n";
 		}
 
 		void fixedUpdate() override
@@ -66,7 +77,7 @@ namespace ParticleScripts {
 
 		PlayModel(std::string file, sf::Vector2f offset = { 0.f, 0.f }) : file(file), offset(offset) { }
 
-		void init()
+		void init() override
 		{
 			log_init();
 			p = getComponent<PointParticles>();
@@ -88,7 +99,7 @@ namespace ParticleScripts {
 			p->spawn = false;
 		}
 
-		void update()
+		void update() override
 		{
 			if (curr == model.begin())
 				p->spawn = true;
@@ -139,7 +150,7 @@ namespace ParticleScripts {
 		RoatateEmitter(float angle, sf::Vector2f around, float distance)
 			:angleSpeed(angle), around(around), distance(distance, 0) { }
 
-		void init()
+		void init() override
 		{
 			p = getComponent<PointParticles>();
 			//p->emitter = distance;
@@ -150,7 +161,7 @@ namespace ParticleScripts {
 			//offset =  p->emitter - around;
 		}
 
-		void update()
+		void update() override
 		{
 			t.rotate(angleSpeed * ArkEngine::deltaTime().asSeconds(), around);
 			p->emitter = t.transformPoint(around + distance);
@@ -165,7 +176,7 @@ namespace ParticleScripts {
 	public:
 		Rotate(float angle, sf::Vector2f around) : angle(angle), around(around) { }
 
-		void init() {
+		void init() override {
 			t = getComponent<Transform>();
 			t->setPosition(around);
 			t->setOrigin(around);
@@ -175,7 +186,7 @@ namespace ParticleScripts {
 			p->applyTransform = true;
 		}
 
-		void update() {
+		void update() override {
 			t->rotate(angle * ArkEngine::deltaTime().asSeconds());
 		}
 	};
@@ -189,17 +200,19 @@ namespace ParticleScripts {
 			log_init();
 			p = getComponent<PointParticles>();
 		}
-		void handleEvent(sf::Event ev)
+		void handleEvent(const sf::Event& ev) override
 		{
 			switch (ev.type)
 			{
 			case sf::Event::MouseButtonPressed:
-				if (ev.mouseButton.button == sf::Mouse::Right)
+				if (ev.mouseButton.button == sf::Mouse::Right) {
 					p->spawn = true;
+				}
 				break;
 			case sf::Event::MouseButtonReleased:
-				if (ev.mouseButton.button == sf::Mouse::Right)
+				if (ev.mouseButton.button == sf::Mouse::Right) {
 					p->spawn = false;
+				}
 				break;
 			default:
 				break;
@@ -210,12 +223,12 @@ namespace ParticleScripts {
 	class SpawnOnLeftClick : public Script {
 		PointParticles* p;
 	public:
-		void init()
+		void init() override
 		{
 			log_init();
 			p = getComponent<PointParticles>();
 		}
-		void handleEvent(sf::Event ev)
+		void handleEvent(const sf::Event& ev) override
 		{
 			switch (ev.type)
 			{
@@ -240,12 +253,12 @@ namespace ParticleScripts {
 		void init() override
 		{
 			log_init();
-			if constexpr (is_script_v<T>)
+			if constexpr (std::is_base_of_v<Script, T>)
 				p = getScript<T>();
 			if constexpr (std::is_same_v<PointParticles, T>)
 				p = getComponent<T>();
 		}
-		void handleEvent(sf::Event event)
+		void handleEvent(const sf::Event& event) override
 		{
 			switch (event.type) {
 			case sf::Event::MouseButtonPressed: p->spawn = false; break;
@@ -257,6 +270,8 @@ namespace ParticleScripts {
 	};
 
 }
+
+#if 0
 
 namespace ParticleScripts::Action {
 
@@ -324,3 +339,4 @@ namespace ParticleScripts::Action {
 		t.detach();
 	}
 }
+#endif

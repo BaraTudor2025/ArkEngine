@@ -2,8 +2,11 @@
 
 #include "Core.hpp"
 #include "Util.hpp"
+#include "Entity.hpp"
 
 #include <SFML/Window/Event.hpp>
+
+class Entity;
 
 class ARK_ENGINE_API Script : public NonCopyable {
 
@@ -27,7 +30,7 @@ private:
 };
 
 
-class ScriptManager {
+class ScriptManager final : public NonCopyable {
 
 public:
 	ScriptManager() = default;
@@ -36,32 +39,34 @@ public:
 	// creates new pool
 	// returns [script*, scriptIndex or pool index]
 	template <typename T, typename... Args>
-	std::pair<Script*, int> addScript(Args&& ... args)
+	std::pair<T*, int> addScript(Args&& ... args)
 	{
-		auto script = std::make_unique<T>(std::forward<Args>(args)...);
+		auto& scripts = scriptPools.emplace_back();
+
+		auto& script = scripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 		pendingScripts.push_back(script.get());
 
-		auto scripts = scriptPools.emplace_back();
-		scripts.push_back(std::move(script));
-
-		return std::make_pair(scripts.back().get(), scriptPools.size() - 1);
+		return std::make_pair<T*, int>(dynamic_cast<T*>(script.get()), scriptPools.size() - 1);
 	}
 
 	// index of pool, the use 
 	// return existing script if one already exsists
 	template <typename T, typename... Args>
-	Script* addScriptAt(int indexOfPool, Args&& ... args)
+	T* addScriptAt(int indexOfPool, Args&& ... args)
 	{
 		if (hasScript<T>(indexOfPool))
 			return getScript<T>(indexOfPool);
 
-		auto script = std::make_unique<Script>(std::forward<Args>(args)...);
+		auto& scripts = scriptPools.at(indexOfPool);
+		auto& script = scripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 		pendingScripts.push_back(script.get());
 
-		auto& scripts = scriptPools.at(indexOfPool);
-		scripts.push_back(std::move(script);
+		return dynamic_cast<T*>(script.get());
 
-		return scripts.back().get();
+		//auto& scripts = scriptPools.at(indexOfPool);
+		//scripts.push_back(std::move(script));
+
+		//return scripts.back().get();
 	}
 	
 	template <typename T>
@@ -70,11 +75,11 @@ public:
 	}
 
 	template <typename T>
-	Script* getScript(int indexOfPool)
+	T* getScript(int indexOfPool)
 	{
 		auto& scripts = scriptPools.at(indexOfPool);
 		for (auto& script : scripts)
-			if (auto s = dynamic_cast<T*>(script); s)
+			if (auto s = dynamic_cast<T*>(script.get()); s)
 				return s;
 
 		return nullptr;

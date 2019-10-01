@@ -1,13 +1,17 @@
 #pragma once
 
-#include <SFML/System/Time.hpp>
-#include <SFML/Graphics.hpp>
+#include "Component.hpp"
+#include "System.hpp"
+#include "RandomNumbers.hpp"
+#include "Quad.hpp"
+#include "Util.hpp"
+
 #include <functional>
 #include <optional>
 #include <vector>
-#include "RandomNumbers.hpp"
-#include "ArkEngine.hpp"
-#include "Quad.hpp"
+
+#include <SFML/System/Time.hpp>
+#include <SFML/Graphics.hpp>
 
 static inline constexpr auto PI = 3.14159f;
 
@@ -74,6 +78,7 @@ private:
 	Distribution<float> lifeTimeDistribution;
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
+	friend class PointParticleSystem;
 };
 
 struct PixelParticles : public Component {
@@ -109,6 +114,7 @@ private:
 	sf::Time deathTimer = sf::Time::Zero;
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class ParticleSystem;
+	friend class PixelParticleSystem;
 };
 
 // templates
@@ -165,6 +171,54 @@ inline PointParticles getGreenParticles()
 	return greenParticles;
 }
 
+class PointParticleSystem : public System {
+
+public:
+	PointParticleSystem() : System(typeid(PointParticleSystem))
+	{
+		requireComponent<PointParticles>();
+	}
+
+	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
+	static inline sf::Vector2f gravityPoint{ 0.f, 0.f };
+	static inline float gravityMagnitude = 20;
+	static inline bool hasUniversalGravity = true;
+
+	void onEntityAdded(Entity) override;
+	void update() override;
+	void fixedUpdate() override;
+	void render(sf::RenderTarget&) override;
+
+private:
+	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
+};
+
+
+
+class PixelParticleSystem : public System {
+
+public:
+	PixelParticleSystem() : System(typeid(PixelParticleSystem))
+	{
+		requireComponent<PixelParticles>();
+	}
+
+	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
+	static inline sf::Vector2f gravityPoint{ 0.f, 0.f };
+	static inline float gravityMagnitude = 20;
+	static inline bool hasUniversalGravity = true;
+
+	void onEntityAdded(Entity) override;
+	void update() override;
+	void fixedUpdate() override;
+	void render(sf::RenderTarget&) override;
+
+private:
+	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
+};
+
+
+#if 0
 class ParticleSystem final : public System {
 
 public:
@@ -185,5 +239,5 @@ private:
 	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
 	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
 
-private:
 };
+#endif

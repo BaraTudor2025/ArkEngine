@@ -1,7 +1,11 @@
 #pragma once
-#include "ArkEngine.hpp"
-#include "Quad.hpp"
+
 #include <variant>
+
+#include "Component.hpp"
+#include "System.hpp"
+#include "Transform.hpp"
+#include "Quad.hpp"
 
 struct Mesh : public Component {
 
@@ -25,7 +29,7 @@ private:
 	sf::IntRect uvRect;
 	sf::Texture* texture;
 	Quad vertices;
-	friend class AnimationSystem;
+	friend class MeshSystem;
 };
 
 struct Animation : public Component {
@@ -41,6 +45,8 @@ struct Animation : public Component {
 		frameTime(frameTime), row(row), smoothTexture(smoothTexture)
 	{
 	}
+
+	Animation& operator=(const Animation& a) = default;
 
 	sf::Time frameTime;
 	int row;
@@ -80,11 +86,28 @@ private:
 class AnimationSystem : public System {
 
 public:
-	void init() override;
+	AnimationSystem() : System(typeid(AnimationSystem))
+	{
+		requireComponent<Transform>();
+		requireComponent<Animation>();
+	}
+
+	void onEntityAdded(Entity) override;
 
 	void update() override;
 
 	void render(sf::RenderTarget& target) override;
-
 };
 
+class MeshSystem : public System {
+public:
+	MeshSystem() : System(typeid(MeshSystem))
+	{
+		requireComponent<Transform>();
+		requireComponent<Mesh>();
+	}
+
+	void onEntityAdded(Entity) override;
+
+	void render(sf::RenderTarget& target) override;
+};

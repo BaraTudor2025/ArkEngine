@@ -166,9 +166,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AnimationSystem.cpp" />
+    <ClCompile Include="Engine.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
-    <ClCompile Include="ArkEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationSystem.hpp" />
@@ -180,6 +180,7 @@
     <ClInclude Include="Engine.hpp" />
     <ClInclude Include="Entities.hpp" />
     <ClInclude Include="Entity.hpp" />
+    <ClInclude Include="EntityManager.hpp" />
     <ClInclude Include="gsl-lite.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
     <ClInclude Include="State.hpp" />
@@ -198,7 +199,6 @@
     <ClInclude Include="System.hpp" />
     <ClInclude Include="Transform.hpp" />
     <ClInclude Include="Util.hpp" />
-    <ClInclude Include="ArkEngine.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -2,8 +2,9 @@
 
 #include "Component.hpp"
 #include "Script.hpp"
-#include "Entity.hpp"
 #include "System.hpp"
+#include "Entity.hpp"
+#include "EntityManager.hpp"
 
 #include <SFML/Graphics/Drawable.hpp>
 
@@ -12,7 +13,7 @@
 // TODO Scene: add MessageBus
 // TODO Scene: add class RenderSystem{ virtual void render(sf::RenderTarget&) = 0; }
 
-class Scene final {
+class Scene {
 
 public:
 	Scene()
@@ -43,28 +44,26 @@ public:
 	}
 
 	template <typename T, typename...Args>
-	T* addSystem(Args&& ... args) {
-		static_assert(std::is_base_of_v<System, T>, std::string(typeid(T).name()) + " is not a system type");
-		auto system = systemManager.addSystem<T>(std::forward<T>(args)...);
-		system->m_scene = this;
-		return system;
+	T* addSystem(Args&&... args) {
+		static_assert(std::is_base_of_v<System, T>, " T not a system type");
+		return systemManager.addSystem<T>(std::forward<T>(args)...);
 	}
 
 	template <typename T>
 	T* getSystem() {
-		static_assert(std::is_base_of_v<System, T>, std::string(typeid(T).name()) + " is not a system type");
+		static_assert(std::is_base_of_v<System, T>, " T not a system type");
 		return systemManager.getSystem<T>();
 	}
 
 	template <typename T>
 	void setSystemActive(bool active) {
-		static_assert(std::is_base_of_v<System, T>, std::string(typeid(T).name()) + " is not a system type");
+		static_assert(std::is_base_of_v<System, T>, " T not a system type");
 		systemManager.setSystemActive<T>(active);
 	}
 
 	template <typename T>
 	void removeSystem() {
-		static_assert(std::is_base_of_v<System, T>, std::string(typeid(T).name()) + " is not a system type");
+		static_assert(std::is_base_of_v<System, T>, " T not a system type");
 		systemManager.removeSystem<T>();
 	}
 
@@ -79,33 +78,41 @@ public:
 		});
 	}
 
-	void update()
+	void updateSystems()
 	{
 		systemManager.forEachSystem([](System* system) {
 			system->update();
 		});
+	}
+
+	void updateScripts()
+	{
 		scriptManager.forEachScript([](Script* script) {
 			script->update();
 		});
 	}
 
-	void fixedUpdate()
+	void fixedUpdateSystems()
 	{
 		systemManager.forEachSystem([](System* system) {
 			system->fixedUpdate();
 		});
+	}	
+
+	void fixedUpdateScripts()
+	{
 		scriptManager.forEachScript([](Script* script) {
 			script->fixedUpdate();
 		});
-	}	
+	}
 	
 	void processPendingData()
 	{
-		scriptManager.processPendingScripts();
-
 		for (auto entity : pendingEntities)
 			systemManager.addToSystems(entity);
 		pendingEntities.clear();
+
+		scriptManager.processPendingScripts();
 
 		for (auto entity : destroyedEntities) {
 			systemManager.removeFromSystems(entity);

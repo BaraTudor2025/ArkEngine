@@ -105,6 +105,8 @@ void MeshSystem::onEntityAdded(Entity entity)
 	auto& tx = entity.getComponent<Transform>();
 
 	mesh.texture = load<sf::Texture>(mesh.fileName);
+	mesh.texture->setRepeated(mesh.repeatTexture);
+	mesh.texture->setSmooth(mesh.smoothTexture);
 	tx.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
 	//mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
 	auto[a, b, c, d] = mesh.uvRect;
@@ -135,12 +137,8 @@ void MeshSystem::render(sf::RenderTarget& target)
 	sf::RenderStates rs;
 	for (auto entity : getEntities()) {
 		auto& mesh = entity.getComponent<Mesh>();
-		auto& transform = entity.getComponent<Transform>();
-
-		mesh.texture->setRepeated(mesh.repeatTexture);
-		mesh.texture->setSmooth(mesh.smoothTexture);
+		const auto& transform = entity.getComponent<Transform>();
 		rs.texture = mesh.texture;
-		//rs.transform = *mesh.entity()->getComponent<Transform>();
 		rs.transform = transform.getTransform();
 		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);
 	}

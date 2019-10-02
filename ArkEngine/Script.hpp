@@ -17,7 +17,6 @@ public:
 
 	virtual void init() { }
 	virtual void update() { }
-	virtual void fixedUpdate() { }
 	virtual void handleEvent(const sf::Event&) { }
 	template <typename T> T* getComponent() { return &m_entity.getComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };

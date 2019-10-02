@@ -5,9 +5,6 @@
 #include "static_any.hpp"
 #include "Entity.hpp"
 
-//#include <SFML/Graphics/RenderTarget.hpp>
-//#include <SFML/Window/Event.hpp>
-
 #include <unordered_map>
 #include <typeindex>
 #include <optional>

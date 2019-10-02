@@ -186,7 +186,6 @@ public:
 
 	void onEntityAdded(Entity) override;
 	void update() override;
-	void fixedUpdate() override;
 	void render(sf::RenderTarget&) override;
 
 private:
@@ -210,34 +209,9 @@ public:
 
 	void onEntityAdded(Entity) override;
 	void update() override;
-	void fixedUpdate() override;
 	void render(sf::RenderTarget&) override;
 
 private:
 	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
 };
 
-
-#if 0
-class ParticleSystem final : public System {
-
-public:
-	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
-	static inline sf::Vector2f gravityPoint{ 0.f, 0.f };
-	static inline float gravityMagnitude = 20;
-	static inline bool hasUniversalGravity = true;
-
-private:
-	void init() override;
-
-	void update() override;
-	void fixedUpdate() override;
-	void render(sf::RenderTarget& target) override;
-
-	void updatePointBatch(PointParticles&);
-	void updatePixelBatch(PixelParticles&);
-	void respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime);
-	void respawnPixelParticle(const PixelParticles& ps, Quad& quad, sf::Vector2f& speed, sf::Time& lifeTime);
-
-};
-#endif

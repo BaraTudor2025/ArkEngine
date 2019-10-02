@@ -91,20 +91,6 @@ public:
 			script->update();
 		});
 	}
-
-	void fixedUpdateSystems()
-	{
-		systemManager.forEachSystem([](System* system) {
-			system->fixedUpdate();
-		});
-	}	
-
-	void fixedUpdateScripts()
-	{
-		scriptManager.forEachScript([](Script* script) {
-			script->fixedUpdate();
-		});
-	}
 	
 	void processPendingData()
 	{

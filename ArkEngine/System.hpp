@@ -17,7 +17,6 @@ public:
 	virtual ~System();
 
 	virtual void update() { }
-	virtual void fixedUpdate() { }
 	virtual void handleEvent(sf::Event) { }
 	//virtual void handleMessage(Message&) { }
 	virtual void render(sf::RenderTarget& target) { } // TODO (system): remove render function

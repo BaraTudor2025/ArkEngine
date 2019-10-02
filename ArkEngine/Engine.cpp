@@ -19,67 +19,63 @@ void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateT
 	view.setSize(vm.width, vm.height);
 	view.setCenter(0, 0);
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
+	//USE_FIXED_TIME = false;
+}
+
+void ArkEngine::handleEvents()
+{
+	sf::Event event;
+	while (window.pollEvent(event)) {
+		switch (event.type) {
+		case sf::Event::Closed:
+			window.close();
+			break;
+		case sf::Event::Resized: {
+			auto[x, y] = window.getSize();
+			auto aspectRatio = float(x) / float(y);
+			view.setSize({ width * aspectRatio, (float)height });
+			//window.setView(view);
+			break;
+		}
+		default:
+			currentScene->forwardEvent(event);
+			break;
+		}
+	}
+}
+
+void ArkEngine::updateEngine()
+{
+	handleEvents();
+	currentScene->processPendingData();
+	currentScene->updateSystems();
+	currentScene->updateScripts();
 }
 
 void ArkEngine::run()
 {
-	//auto scriptsLag = sf::Time::Zero;
-	//auto systemsLag = sf::Time::Zero;
 	auto lag = sf::Time::Zero;
-	auto scriptsLag = sf::Time::Zero;
 
 	clock.restart();
 
 	while (window.isOpen()) {
 
-		sf::Event event;
-		while (window.pollEvent(event)) {
-			switch (event.type) {
-			case sf::Event::Closed:
-				window.close();
-				break;
-			case sf::Event::Resized: {
-				auto[x, y] = window.getSize();
-				auto aspectRatio = float(x) / float(y);
-				view.setSize({ width * aspectRatio, (float)height });
-				//window.setView(view);
-				break;
-			}
-			default:
-				currentScene->forwardEvent(event);
-				break;
-			}
-		}
 		window.clear(backGroundColor);
 
 		delta_time = clock.restart();
 
-		currentScene->processPendingData();
-		
-		// update scripts with the data of last frame 
-		currentScene->updateScripts();
-		currentScene->updateSystems();
-
-		scriptsLag += deltaTime();
-		while (scriptsLag >= fixed_time) {
-			scriptsLag -= fixed_time;
-			currentScene->fixedUpdateScripts();
-			//scriptsLag += delta_time;
-			currentScene->fixedUpdateSystems();
+#if defined _DEBUG || defined USE_DELTA_TIME
+		updateEngine();
+#else
+		lag += delta_time;
+		while (lag >= fixed_time) {
+			lag -= fixed_time;
+			updateEngine();
 		}
-
-		//currentScene->updateSystems();
-		//currentScene->updateScripts();
-
-		//lag += deltaTime();
-		//while (lag >= fixed_time) {
-		//	lag -= fixed_time;
-		//	//currentScene->fixedUpdateSystems();
-		//	currentScene->fixedUpdateScripts();
-		//}
-
+#endif
 		currentScene->render(window);
 
 		window.display();
 	}
 }
+

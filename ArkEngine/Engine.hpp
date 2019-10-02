@@ -5,6 +5,8 @@
 
 #include <SFML/Graphics.hpp>
 
+//#define USE_DELTA_TIME
+
 class Scene;
 
 class ARK_ENGINE_API ArkEngine final : public NonCopyable, public NonMovable{
@@ -14,7 +16,7 @@ public:
 	static inline const sf::VideoMode resolutionNormalHD{1280, 720};
 	static inline const sf::VideoMode resolutionFourByThree{1024, 768};
 
-	static void create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime ,sf::ContextSettings = sf::ContextSettings());
+	static void create(sf::VideoMode vm, std::string name, sf::Time frameTime ,sf::ContextSettings = sf::ContextSettings());
 
 	static sf::Vector2u windowSize() { return { width, height }; }
 
@@ -25,8 +27,16 @@ public:
 
 	static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
 
-	static sf::Time deltaTime() { return delta_time + clock.getElapsedTime(); }
-	static sf::Time fixedTime() { return fixed_time; }
+	// use delta time in debugging, and fixed time for release
+	// define USE_DELTA_TIME macro to use delta time for release
+	static sf::Time deltaTime() { 
+	// for visual studio, use another macro for a different compiler
+#if defined _DEBUG || defined USE_DELTA_TIME
+		return delta_time + clock.getElapsedTime(); 
+#else
+		return fixed_time;
+#endif
+	}
 
 	static sf::Vector2f center() { return static_cast<sf::Vector2f>(ArkEngine::windowSize()) / 2.f; }
 
@@ -35,6 +45,9 @@ public:
 	static sf::RenderWindow& getWindow() { return window; }
 
 private:
+
+	static void handleEvents();
+	static void updateEngine();
 
 	static inline sf::RenderWindow window;
 	static inline sf::View view;

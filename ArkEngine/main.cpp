@@ -305,7 +305,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
-	ArkEngine::create(ArkEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/60.f), settings);
+	ArkEngine::create(ArkEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/120.f), settings);
 	ArkEngine::backGroundColor = sf::Color(50, 50, 50);
 	ArkEngine::getWindow().setVerticalSyncEnabled(false);
 	ArkEngine::setScene<TestingEngineScene>();
@@ -317,7 +317,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//std::getline(std::cin, prop);
 	//std::vector<Entity> letters = makeLetterEntities(prop);
 	//registerEntities(letters);
-
 
 	//auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);
 	//registerEntities(randomParticles);

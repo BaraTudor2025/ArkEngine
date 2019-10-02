@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 
+// TODO (resource manager): remove specialized folders(constexpr) and let the user choose what folder he wants to load from; keep ./res
 template <typename T>
 inline T* load(const std::string& fileName)
 {

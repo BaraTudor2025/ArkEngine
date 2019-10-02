@@ -28,11 +28,6 @@ namespace ParticleScripts {
 		}
 		void update() override
 		{
-			//std::cout << "entity " << this->entity().name();
-			//if (p->spawn)
-			//	std::cout << " spawn\n";
-			//else
-			//	std::cout << " no\n";
 			p->emitter = ArkEngine::mousePositon();
 		}
 	};
@@ -50,7 +45,7 @@ namespace ParticleScripts {
 			std::cout << "entity: " << entity().name() << "\n";
 		}
 
-		void fixedUpdate() override
+		void update() override
 		{
 			if (spawn) {
 				auto dv = p->emitter - prevEmitter;

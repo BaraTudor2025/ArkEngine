@@ -10,6 +10,8 @@ struct Message final {
 	const T& data()
 	{
 		// TODO (message): assert(sizeof(T) == m_size)
+		if (sizeof(T) != m_size)
+			std::cerr << " Message: sizeof(T) with T [" << typeid(T).name() << "] is not equal with message size\n\n";
 		return *static_cast<*T>(m_data);
 	}
 
@@ -20,7 +22,7 @@ private:
 	friend class MessageBus;
 };
 
-class MessageBus {
+class MessageBus final {
 
 public:
 
@@ -33,7 +35,7 @@ public:
 		pendingCount(0) 
 	{ }
 	
-	template <typename T, typename...Args>
+	template <typename T>
 	T* post(int id)
 	{
 		// TODO (message bus): assert ca nu am depasit nr max de bytes

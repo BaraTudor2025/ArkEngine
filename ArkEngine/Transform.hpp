@@ -13,7 +13,7 @@ struct ARK_ENGINE_API Transform : public Component, sf::Transformable {
 	operator const sf::Transform&() const { return this->getTransform();  }
 	operator const sf::RenderStates&() const { return this->getTransform(); }
 
-	// TODO Transform: add children hierarchy and move ctor
+	// TODO (Transform): add children hierarchy and move ctor
 
 	//void addChild(Transform& child);
 	//void removeChild(Transform& child);

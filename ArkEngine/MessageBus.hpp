@@ -9,7 +9,7 @@ struct Message final {
 	template <typename T>
 	const T& data()
 	{
-		// TODO: assert(sizeof(T) == m_size)
+		// TODO (message): assert(sizeof(T) == m_size)
 		return *static_cast<*T>(m_data);
 	}
 
@@ -36,7 +36,7 @@ public:
 	template <typename T, typename...Args>
 	T* post(int id)
 	{
-		// TODO: assert ca nu am depasit nr max de bytes
+		// TODO (message bus): assert ca nu am depasit nr max de bytes
 
 		//Message* msg = new(inPointer)Message();
 		Message* m = construct_in_place<Message>(inPointer);
@@ -71,7 +71,7 @@ public:
 private:
 
 	template <typename T, typename P>
-	T* construct_in_place(P p)
+	inline T* construct_in_place(P p)
 	{
 		return new(p)T();
 	}

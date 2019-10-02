@@ -20,7 +20,7 @@ public:
 	virtual void fixedUpdate() { }
 	virtual void handleEvent(sf::Event) { }
 	//virtual void handleMessage(Message&) { }
-	virtual void render(sf::RenderTarget& target) { } // TODO: remove render function
+	virtual void render(sf::RenderTarget& target) { } // TODO (system): remove render function
 
 protected:
 	template <typename T>

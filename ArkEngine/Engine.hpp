@@ -42,7 +42,7 @@ private:
 	static inline sf::Time fixed_time;
 	static inline sf::Clock clock;
 	static inline uint32_t width, height;
-	// TODO Engine: add StateStack
+	// TODO (engine): add StateStack
 	static inline std::unique_ptr<Scene> currentScene;
 
 };

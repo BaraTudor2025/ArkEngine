@@ -132,15 +132,17 @@ public:
 
 //enum class GameTag { Bullet, Player, Wall };
 
-/* TODO: TexturedParticles */
-/* TODO: ColisionSystem */
-/* TODO: TileSystem */
-/* TODO: Text(with fade), TextBoxe */
-/* TODO: MusicSystem/SoundSystem */
-/* TODO: Shaders */
-/* TODO: ParticleEmmiter with settings*/
-/* TODO: State Stack*/
-/* TODO: choose with macro if the engine runs at a fixed frame rate or delta time/fluctuating frame rate; always use deltaTime for debug */
+/* TODO (general): TexturedParticles */
+/* TODO (general): ColisionSystem */
+/* TODO (general): TileSystem */
+/* TODO (general): Text(with fade), TextBoxe */
+/* TODO (general): MusicSystem/SoundSystem */
+/* TODO (general): Shaders */
+/* TODO (general): ParticleEmmiter with settings*/
+/* TODO (general): State Stack*/
+/* TODO (general): choose with a macro if the engine runs at a fixed frame rate or delta time/fluctuating frame rate; always use deltaTime for debug */
+/* TODO (general): add a archetype component manager*/
+/* TODO (entity cloning): add to the ComponentManager std::map<std::type_index, std::funciton<int(void)>> factories; return:int is the index in the pool */
 
 class TestingEngineScene : public Scene {
 

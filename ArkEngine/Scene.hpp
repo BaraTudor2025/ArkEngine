@@ -8,10 +8,10 @@
 
 #include <SFML/Graphics/Drawable.hpp>
 
-// TODO Scene: add Directors?
-// TODO Scene: inherit from sf::Drawable? and add vector<Drawables*> dSystems; asta cand scot 'void render()' din systeme
-// TODO Scene: add MessageBus
-// TODO Scene: add class RenderSystem{ virtual void render(sf::RenderTarget&) = 0; }
+// TODO (Scene): add Directors?
+// TODO (Scene): inherit from sf::Drawable? and add vector<Drawables*> dSystems; asta cand scot 'void render()' din systeme
+// TODO (Scene): add MessageBus
+// TODO (Scene): add class RenderSystem{ virtual void render(sf::RenderTarget&) = 0; }
 
 class Scene {
 

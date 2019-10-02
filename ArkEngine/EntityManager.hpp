@@ -42,7 +42,7 @@ public:
 		return e;
 	}
 
-	// TODO figure out a way to copy components without templates
+	// TODO (entity manager): figure out a way to copy components without templates
 	// only components are copied, scripts are excluded, maybe it's possible in ArchetypeManager?
 	Entity cloneEntity(Entity e)
 	{
@@ -123,7 +123,7 @@ public:
 		auto& entity = getEntity(e);
 		int compId = componentManager.getComponentId<T>();
 		if (!entity.mask.test(compId)) {
-			// make this an assert
+			// TODO (entity manager): make this an assert
 			std::cerr << "entity " << entity.name << " dosent have component " << typeid(T).name() << '\n';
 		}
 		int compIndex = entity.componentIndexes[compId];

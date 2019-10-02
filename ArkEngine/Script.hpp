@@ -8,6 +8,7 @@
 
 class Entity;
 
+// TODO (script): maybe try to return nullptr if component isn't found?
 class ARK_ENGINE_API Script : public NonCopyable {
 
 public:

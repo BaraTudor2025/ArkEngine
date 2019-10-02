@@ -183,6 +183,7 @@
     <ClInclude Include="EntityManager.hpp" />
     <ClInclude Include="gsl-lite.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
+    <ClInclude Include="Message.hpp" />
     <ClInclude Include="State.hpp" />
     <ClInclude Include="MessageBus.hpp" />
     <ClInclude Include="Quad.hpp" />

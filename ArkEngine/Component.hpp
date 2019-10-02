@@ -74,11 +74,9 @@ public:
 
 				T* slot = &pool.at(index);
 				new (slot)T(std::forward<Args>(args)...); // construct in place
-
 				return std::make_pair<T*, int>(std::move(slot), std::move(index));
 			}
 		}
-
 		pool.emplace_back(std::forward<Args>(args)...);
 		return std::make_pair<T*, int>(&pool.back(), pool.size() - 1);
 	}

@@ -144,8 +144,42 @@ public:
 /* TODO (general): add a archetype component manager*/
 /* TODO (entity cloning): add to the ComponentManager std::map<std::type_index, std::funciton<int(void)>> factories; return:int is the index in the pool */
 
+enum MessageType {
+	TestData,
+	Count,
+};
+
+struct Mesajul {
+	std::string msg;
+};
+
+class TestMessageSystem : public System {
+public:
+	TestMessageSystem() : System(typeid(TestMessageSystem)) {}
+
+	void handleMessage(const Message& message) override 
+	{
+		if (message.id == MessageType::TestData) {
+			const auto& m = message.data<Mesajul>();
+			std::cout << m.msg << '\n';
+		}
+	}
+
+	void update() override
+	{
+		auto m = post<Mesajul>(TestData);
+		m->msg = "mesaju matiii";
+		m = post<Mesajul>(TestData);
+		m->msg = "alt mesaj";
+	}
+};
+
 class TestingEngineScene : public Scene {
 
+public:
+	TestingEngineScene(MessageBus& bus) : Scene(bus) {}
+
+private:
 	void init() override
 	{
 		addSystem<PointParticleSystem>();

@@ -5,9 +5,10 @@
 
 #include <SFML/Graphics.hpp>
 
-//#define USE_DELTA_TIME
+#define USE_DELTA_TIME
 
 class Scene;
+class MessageBus;
 
 class ARK_ENGINE_API ArkEngine final : public NonCopyable, public NonMovable{
 public:
@@ -23,14 +24,17 @@ public:
 	static void run();
 
 	template <typename T>
-	static void setScene() { currentScene = std::make_unique<T>(); currentScene->init(); }
+	static void setScene() { 
+		currentScene = std::make_unique<T>(messageBus); 
+		currentScene->init(); 
+	}
 
 	static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
 
 	// use delta time in debugging, and fixed time for release
 	// define USE_DELTA_TIME macro to use delta time for release
 	static sf::Time deltaTime() { 
-	// for visual studio, use another macro for a different compiler
+	// for visual studio; use another macro for a different compiler
 #if defined _DEBUG || defined USE_DELTA_TIME
 		return delta_time + clock.getElapsedTime(); 
 #else
@@ -46,7 +50,6 @@ public:
 
 private:
 
-	static void handleEvents();
 	static void updateEngine();
 
 	static inline sf::RenderWindow window;
@@ -55,6 +58,7 @@ private:
 	static inline sf::Time fixed_time;
 	static inline sf::Clock clock;
 	static inline uint32_t width, height;
+	static MessageBus messageBus;
 	// TODO (engine): add StateStack
 	static inline std::unique_ptr<Scene> currentScene;
 

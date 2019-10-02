@@ -13,14 +13,16 @@
 // TODO (Scene): add MessageBus
 // TODO (Scene): add class RenderSystem{ virtual void render(sf::RenderTarget&) = 0; }
 
-class Scene {
+class MessageBus;
+
+class Scene : public NonCopyable, public NonMovable {
 
 public:
-	Scene()
+	Scene(MessageBus& bus)
 		: componentManager(),
 		scriptManager(),
 		entityManager(componentManager, scriptManager),
-		systemManager(componentManager, *this)
+		systemManager(bus, *this, componentManager)
 	{}
 
 	~Scene() = default;
@@ -67,7 +69,13 @@ public:
 		systemManager.removeSystem<T>();
 	}
 
-	//void forwardMessage(const Message& message);
+	void forwardMessage(const Message& message)
+	{
+		systemManager.forEachSystem([&message](System* system){
+			system->handleMessage(message);
+		});
+	}
+
 	void forwardEvent(const sf::Event& event)
 	{
 		systemManager.forEachSystem([&event](System* system){
@@ -117,7 +125,6 @@ private:
 			system->render(target);
 		});
 	}
-
 
 private:
 	ComponentManager componentManager;

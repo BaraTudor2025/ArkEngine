@@ -118,5 +118,8 @@
     <ClInclude Include="EntityManager.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
+    <ClInclude Include="Message.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

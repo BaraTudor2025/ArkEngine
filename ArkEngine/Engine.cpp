@@ -2,6 +2,7 @@
 #include "Engine.hpp"
 #include "Scene.hpp"
 #include "Entity.hpp"
+#include "MessageBus.hpp"
 
 const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
 
@@ -19,11 +20,13 @@ void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateT
 	view.setSize(vm.width, vm.height);
 	view.setCenter(0, 0);
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
-	//USE_FIXED_TIME = false;
 }
 
-void ArkEngine::handleEvents()
+MessageBus ArkEngine::messageBus;
+
+void ArkEngine::updateEngine()
 {
+	// handle events
 	sf::Event event;
 	while (window.pollEvent(event)) {
 		switch (event.type) {
@@ -42,11 +45,12 @@ void ArkEngine::handleEvents()
 			break;
 		}
 	}
-}
 
-void ArkEngine::updateEngine()
-{
-	handleEvents();
+	// handle messages
+	Message message;
+	while (messageBus.pool(message))
+		currentScene->forwardMessage(message);
+
 	currentScene->processPendingData();
 	currentScene->updateSystems();
 	currentScene->updateScripts();

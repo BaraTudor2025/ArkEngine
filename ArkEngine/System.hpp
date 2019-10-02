@@ -2,6 +2,8 @@
 
 #include "Entity.hpp"
 #include "Component.hpp"
+#include "Message.hpp"
+#include "MessageBus.hpp"
 
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
@@ -18,21 +20,24 @@ public:
 
 	virtual void update() { }
 	virtual void handleEvent(sf::Event) { }
-	//virtual void handleMessage(Message&) { }
+	virtual void handleMessage(const Message&) { }
 	virtual void render(sf::RenderTarget& target) { } // TODO (system): remove render function
 
 protected:
 	template <typename T>
-	void requireComponent()
-	{
+	void requireComponent() {
 		componentTypes.push_back(typeid(T));
 	}
 
 	template <typename F>
-	void forEachEntity(F f)
-	{
+	void forEachEntity(F f) {
 		for (auto entity : entities)
 			f(entity);
+	}
+
+	template <typename T>
+	T* post(int id) {
+		return messageBus->post<T>(id);
 	}
 
 	std::vector<Entity>& getEntities() { return entities; }
@@ -73,6 +78,7 @@ private:
 	ComponentManager::ComponentMask componentMask;
 	std::vector<std::type_index> componentTypes;
 	Scene* m_scene = nullptr;
+	MessageBus* messageBus = nullptr;
 	const std::type_index type;
 	friend class SystemManager;
 };
@@ -81,7 +87,7 @@ private:
 class SystemManager {
 
 public:
-	SystemManager(ComponentManager& compMgr, Scene& scene): scene(scene), componentManager(compMgr) {}
+	SystemManager(MessageBus& bus, Scene& scene, ComponentManager& compMgr): messageBus(bus), scene(scene), componentManager(compMgr) {}
 	~SystemManager() = default;
 
 	template <typename T, typename...Args>
@@ -93,6 +99,7 @@ public:
 		auto& sys = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 		activeSystems.push_back(sys.get());
 		sys->m_scene = &scene;
+		sys->messageBus = &messageBus;
 		sys->constructMask(componentManager);
 		if (sys->componentMask.none())
 			std::cout << " System " << sys->type.name() << " dosen't have any component requirements\n\n";
@@ -163,10 +170,10 @@ public:
 			system->removeEntity(entity);
 	}
 
-
 private:
 	std::vector<std::unique_ptr<System>> systems;
 	std::vector<System*> activeSystems;
-	ComponentManager& componentManager;
+	MessageBus& messageBus;
 	Scene& scene;
+	ComponentManager& componentManager;
 };

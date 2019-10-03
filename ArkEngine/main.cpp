@@ -140,7 +140,6 @@ public:
 /* TODO (general): Shaders */
 /* TODO (general): ParticleEmmiter with settings*/
 /* TODO (general): State Stack*/
-/* TODO (general): choose with a macro if the engine runs at a fixed frame rate or delta time/fluctuating frame rate; always use deltaTime for debug */
 /* TODO (general): add a archetype component manager*/
 /* TODO (entity cloning): add to the ComponentManager std::map<std::type_index, std::funciton<int(void)>> factories; return:int is the index in the pool */
 

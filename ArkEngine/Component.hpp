@@ -74,6 +74,9 @@ public:
 				freeSlots.pop_back();
 
 				T* slot = &pool.at(index);
+				// temporary solution to the destruction problem
+				if (!std::is_pod_v<T>)
+					slot->~T();
 				new (slot)T(std::forward<Args>(args)...); // construct in place
 				return std::make_pair<T*, int>(std::move(slot), std::move(index));
 			}

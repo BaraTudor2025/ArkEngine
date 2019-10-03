@@ -3,17 +3,25 @@
 #include "Core.hpp"
 #include "Message.hpp"
 
+#include <vector>
+#include <functional>
+#include <type_traits>
+
 class MessageBus final {
 
 public:
 
-	MessageBus() 
+	MessageBus()
 		: inBuffer(128 * 64),
-		outBuffer(128 * 64), 
+		outBuffer(128 * 64),
 		inPointer(inBuffer.data()),
 		outPointer(outBuffer.data()),
 		currentCount(0),
-		pendingCount(0) 
+		pendingCount(0),
+		inDestructors(0),
+		outDestructors(0),
+		inDtorCount(0),
+		outDtorCount(0)
 	{ }
 	
 	template <typename T>
@@ -28,20 +36,39 @@ public:
 		m->m_size = sizeof(T);
 		m->m_data = construct_in_place<T>(inPointer);
 		inPointer += sizeof(T);
-
 		pendingCount++;
 
-		return static_cast<T*>(m->m_data);
+		T* data = static_cast<T*>(m->m_data);
+
+		if (!std::is_pod_v<T>) {
+			// keep count so that we dont always allocate a new function
+			if (inDtorCount == inDestructors.size())
+				inDestructors.push_back([data]() { data->~T(); });
+			else
+				inDestructors.at(inDtorCount) = [data]() { data->~T(); };
+
+			inDtorCount++;
+		}
+
+		return data;
 	}
 
 	bool pool(Message& message)
 	{
 		if (currentCount == 0) {
+			for (int i = 0; i < outDtorCount; i++)
+				outDestructors[i]();
+
+			outDestructors.swap(inDestructors);
+			outDtorCount = inDtorCount;
+			inDtorCount = 0;
+
 			outBuffer.swap(inBuffer);
 			inPointer = inBuffer.data();
 			outPointer = outBuffer.data();
 			currentCount = pendingCount;
 			pendingCount = 0;
+
 			return false;
 		}
 		message = *reinterpret_cast<Message*>(outPointer);
@@ -65,4 +92,8 @@ private:
 	uint8_t* outPointer;
 	int currentCount;
 	int pendingCount;
+	std::vector<std::function<void()>> inDestructors;
+	std::vector<std::function<void()>> outDestructors;
+	int inDtorCount; 
+	int outDtorCount; 
 };

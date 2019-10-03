@@ -146,11 +146,16 @@ public:
 
 enum MessageType {
 	TestData,
+	PodData,
 	Count,
 };
 
 struct Mesajul {
 	std::string msg;
+};
+
+struct PodType {
+	int i;
 };
 
 class TestMessageSystem : public System {
@@ -161,7 +166,11 @@ public:
 	{
 		if (message.id == MessageType::TestData) {
 			const auto& m = message.data<Mesajul>();
-			std::cout << m.msg << '\n';
+			std::cout << "mesaj: " << m.msg << '\n';
+		}
+		if (message.id == MessageType::PodData) {
+			const auto& m = message.data<PodType>();
+			std::cout << "int: " << m.i << "\n";
 		}
 	}
 
@@ -169,8 +178,8 @@ public:
 	{
 		auto m = post<Mesajul>(TestData);
 		m->msg = "mesaju matiii";
-		m = post<Mesajul>(TestData);
-		m->msg = "alt mesaj";
+		auto p = post<PodType>(PodData);
+		p->i = 5;
 	}
 };
 
@@ -182,12 +191,14 @@ public:
 private:
 	void init() override
 	{
+		std::cout << "este sau nu: (" << std::is_pod_v<Mesajul> << ")";
 		addSystem<PointParticleSystem>();
 		addSystem<PixelParticleSystem>();
 		addSystem<FpsCounterSystem>();
 		addSystem<ButtonSystem>();
 		addSystem<TextSystem>();
 		addSystem<AnimationSystem>();
+		//addSystem<TestMessageSystem>();
 
 		button = createEntity("button");
 		player = createEntity("player");

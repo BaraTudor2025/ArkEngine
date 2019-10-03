@@ -12,6 +12,7 @@ struct ARK_ENGINE_API Component {
 
 };
 
+// TOOD (comp manager): add a vector of destructors since we construct in place when 
 class ComponentManager final : public NonCopyable  { 
 
 public:

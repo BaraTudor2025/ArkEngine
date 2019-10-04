@@ -60,6 +60,16 @@ sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
 
 namespace Util {
 
+	template <typename R, typename T>
+	R reinterpretCast(T in)
+	{
+		static_assert(sizeof(T) == sizeof(R));
+		union {
+			T in;
+			R ret;
+		}u{in};
+		return u.ret;
+	}
 
 	template <typename T>
 	sf::Vector2f centerOfRect(sf::Rect<T> rect)

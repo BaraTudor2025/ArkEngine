@@ -207,7 +207,6 @@ public:
 
 	bool update() override
 	{
-		std::cout << "update from BasicScene\n";
 		scene.update();
 		return false;
 	}

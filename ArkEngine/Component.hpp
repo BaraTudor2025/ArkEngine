@@ -7,6 +7,7 @@
 #include <bitset>
 #include <unordered_map>
 #include <vector>
+#include <type_traits>
 
 struct ARK_ENGINE_API Component {
 

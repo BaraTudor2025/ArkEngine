@@ -54,7 +54,6 @@ public:
 	void registerState(int id)
 	{
 		factories[id] = [this]() {
-			std::cout << "crate state";
 			return std::make_unique<T>(*this, *this->messageBus);
 		};
 	}
@@ -74,7 +73,6 @@ public:
 
 	void update() 
 	{
-		std::cout << "update from StateStack\n";
 		for (auto it = stack.rbegin(); it != stack.rend(); it++)
 			if (!(*it)->update())
 				break;

@@ -121,5 +121,8 @@
     <ClInclude Include="Message.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
+    <ClInclude Include="ArchetypeManager.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

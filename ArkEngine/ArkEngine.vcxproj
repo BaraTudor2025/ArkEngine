@@ -172,6 +172,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationSystem.hpp" />
+    <ClInclude Include="ArchetypeManager.hpp" />
     <ClInclude Include="Component.hpp" />
     <ClInclude Include="const_string.hpp" />
     <ClInclude Include="Core.hpp" />

@@ -176,9 +176,9 @@ public:
 
 	void update() override
 	{
-		auto m = post<Mesajul>(TestData);
+		auto m = postMessage<Mesajul>(TestData);
 		m->msg = "mesaju matiii";
-		auto p = post<PodType>(PodData);
+		auto p = postMessage<PodType>(PodData);
 		p->i = 5;
 	}
 };

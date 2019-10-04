@@ -36,7 +36,7 @@ protected:
 	}
 
 	template <typename T>
-	T* post(int id) {
+	T* postMessage(int id) {
 		return messageBus->post<T>(id);
 	}
 

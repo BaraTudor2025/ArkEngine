@@ -3,6 +3,7 @@
 #include "Scene.hpp"
 #include "Entity.hpp"
 #include "MessageBus.hpp"
+#include "State.hpp"
 
 const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
 
@@ -12,6 +13,19 @@ void Entity::setName(std::string name) { return manager->setNameOfEntity(*this, 
 
 System::~System() {}
 
+void State::requestStackPush(int stateId) {
+	this->stateStack.pushState(stateId);
+}
+
+void State::requestStackPop() {
+	this->stateStack.popState();
+}
+
+void State::requestStackClear() {
+	this->stateStack.clearStack();
+}
+
+
 void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)
 {
 	fixed_time = fixedUpdateTime;
@@ -20,9 +34,11 @@ void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateT
 	view.setSize(vm.width, vm.height);
 	view.setCenter(0, 0);
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
+	stateStack.messageBus = &messageBus;
 }
 
 MessageBus ArkEngine::messageBus;
+StateStack ArkEngine::stateStack;
 
 void ArkEngine::updateEngine()
 {
@@ -41,7 +57,7 @@ void ArkEngine::updateEngine()
 			break;
 		}
 		default:
-			currentScene->forwardEvent(event);
+			stateStack.handleEvent(event);
 			break;
 		}
 	}
@@ -49,11 +65,9 @@ void ArkEngine::updateEngine()
 	// handle messages
 	Message message;
 	while (messageBus.pool(message))
-		currentScene->forwardMessage(message);
-
-	currentScene->processPendingData();
-	currentScene->updateSystems();
-	currentScene->updateScripts();
+		stateStack.handleMessage(message);
+	stateStack.processPendingChanges();
+	stateStack.update();
 }
 
 void ArkEngine::run()
@@ -77,7 +91,7 @@ void ArkEngine::run()
 			updateEngine();
 		}
 #endif
-		currentScene->render(window);
+		stateStack.render(window);
 
 		window.display();
 	}

@@ -13,6 +13,7 @@
 #include <thread>
 
 #include "Engine.hpp"
+#include "State.hpp"
 #include "Scene.hpp"
 #include "ParticleSystem.hpp"
 #include "ParticleScripts.hpp"
@@ -182,30 +183,70 @@ public:
 	}
 };
 
-class TestingEngineScene : public Scene {
+enum States {
+	TestingState
+};
+
+class BasicState : public State {
+
+protected:
+	Scene scene{getMessageBus()};
 
 public:
-	TestingEngineScene(MessageBus& bus) : Scene(bus) {}
+	BasicState(StateStack& ss, MessageBus& mb) : State(ss, mb) {}
+
+	bool handleEvent(const sf::Event& event) override
+	{
+		scene.forwardEvent(event);
+		return false;
+	}
+
+	void handleMessage(const Message& message) override
+	{
+		scene.forwardMessage(message);
+	}
+
+	bool update() override
+	{
+		std::cout << "update from BasicScene\n";
+		scene.update();
+		return false;
+	}
+
+	bool render(sf::RenderTarget& target) override
+	{
+		scene.render(target);
+		return false;
+	}
+};
+
+class TestingState : public BasicState {
+
+public:
+	TestingState(StateStack& ss, MessageBus& mb) : BasicState(ss, mb) { init(); }
 
 private:
-	void init() override
+
+	int getStateId() override { return States::TestingState; }
+
+	void init()
 	{
 		std::cout << "este sau nu: (" << std::is_pod_v<Mesajul> << ")";
-		addSystem<PointParticleSystem>();
-		addSystem<PixelParticleSystem>();
-		addSystem<FpsCounterSystem>();
-		addSystem<ButtonSystem>();
-		addSystem<TextSystem>();
-		addSystem<AnimationSystem>();
-		//addSystem<TestMessageSystem>();
+		scene.addSystem<PointParticleSystem>();
+		scene.addSystem<PixelParticleSystem>();
+		scene.addSystem<FpsCounterSystem>();
+		scene.addSystem<ButtonSystem>();
+		scene.addSystem<TextSystem>();
+		scene.addSystem<AnimationSystem>();
+		//scene.addSystem<TestMessageSystem>();
 
-		button = createEntity("button");
-		player = createEntity("player");
-		mouseTrail = createEntity("mouseTrail");
-		rainbowPointParticles = createEntity("rainbow ps");
-		greenPointParticles = createEntity("green ps");
-		firePointParticles = createEntity("fire ps");
-		rotatingParticles = createEntity("rotating ps");
+		button = scene.createEntity("button");
+		player = scene.createEntity("player");
+		mouseTrail = scene.createEntity("mouseTrail");
+		rainbowPointParticles = scene.createEntity("rainbow ps");
+		greenPointParticles = scene.createEntity("green ps");
+		firePointParticles = scene.createEntity("fire ps");
+		rotatingParticles = scene.createEntity("rotating ps");
 
 		//fireWorks.resize(0);
 		//createEntity(fireWorks);
@@ -352,8 +393,8 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	ArkEngine::create(ArkEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/120.f), settings);
 	ArkEngine::backGroundColor = sf::Color(50, 50, 50);
 	ArkEngine::getWindow().setVerticalSyncEnabled(false);
-	ArkEngine::setScene<TestingEngineScene>();
-	//ArkEngine::setScene<ChildTestScene>();
+	ArkEngine::registerState<class TestingState>(States::TestingState);
+	ArkEngine::pushFirstState(States::TestingState);
 
 	ArkEngine::run();
 

@@ -2,10 +2,11 @@
 
 #include "Core.hpp"
 #include "Scene.hpp"
+#include "State.hpp"
 
 #include <SFML/Graphics.hpp>
 
-#define USE_DELTA_TIME
+//#define USE_DELTA_TIME
 
 class Scene;
 class MessageBus;
@@ -24,9 +25,12 @@ public:
 	static void run();
 
 	template <typename T>
-	static void setScene() { 
-		currentScene = std::make_unique<T>(messageBus); 
-		currentScene->init(); 
+	static void registerState(int id) {
+		stateStack.registerState<T>(id);
+	}
+
+	static void pushFirstState(int id) {
+		stateStack.pushState(id);
 	}
 
 	static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
@@ -59,7 +63,6 @@ private:
 	static inline sf::Clock clock;
 	static inline uint32_t width, height;
 	static MessageBus messageBus;
-	// TODO (engine): add StateStack
-	static inline std::unique_ptr<Scene> currentScene;
+	static StateStack stateStack;
 
 };

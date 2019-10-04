@@ -14,7 +14,7 @@
 
 class MessageBus;
 
-class Scene : public NonCopyable, public NonMovable {
+class Scene final : public NonCopyable, public NonMovable {
 
 public:
 	Scene(MessageBus& bus)
@@ -68,13 +68,6 @@ public:
 		systemManager.removeSystem<T>();
 	}
 
-	void forwardMessage(const Message& message)
-	{
-		systemManager.forEachSystem([&message](System* system){
-			system->handleMessage(message);
-		});
-	}
-
 	void forwardEvent(const sf::Event& event)
 	{
 		systemManager.forEachSystem([&event](System* system){
@@ -85,20 +78,32 @@ public:
 		});
 	}
 
-	void updateSystems()
+	void forwardMessage(const Message& message)
 	{
-		systemManager.forEachSystem([](System* system) {
-			system->update();
+		systemManager.forEachSystem([&message](System* system){
+			system->handleMessage(message);
 		});
 	}
 
-	void updateScripts()
+	void update()
 	{
+		processPendingData();
+		systemManager.forEachSystem([](System* system) {
+			system->update();
+		});
 		scriptManager.forEachScript([](Script* script) {
 			script->update();
 		});
 	}
 	
+	void render(sf::RenderTarget& target)
+	{
+		systemManager.forEachSystem([&target](System* system){
+			system->render(target);
+		});
+	}
+
+private:
 	void processPendingData()
 	{
 		for (auto entity : pendingEntities)
@@ -114,17 +119,6 @@ public:
 		destroyedEntities.clear();
 	}
 
-protected:
-	virtual void init() = 0;
-
-private:
-	void render(sf::RenderTarget& target)
-	{
-		systemManager.forEachSystem([&target](System* system){
-			system->render(target);
-		});
-	}
-
 private:
 	ComponentManager componentManager;
 	ScriptManager scriptManager;
@@ -133,5 +127,4 @@ private:
 
 	std::vector<Entity> pendingEntities;
 	std::vector<Entity> destroyedEntities;
-	friend class ArkEngine;
 };

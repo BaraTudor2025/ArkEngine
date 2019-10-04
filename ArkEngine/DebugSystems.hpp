@@ -14,7 +14,7 @@ class FpsCounterSystem : public System {
 public:
 
 	FpsCounterSystem() :System(typeid(FpsCounterSystem)) {
-		text.setFont(*load<sf::Font>("KeepCalm-Medium.ttf"));
+		text.setFont(*Resources::load<sf::Font>("fonts/KeepCalm-Medium.ttf"));
 		text.setCharacterSize(15);
 		text.setFillColor(sf::Color::White);
 	}

@@ -9,7 +9,7 @@
 
 struct Text : Component, sf::Text { 
 
-	Text(std::string fontName = "KeepCalm-Medium.ttf") : fontName(fontName) { }
+	Text(std::string fontName = "fonts/KeepCalm-Medium.ttf") : fontName(fontName) { }
 
 	bool moveWithMouse = false;
 
@@ -63,7 +63,7 @@ public:
 	{
 		auto& b = entity.getComponent<Button>();
 		if (!b.textureName.empty())
-			b.setTexture(load<sf::Texture>(b.textureName)); 
+			b.setTexture(Resources::load<sf::Texture>(b.textureName)); 
 	}
 
 	void update() override
@@ -133,7 +133,7 @@ public:
 	void onEntityAdded(Entity entity) override
 	{
 		auto& t = entity.getComponent<Text>();
-		t.setFont(*load<sf::Font>(t.fontName));
+		t.setFont(*Resources::load<sf::Font>(t.fontName));
 	}
 
 	void render(sf::RenderTarget& target) override

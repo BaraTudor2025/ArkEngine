@@ -25,6 +25,7 @@ void State::requestStackClear() {
 	this->stateStack.clearStack();
 }
 
+std::unordered_map<std::type_index, std::function<bool(void*, std::string)>> Resources::loaders;
 
 void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)
 {
@@ -35,6 +36,10 @@ void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateT
 	view.setCenter(0, 0);
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
 	stateStack.messageBus = &messageBus;
+
+	Resources::addLoader<sf::Texture>(Resources::sfmlResourceLoader<sf::Texture>);
+	Resources::addLoader<sf::Font>(Resources::sfmlResourceLoader<sf::Font>);
+	Resources::addLoader<sf::Image>(Resources::sfmlResourceLoader<sf::Image>);
 }
 
 MessageBus ArkEngine::messageBus;

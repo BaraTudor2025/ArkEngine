@@ -36,7 +36,7 @@ void AnimationSystem::onEntityAdded(Entity entity)
 		[](sf::Vector2u frameCount) { return frameCount; }
 	}, a.frameCount);
 
-	a.texture = load<sf::Texture>(a.fileName);
+	a.texture = Resources::load<sf::Texture>(a.fileName);
 	a.uvRect.width = a.texture->getSize().x / (float)fcX;
 	a.uvRect.height = a.texture->getSize().y / (float)fcY;
 	a.elapsedTime = sf::seconds(0);
@@ -104,7 +104,7 @@ void MeshSystem::onEntityAdded(Entity entity)
 	auto& mesh = entity.getComponent<Mesh>();
 	auto& tx = entity.getComponent<Transform>();
 
-	mesh.texture = load<sf::Texture>(mesh.fileName);
+	mesh.texture = Resources::load<sf::Texture>(mesh.fileName);
 	mesh.texture->setRepeated(mesh.repeatTexture);
 	mesh.texture->setSmooth(mesh.smoothTexture);
 	tx.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);

@@ -3,6 +3,7 @@
 #include "Core.hpp"
 #include "Scene.hpp"
 #include "State.hpp"
+#include "ResourceManager.hpp"
 
 #include <SFML/Graphics.hpp>
 

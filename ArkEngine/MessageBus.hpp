@@ -39,7 +39,7 @@ public:
 
 		T* data = static_cast<T*>(m->m_data);
 
-		if (!std::is_pod_v<T>) {
+		if constexpr (!std::is_trivially_destructible_v<T>) {
 			// keep count so that we dont always allocate a new function
 			if (inDtorCount == inDestructors.size())
 				inDestructors.push_back([data]() { data->~T(); });

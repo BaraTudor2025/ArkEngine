@@ -76,7 +76,7 @@ public:
 
 				T* slot = &pool.at(index);
 				// temporary solution to the destruction problem
-				if (!std::is_trivial_v<T>)
+				if constexpr (!std::is_trivially_destructible_v<T>)
 					slot->~T();
 				Util::construct_in_place<T>(slot, std::forward<Args>(args)...);
 				return std::make_pair<T*, int>(std::move(slot), std::move(index));

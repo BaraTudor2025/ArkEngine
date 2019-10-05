@@ -29,12 +29,11 @@ public:
 	{
 		// TODO (message bus): assert ca nu am depasit nr max de bytes
 
-		//Message* msg = new(inPointer)Message();
-		Message* m = construct_in_place<Message>(inPointer);
+		Message* m = Util::construct_in_place<Message>(inPointer);
 		inPointer += sizeof(Message);
 		m->id = id;
 		m->m_size = sizeof(T);
-		m->m_data = construct_in_place<T>(inPointer);
+		m->m_data = Util::construct_in_place<T>(inPointer);
 		inPointer += sizeof(T);
 		pendingCount++;
 
@@ -75,14 +74,6 @@ public:
 		outPointer += (sizeof(Message) + message.m_size);
 		currentCount--;
 		return true;
-	}
-
-private:
-
-	template <typename T, typename P>
-	inline T* construct_in_place(P p)
-	{
-		return new(p)T();
 	}
 
 private:

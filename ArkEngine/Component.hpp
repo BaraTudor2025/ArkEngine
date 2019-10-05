@@ -76,9 +76,9 @@ public:
 
 				T* slot = &pool.at(index);
 				// temporary solution to the destruction problem
-				if (!std::is_pod_v<T>)
+				if (!std::is_trivial_v<T>)
 					slot->~T();
-				new (slot)T(std::forward<Args>(args)...); // construct in place
+				Util::construct_in_place<T>(slot, std::forward<Args>(args)...);
 				return std::make_pair<T*, int>(std::move(slot), std::move(index));
 			}
 		}
@@ -120,9 +120,7 @@ private:
 	}
 
 private:
-
 	using any_pool = static_any<sizeof(ComponentPool<void*>)>;
-	//std::vector<any_pool> componentPools; // component table
 	std::array<any_pool, MaxComponentTypes> componentPools; // component table
 	std::vector<std::type_index> componentIndexes; // index of std::type_index represents index of component pool inside component table
 	std::unordered_map<int, std::vector<int>> freeComponents; // indexed by compId, vector<int> holds the indexes of free components

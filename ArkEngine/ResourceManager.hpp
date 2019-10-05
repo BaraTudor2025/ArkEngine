@@ -36,8 +36,7 @@ struct Resources {
 				std::cout << "\n\n" << msg << "\n\n";
 				throw std::runtime_error(msg);
 			}
-			//return &(cache[fileName] = std::move(temp));
-			return &(cache[fileName] = temp);
+			return &(cache[fileName] = std::move(temp));
 		} else {
 			return &(itRes->second);
 		}

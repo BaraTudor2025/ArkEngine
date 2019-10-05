@@ -60,8 +60,20 @@ sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
 
 namespace Util {
 
+	template <typename T, typename P>
+	inline T* construct_in_place(P p)
+	{
+		return new(p)T();
+	}
+
+	template <typename T, typename P, typename... Args>
+	inline T* construct_in_place(P p, Args&&... args)
+	{
+		return new(p)T(std::forward<Args>(args)...);
+	}
+
 	template <typename R, typename T>
-	R reinterpretCast(T in)
+	inline R reinterpretCast(T in)
 	{
 		static_assert(sizeof(T) == sizeof(R));
 		union {

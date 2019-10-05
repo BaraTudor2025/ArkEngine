@@ -13,7 +13,6 @@
 #include <SFML/Window/Event.hpp>
 
 class StateStack;
-class Scene;
 class MessageBus;
 
 class State : public NonCopyable, public NonMovable {

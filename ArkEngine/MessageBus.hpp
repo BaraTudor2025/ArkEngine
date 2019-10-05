@@ -31,7 +31,7 @@ public:
 
 		Message* m = Util::construct_in_place<Message>(inPointer);
 		inPointer += sizeof(Message);
-		m->id = id;
+		const_cast<int&>(m->id) = id; // so sue me
 		m->m_size = sizeof(T);
 		m->m_data = Util::construct_in_place<T>(inPointer);
 		inPointer += sizeof(T);
@@ -52,7 +52,7 @@ public:
 		return data;
 	}
 
-	bool pool(Message& message)
+	bool pool(Message*& message)
 	{
 		if (currentCount == 0) {
 			for (int i = 0; i < outDtorCount; i++)
@@ -70,8 +70,8 @@ public:
 
 			return false;
 		}
-		message = *reinterpret_cast<Message*>(outPointer);
-		outPointer += (sizeof(Message) + message.m_size);
+		message = reinterpret_cast<Message*>(outPointer);
+		outPointer += (sizeof(Message) + message->m_size);
 		currentCount--;
 		return true;
 	}

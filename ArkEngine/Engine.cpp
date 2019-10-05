@@ -68,9 +68,9 @@ void ArkEngine::updateEngine()
 	}
 
 	// handle messages
-	Message message;
-	while (messageBus.pool(message))
-		stateStack.handleMessage(message);
+	Message* p;
+	while (messageBus.pool(p))
+		stateStack.handleMessage(*p);
 	stateStack.processPendingChanges();
 	stateStack.update();
 }

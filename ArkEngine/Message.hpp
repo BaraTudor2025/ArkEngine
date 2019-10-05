@@ -6,7 +6,7 @@
 
 struct Message final {
 
-	int id = -1;
+	const int id = -1;
 	
 	template <typename T>
 	const T& data() const

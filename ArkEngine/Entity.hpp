@@ -85,6 +85,6 @@ public:
 private:
 
 	EntityManager* manager = nullptr;
-	int id = -1;
+	int id = ArkInvalidIndex;
 	friend class EntityManager;
 };

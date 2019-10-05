@@ -132,7 +132,7 @@ public:
 		}
 	}
 
-	// used by Scene to call handleEvent, handleMessage, update and fixedUpdate
+	// used by Scene to call handleEvent, handleMessage, update
 	template <typename F>
 	void forEachSystem(F f)
 	{

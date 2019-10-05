@@ -16,6 +16,10 @@
 #define ARK_ENGINE_API
 #define ARK_API
 
+// used internally
+static inline constexpr int ArkInvalidIndex = -1;
+static inline constexpr int ArkInvalidID = -1;
+
 
 //#define ARK_ASSERT(...) std::assert
 

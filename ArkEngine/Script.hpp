@@ -43,7 +43,7 @@ public:
 	template <typename T, typename... Args>
 	T* addScript(int16_t& indexOfPool, Args&& ... args)
 	{
-		if (indexOfPool == -1) {
+		if (indexOfPool == ArkInvalidIndex) {
 			if (!freePools.empty()) {
 				indexOfPool = freePools.back();
 				freePools.pop_back();
@@ -70,7 +70,7 @@ public:
 	template <typename T>
 	T* getScript(int indexOfPool)
 	{
-		if (indexOfPool == -1)
+		if (indexOfPool == ArkInvalidIndex)
 			return nullptr;
 
 		auto& scripts = scriptPools.at(indexOfPool);
@@ -118,7 +118,7 @@ public:
 	template <typename T>
 	void removeScript(int indexOfPool)
 	{
-		if (indexOfPool == -1)
+		if (indexOfPool == ArkInvalidIndex)
 			return;
 
 		auto script = getScript<T>(indexOfPool);
@@ -130,7 +130,7 @@ public:
 
 	void removeScripts(int indexOfPool)
 	{
-		if (indexOfPool == -1)
+		if (indexOfPool == ArkInvalidIndex)
 			return;
 
 		auto& scripts = scriptPools.at(indexOfPool);

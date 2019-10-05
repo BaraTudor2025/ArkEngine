@@ -34,7 +34,7 @@ public:
 			auto& entity = entities.emplace_back();
 			entity.name = name;
 			entity.mask.reset();
-			entity.componentIndexes.fill(-1);
+			entity.componentIndexes.fill(ArkInvalidIndex);
 		}
 		return e;
 	}
@@ -86,16 +86,16 @@ public:
 		auto& entity = getEntity(e);
 
 		for (int i = 0; i < entity.componentIndexes.size(); i++)
-			if (i != -1)
+			if (i != ArkInvalidIndex)
 				componentManager.removeComponent(i, entity.componentIndexes[i]);
 
 		scriptManager.removeScripts(entity.scriptsIndex);
 
-		//entity.childrenIndex = -1;
+		//entity.childrenIndex = ArkInvalidIndex;
 		entity.name.clear();
 		entity.mask.reset();
-		entity.scriptsIndex = -1;
-		entity.componentIndexes.fill(-1);
+		entity.scriptsIndex = ArkInvalidIndex;
+		entity.componentIndexes.fill(ArkInvalidIndex);
 	}
 
 	// if component already exists, then the existing component is returned
@@ -184,7 +184,7 @@ public:
 	std::optional<Entity> getParentOfEntity(Entity e)
 	{
 		auto entity = getEntity(e);
-		if (entity.parentIndex == -1)
+		if (entity.parentIndex == ArkInvalidIndex)
 			return {};
 		else {
 			Entity parent(*this);
@@ -199,7 +199,7 @@ public:
 			return {};
 
 		auto entity = getEntity(e);
-		if (entity.childrenIndex == -1 || depth == 0)
+		if (entity.childrenIndex == ArkInvalidIndex || depth == 0)
 			return {};
 
 		auto cs = childrenTree.at(entity.childrenIndex);
@@ -223,7 +223,7 @@ public:
 
 	bool entityHasChildren(Entity e)
 	{
-		return getEntity(e).childrenIndex == -1;
+		return getEntity(e).childrenIndex == ArkInvalidIndex;
 	}
 #endif // disable entity children
 
@@ -231,11 +231,11 @@ public:
 private:
 
 	struct InternalEntityData {
-		//int16_t childrenIndex = -1;
-		//int16_t parentIndex = -1;
+		//int16_t childrenIndex = ArkInvalidIndex;
+		//int16_t parentIndex = ArkInvalidIndex;
 		ComponentManager::ComponentMask mask;
 		std::array<int16_t, ComponentManager::MaxComponentTypes> componentIndexes;
-		int16_t scriptsIndex = -1;
+		int16_t scriptsIndex = ArkInvalidIndex;
 		std::string name = "";
 	};
 

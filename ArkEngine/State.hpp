@@ -89,11 +89,11 @@ public:
 	}
 
 	void popState() {
-		pendingChanges.push_back({Action::Pop, -1});
+		pendingChanges.push_back({Action::Pop, ArkInvalidID});
 	}
 
 	void clearStack() {
-		pendingChanges.push_back({Action::Clear, -1});
+		pendingChanges.push_back({Action::Clear, ArkInvalidID});
 	}
 
 	void processPendingChanges()
@@ -119,7 +119,7 @@ public:
 private:
 	struct PendingChange {
 		Action action;
-		int stateId = -1;
+		int stateId = ArkInvalidID;
 	};
 
 	std::vector<std::unique_ptr<State>> stack;

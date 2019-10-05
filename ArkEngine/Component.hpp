@@ -45,7 +45,7 @@ public:
 		auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
 		if (pos == std::end(this->componentIndexes)) {
 			std::cout << "component manager dosent have component type: " << type.name() << '\n';
-			return -1;
+			return ArkInvalidIndex;
 		}
 		return pos - std::begin(this->componentIndexes);
 	}

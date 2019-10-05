@@ -155,6 +155,13 @@ public:
 		scriptManager.removeScript<T>(entity.scriptsIndex);
 	}
 
+	template <typename T>
+	void setScriptActive(Entity e, bool active)
+	{
+		auto& entity = getEntity(e);
+		scriptManager.setActive<T>(entity.scriptsIndex, active);
+	}
+
 	const ComponentManager::ComponentMask& getComponentMaskOfEntity(Entity e) {
 		auto& entity = getEntity(e);
 		return entity.mask;
@@ -281,6 +288,12 @@ inline T* Entity::getScript()
 	return manager->getScriptOfEntity<T>(*this);
 }
 
+template<typename T>
+inline void Entity::setScriptActive(bool active)
+{
+	static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
+	return manager->setScriptActive<T>(*this, active);
+}
 
 template<typename T>
 inline void Entity::removeScript()

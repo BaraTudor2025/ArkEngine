@@ -21,13 +21,9 @@ public:
 	template <typename T> T* getComponent() { return &m_entity.getComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 	Entity entity() { return m_entity; }
-	//void deactivate() { active = false; }
 
 private:
 	Entity m_entity;
-	// TODO (script): activate/deactivate
-	//ScriptManager* manager;
-	//bool active = true;
 
 	friend class EntityManager;
 	friend class ScriptManager;
@@ -84,26 +80,35 @@ public:
 	template <typename T>
 	void setActive(int indexOfPool, bool active)
 	{
-		
 		auto script = getScript<T>(indexOfPool);
 		if (!script)
 			return;
 
 		auto activeScript = Util::find(activeScripts, script);
 		if (activeScript && !active)
-			Util::erase(activeScripts, script);
+			//Util::erase(activeScripts, script);
+			deactivatedPendingScripts.push_back(script);
 		else if (!activeScript && active)
-			activeScripts.push_back(script);
+			//activeScripts.push_back(script);
+			activatedPendingScripts.push_back(script);
 	}
 
 	void processPendingScripts()
 	{
-		activeScripts.insert(activeScripts.end(), pendingScripts.begin(), pendingScripts.end());
+		if (pendingScripts.empty() && activatedPendingScripts.empty() && deactivatedPendingScripts.empty())
+			return;
 
+		activeScripts.insert(activeScripts.end(), pendingScripts.begin(), pendingScripts.end());
 		for (auto script : pendingScripts)
 			script->init();
-
 		pendingScripts.clear();
+
+		activeScripts.insert(activeScripts.end(), activatedPendingScripts.begin(), activatedPendingScripts.end());
+		activatedPendingScripts.clear();
+
+		for (auto script : deactivatedPendingScripts)
+			Util::erase(activeScripts, script);
+		deactivatedPendingScripts.clear();
 	}
 
 	// f must take Script* as arg
@@ -146,7 +151,7 @@ private:
 	std::vector<int> freePools;
 	std::vector<Script*> activeScripts;
 	std::vector<Script*> pendingScripts;
-	//std::vector<Script*> deactivatedPendingScripts;
+	std::vector<Script*> deactivatedPendingScripts;
+	std::vector<Script*> activatedPendingScripts;
 	friend class EntityManager;
 };
-

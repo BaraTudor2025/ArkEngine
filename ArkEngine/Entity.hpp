@@ -26,6 +26,9 @@ public:
 	T* getScript();
 
 	template <typename T>
+	void setScriptActive(bool active);
+
+	template <typename T>
 	void removeScript();
 
 	const ComponentManager::ComponentMask& getComponentMask();

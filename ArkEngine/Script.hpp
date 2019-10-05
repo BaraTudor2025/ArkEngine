@@ -86,10 +86,8 @@ public:
 
 		auto activeScript = Util::find(activeScripts, script);
 		if (activeScript && !active)
-			//Util::erase(activeScripts, script);
 			deactivatedPendingScripts.push_back(script);
 		else if (!activeScript && active)
-			//activeScripts.push_back(script);
 			activatedPendingScripts.push_back(script);
 	}
 
@@ -98,12 +96,12 @@ public:
 		if (pendingScripts.empty() && activatedPendingScripts.empty() && deactivatedPendingScripts.empty())
 			return;
 
-		activeScripts.insert(activeScripts.end(), pendingScripts.begin(), pendingScripts.end());
+		Util::push_back_range(activeScripts, pendingScripts);
 		for (auto script : pendingScripts)
 			script->init();
 		pendingScripts.clear();
 
-		activeScripts.insert(activeScripts.end(), activatedPendingScripts.begin(), activatedPendingScripts.end());
+		Util::push_back_range(activeScripts, activatedPendingScripts);
 		activatedPendingScripts.clear();
 
 		for (auto script : deactivatedPendingScripts)

@@ -60,6 +60,7 @@ sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
 
 namespace Util {
 
+
 	template <typename T, typename P>
 	inline T* construct_in_place(P p)
 	{
@@ -81,6 +82,12 @@ namespace Util {
 			R ret;
 		}u{in};
 		return u.ret;
+	}
+
+	template <typename T>
+	void push_back_range(T& range, const T& inserted)
+	{
+		range.insert(range.end(), inserted.begin(), inserted.end());
 	}
 
 	template <typename T>

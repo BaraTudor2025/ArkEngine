@@ -88,6 +88,7 @@ public:
 		for (int i = 0; i < entity.componentIndexes.size(); i++)
 			if (i != -1)
 				componentManager.removeComponent(i, entity.componentIndexes[i]);
+
 		scriptManager.removeScripts(entity.scriptsIndex);
 
 		//entity.childrenIndex = -1;
@@ -121,7 +122,7 @@ public:
 		int compId = componentManager.getComponentId<T>();
 		if (!entity.mask.test(compId)) {
 			// TODO (entity manager): make this an assert
-			std::cerr << "entity " << entity.name << " dosent have component " << typeid(T).name() << '\n';
+			std::cerr << "entity " << e.name() << " dosent have component " << typeid(T).name() << '\n';
 		}
 		int compIndex = entity.componentIndexes[compId];
 		return *componentManager.getComponent<T>(compId, compIndex);
@@ -131,41 +132,27 @@ public:
 	T* addScriptOnEntity(Entity e, Args&&... args)
 	{
 		auto& entity = getEntity(e);
-		if (entity.scriptsIndex == -1) {
-			auto [s, index] = scriptManager.addScript<T>(std::forward<Args>(args)...);
-			s->m_entity = e;
-			entity.scriptsIndex = index;
-			return s;
-		} else {
-			auto s = scriptManager.addScriptAt<T>(entity.scriptsIndex, std::forward<Args>(args)...);
-			s->m_entity = e;
-			return s;
-		}
+		auto script = scriptManager.addScript<T>(entity.scriptsIndex, std::forward<Args>(args)...);
+		script->m_entity = e;
+		return script;
 	}
 
 	template <typename T>
 	T* getScriptOfEntity(Entity e)
 	{
 		auto& entity = getEntity(e);
-		if (entity.scriptsIndex == -1) {
-			std::cerr << "entity " << getNameOfEntity(e) << " doesn't have the " << typeid(T).name() << " script\n";
-			return nullptr;
-		}
+		auto script = scriptManager.getScript<T>(entity.scriptsIndex);
+		if (script == nullptr)
+			std::cerr << "entity " << e.name() << " doesn't have the " << typeid(T).name() << " script\n";
 
-		auto s = scriptManager.getScript<T>(entity.scriptsIndex);
-		if (s == nullptr) {
-			std::cerr << "entity " << getNameOfEntity(e) << " doesn't have the " << typeid(T).name() << " script\n";
-		}
-
-		return s;
+		return script;
 	}
 
 	template <typename T>
 	void removeScriptOfEntity(Entity e)
 	{
 		auto& entity = getEntity(e);
-		if (entity.scriptsIndex != -1)
-			scriptManager.removeScript<T>(entity.scriptsIndex);
+		scriptManager.removeScript<T>(entity.scriptsIndex);
 	}
 
 	const ComponentManager::ComponentMask& getComponentMaskOfEntity(Entity e) {

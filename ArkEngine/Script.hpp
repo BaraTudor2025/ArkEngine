@@ -21,9 +21,13 @@ public:
 	template <typename T> T* getComponent() { return &m_entity.getComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 	Entity entity() { return m_entity; }
+	//void deactivate() { active = false; }
 
 private:
 	Entity m_entity;
+	// TODO (script): activate/deactivate
+	//ScriptManager* manager;
+	//bool active = true;
 
 	friend class EntityManager;
 	friend class ScriptManager;
@@ -36,37 +40,26 @@ public:
 	ScriptManager() = default;
 	~ScriptManager() = default;
 
-	// creates new pool
-	// returns [script*, scriptIndex or pool index]
 	template <typename T, typename... Args>
-	std::pair<T*, int> addScript(Args&& ... args)
+	T* addScript(int16_t& indexOfPool, Args&& ... args)
 	{
-		auto& scripts = scriptPools.emplace_back();
-
-		auto& script = scripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
-		pendingScripts.push_back(script.get());
-
-		return std::make_pair<T*, int>(dynamic_cast<T*>(script.get()), scriptPools.size() - 1);
-	}
-
-	// index of pool, the use 
-	// return existing script if one already exsists
-	template <typename T, typename... Args>
-	T* addScriptAt(int indexOfPool, Args&& ... args)
-	{
-		if (hasScript<T>(indexOfPool))
+		if (indexOfPool == -1) {
+			if (!freePools.empty()) {
+				indexOfPool = freePools.back();
+				freePools.pop_back();
+			} else {
+				indexOfPool = scriptPools.size();
+				scriptPools.emplace_back();
+			}
+		} else if (hasScript<T>(indexOfPool)) {
 			return getScript<T>(indexOfPool);
+		}
 
 		auto& scripts = scriptPools.at(indexOfPool);
 		auto& script = scripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 		pendingScripts.push_back(script.get());
 
 		return dynamic_cast<T*>(script.get());
-
-		//auto& scripts = scriptPools.at(indexOfPool);
-		//scripts.push_back(std::move(script));
-
-		//return scripts.back().get();
 	}
 	
 	template <typename T>
@@ -77,6 +70,9 @@ public:
 	template <typename T>
 	T* getScript(int indexOfPool)
 	{
+		if (indexOfPool == -1)
+			return nullptr;
+
 		auto& scripts = scriptPools.at(indexOfPool);
 		for (auto& script : scripts)
 			if (auto s = dynamic_cast<T*>(script.get()); s)
@@ -88,11 +84,12 @@ public:
 	template <typename T>
 	void setActive(int indexOfPool, bool active)
 	{
+		
 		auto script = getScript<T>(indexOfPool);
 		if (!script)
 			return;
-		auto activeScript = Util::find(activeScripts, script);
 
+		auto activeScript = Util::find(activeScripts, script);
 		if (activeScript && !active)
 			Util::erase(activeScripts, script);
 		else if (!activeScript && active)
@@ -110,7 +107,7 @@ public:
 	}
 
 	// f must take Script* as arg
-	// used by Scene to call handleEvent, handleMessage, update and fixedUpdate
+	// used by Scene to call handleEvent, handleMessage, update
 	template <typename F>
 	void forEachScript(F f)
 	{
@@ -119,29 +116,37 @@ public:
 	}
 
 	template <typename T>
-	void removeScript(int index)
+	void removeScript(int indexOfPool)
 	{
-		auto script = getScript<T>(index);
+		if (indexOfPool == -1)
+			return;
+
+		auto script = getScript<T>(indexOfPool);
 		if (script) {
 			Util::erase(activeScripts, script);
 			Util::erase_if(scriptPools, [script](auto& p) { return p.get() == script; });
 		}
 	}
 
-	void removeScripts(int index)
+	void removeScripts(int indexOfPool)
 	{
-		auto& scripts = scriptPools.at(index);
-		for (auto& script : scripts) {
+		if (indexOfPool == -1)
+			return;
+
+		auto& scripts = scriptPools.at(indexOfPool);
+		for (auto& script : scripts)
 			Util::erase_if(activeScripts, [&script](auto& s) { return s == script.get(); });
-		}
-		Util::erase_at(scriptPools, index);
+			
+		scripts.clear();
+		freePools.push_back(indexOfPool);
 	}
-	
 
 private:
 	std::vector<std::vector<std::unique_ptr<Script>>> scriptPools;
+	std::vector<int> freePools;
 	std::vector<Script*> activeScripts;
 	std::vector<Script*> pendingScripts;
+	//std::vector<Script*> deactivatedPendingScripts;
 	friend class EntityManager;
 };
 

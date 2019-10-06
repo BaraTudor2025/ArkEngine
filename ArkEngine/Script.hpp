@@ -9,6 +9,9 @@
 class Entity;
 
 // TODO (script): maybe try to return nullptr if component isn't found?
+/*
+ * if a script is disabled before construction then init will not be called
+*/
 class ARK_ENGINE_API Script : public NonCopyable {
 
 public:
@@ -21,9 +24,12 @@ public:
 	template <typename T> T* getComponent() { return &m_entity.getComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 	Entity entity() { return m_entity; }
+	bool isActive() { return true; }
 
 private:
 	Entity m_entity;
+	bool active = true;
+	bool isInitialized = false;
 
 	friend class EntityManager;
 	friend class ScriptManager;
@@ -84,29 +90,38 @@ public:
 		if (!script)
 			return;
 
-		auto activeScript = Util::find(activeScripts, script);
-		if (activeScript && !active)
-			deactivatedPendingScripts.push_back(script);
-		else if (!activeScript && active)
-			activatedPendingScripts.push_back(script);
+		if (script->active && !active) {
+			script->active = false;
+			pendingDeactivatedScripts.push_back(script);
+		} else if (!script->active && active) {
+			script->active = true;
+			auto isCurrentlyActive = Util::find(activeScripts, script);
+			auto isPending = Util::find(pendingScripts, script);
+			if (!isCurrentlyActive && !isPending)
+				pendingScripts.push_back(script);
+		}
 	}
 
 	void processPendingScripts()
 	{
-		if (pendingScripts.empty() && activatedPendingScripts.empty() && deactivatedPendingScripts.empty())
+		if (pendingScripts.empty() && pendingDeactivatedScripts.empty())
 			return;
 
-		Util::push_back_range(activeScripts, pendingScripts);
-		for (auto script : pendingScripts)
-			script->init();
+		for (auto script : pendingScripts) {
+			if (script->active) {
+				activeScripts.push_back(script);
+				if (!script->isInitialized) {
+					script->init();
+					script->isInitialized = true;
+				}
+			}
+		}
 		pendingScripts.clear();
 
-		Util::push_back_range(activeScripts, activatedPendingScripts);
-		activatedPendingScripts.clear();
-
-		for (auto script : deactivatedPendingScripts)
-			Util::erase(activeScripts, script);
-		deactivatedPendingScripts.clear();
+		for (auto script : pendingDeactivatedScripts)
+			if(!script->active)
+				Util::erase(activeScripts, script);
+		pendingDeactivatedScripts.clear();
 	}
 
 	// f must take Script* as arg
@@ -149,7 +164,6 @@ private:
 	std::vector<int> freePools;
 	std::vector<Script*> activeScripts;
 	std::vector<Script*> pendingScripts;
-	std::vector<Script*> deactivatedPendingScripts;
-	std::vector<Script*> activatedPendingScripts;
+	std::vector<Script*> pendingDeactivatedScripts;
 	friend class EntityManager;
 };

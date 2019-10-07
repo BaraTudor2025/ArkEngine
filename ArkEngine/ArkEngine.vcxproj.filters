@@ -124,5 +124,8 @@
     <ClInclude Include="ResourceManager.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
+    <ClInclude Include="CommandSystem.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

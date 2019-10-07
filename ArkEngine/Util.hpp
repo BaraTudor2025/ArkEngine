@@ -135,7 +135,7 @@ namespace Util {
 	}
 
 	template <typename T, typename F, typename U>
-	inline std::optional<U&> find(const T& range, F f)
+	inline std::optional<U&> find_if(const T& range, F f)
 	{
 		auto it = std::find_if(std::begin(range), std::end(range), f);
 		if (it == std::end(range))

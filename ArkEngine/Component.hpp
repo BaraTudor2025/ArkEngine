@@ -18,7 +18,7 @@ class ComponentManager final : public NonCopyable  {
 
 public:
 
-	static inline constexpr std::size_t MaxComponentTypes = 64;
+	static inline constexpr std::size_t MaxComponentTypes = 32;
 	using ComponentMask = std::bitset<MaxComponentTypes>;
 
 	template <typename T>
@@ -104,8 +104,9 @@ private:
 	{
 		std::cout << "adding " << type.name() << " as component type\n";
 		if (componentIndexes.size() == MaxComponentTypes) {
-			std::cerr << "nu mai e loc de tipuri de componente, nr. max: " << MaxComponentTypes << std::endl;
-			return;
+			std::cerr << "\n nu mai e loc de tipuri de componente, nr. max: " << MaxComponentTypes << std::endl;
+			std::cerr << " trying to add component (" << type.name() << "), no more space... aborting\n\n";
+			std::abort();
 		}
 		componentIndexes.push_back(type);
 	}

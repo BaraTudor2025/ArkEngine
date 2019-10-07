@@ -23,19 +23,24 @@ public:
 	{
 		Entity e;
 		e.manager = this;
-		std::cout << "create name: " << name << std::endl;
 		if (!freeEntities.empty()) {
 			e.id = freeEntities.back();
 			freeEntities.pop_back();
 			auto& entity = getEntity(e);
-			entity.name = name;
 		} else {
 			e.id = entities.size();
 			auto& entity = entities.emplace_back();
-			entity.name = name;
 			entity.mask.reset();
 			entity.componentIndexes.fill(ArkInvalidIndex);
 		}
+		auto& entity = getEntity(e);
+
+		if (name.empty())
+			entity.name = std::string("entity_") + std::to_string(e.id);
+		else
+			entity.name = name;
+
+		std::cout << "create entity with name: " << entity.name << std::endl;
 		return e;
 	}
 
@@ -51,13 +56,7 @@ public:
 	const std::string& getNameOfEntity(Entity e)
 	{
 		auto& entity = getEntity(e);
-		if (entity.name == "") {
-			std::string s = std::string("entity_") + std::to_string(e.id);
-			return s;
-		}
-		else {
-			return entity.name;
-		}
+		return entity.name;
 	}
 
 	void setNameOfEntity(Entity e, std::string name)

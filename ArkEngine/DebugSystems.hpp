@@ -6,7 +6,7 @@
 #include "Util.hpp"
 #include "ResourceManager.hpp"
 
-class FpsCounterSystem : public System {
+class FpsCounterSystem : public System, public Renderer {
 	sf::Time updateElapsed;
 	sf::Text text;
 	int updateFPS = 0;
@@ -68,8 +68,6 @@ private:
 			}
 		}
 	}
-
-	void render(sf::RenderTarget&) override { }
 };
 
 class DebugParticleSystem : public DebugSystem {

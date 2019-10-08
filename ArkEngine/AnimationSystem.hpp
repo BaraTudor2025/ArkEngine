@@ -83,7 +83,7 @@ private:
 	template <std::size_t N> decltype(auto) get();
 };
 
-class AnimationSystem : public System {
+class AnimationSystem : public System, public Renderer {
 
 public:
 	AnimationSystem() : System(typeid(AnimationSystem))
@@ -99,7 +99,7 @@ public:
 	void render(sf::RenderTarget& target) override;
 };
 
-class MeshSystem : public System {
+class MeshSystem : public System, public Renderer {
 public:
 	MeshSystem() : System(typeid(MeshSystem))
 	{

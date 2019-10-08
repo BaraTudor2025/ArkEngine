@@ -51,7 +51,7 @@ private:
 };
 
 
-class ButtonSystem : public System {
+class ButtonSystem : public System, public Renderer {
 
 public:
 	ButtonSystem() : System(typeid(ButtonSystem))
@@ -122,7 +122,7 @@ private:
 
 };
 
-class TextSystem : public System {
+class TextSystem : public System, public Renderer {
 
 public:
 	TextSystem() : System(typeid(TextSystem))

@@ -171,7 +171,7 @@ inline PointParticles getGreenParticles()
 	return greenParticles;
 }
 
-class PointParticleSystem : public System {
+class PointParticleSystem : public System, public Renderer {
 
 public:
 	PointParticleSystem() : System(typeid(PointParticleSystem))
@@ -194,7 +194,7 @@ private:
 
 
 
-class PixelParticleSystem : public System {
+class PixelParticleSystem : public System, public Renderer {
 
 public:
 	PixelParticleSystem() : System(typeid(PixelParticleSystem))

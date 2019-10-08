@@ -12,16 +12,25 @@
 
 class Scene;
 
+class ARK_ENGINE_API Renderer : public NonCopyable {
+
+public:
+	Renderer() = default;
+	virtual ~Renderer() = default;
+
+	virtual void render(sf::RenderTarget&) = 0;
+
+};
+
 class ARK_ENGINE_API System : public NonCopyable {
 
 public:
 	System(std::type_index type) : type(type) {}
-	virtual ~System();
+	virtual ~System() = default;
 
 	virtual void update() { }
 	virtual void handleEvent(sf::Event) { }
 	virtual void handleMessage(const Message&) { }
-	virtual void render(sf::RenderTarget& target) { } // TODO (system): remove render function
 
 protected:
 	template <typename T>

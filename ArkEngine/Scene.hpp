@@ -9,8 +9,6 @@
 #include <SFML/Graphics/Drawable.hpp>
 
 // TODO (Scene): add Directors?
-// TODO (Scene): inherit from sf::Drawable? and add vector<Drawables*> dSystems; asta cand scot 'void render()' din systeme
-// TODO (Scene): add class RenderSystem{ virtual void render(sf::RenderTarget&) = 0; }
 
 class MessageBus;
 
@@ -47,7 +45,10 @@ public:
 	template <typename T, typename...Args>
 	T* addSystem(Args&&... args) {
 		static_assert(std::is_base_of_v<System, T>, " T not a system type");
-		return systemManager.addSystem<T>(std::forward<T>(args)...);
+		auto system = systemManager.addSystem<T>(std::forward<T>(args)...);
+		if (std::is_base_of_v<Renderer, T>)
+			renderers.push_back(system);
+		return system;
 	}
 
 	template <typename T>
@@ -60,11 +61,24 @@ public:
 	void setSystemActive(bool active) {
 		static_assert(std::is_base_of_v<System, T>, " T not a system type");
 		systemManager.setSystemActive<T>(active);
+
+		if (std::is_base_of_v<Renderer, T>) {
+			auto system = systemManager.getSystem<T>();
+			if (active) {
+				auto found = Util::find(renderers, system);
+				if (!found)
+					renderers.push_back(system);
+			} else {
+				Util::erase(renderers, system);
+			}
+		}
 	}
 
 	template <typename T>
 	void removeSystem() {
 		static_assert(std::is_base_of_v<System, T>, " T not a system type");
+		if (std::is_base_of_v<Renderer, T>)
+			Util::erase(renderers, systemManager.getSystem<T>());
 		systemManager.removeSystem<T>();
 	}
 
@@ -98,9 +112,8 @@ public:
 	
 	void render(sf::RenderTarget& target)
 	{
-		systemManager.forEachSystem([&target](System* system){
+		for (auto system : renderers)
 			system->render(target);
-		});
 	}
 
 private:
@@ -127,4 +140,5 @@ private:
 
 	std::vector<Entity> pendingEntities;
 	std::vector<Entity> destroyedEntities;
+	std::vector<Renderer*> renderers;
 };

@@ -4,14 +4,13 @@
 #include "Entity.hpp"
 #include "MessageBus.hpp"
 #include "State.hpp"
+#include "ResourceManager.hpp"
 
 const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
 
 const std::string& Entity::name() { return manager->getNameOfEntity(*this); }
 
 void Entity::setName(std::string name) { return manager->setNameOfEntity(*this, name); }
-
-System::~System() {}
 
 void State::requestStackPush(int stateId) {
 	this->stateStack.pushState(stateId);

@@ -9,7 +9,7 @@
 
 struct Text : Component, sf::Text { 
 
-	Text(std::string fontName = "fonts/KeepCalm-Medium.ttf") : fontName(fontName) { }
+	Text(std::string fontName = "KeepCalm-Medium.ttf") : fontName(fontName) { }
 
 	bool moveWithMouse = false;
 

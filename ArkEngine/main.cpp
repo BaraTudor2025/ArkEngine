@@ -250,7 +250,7 @@ private:
 		//createEntity(fireWorks);
 
 		player.addComponent<Transform>();
-		player.addComponent<Animation>("textures/chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
+		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
 		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 		player.addScript<MovePlayer>(400, 180);

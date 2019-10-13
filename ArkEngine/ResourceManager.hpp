@@ -5,49 +5,64 @@
 #include <string>
 #include <exception>
 #include <functional>
+#include <any>
 
 // TODO (resource manager): make loader return an optional default resource, if the optional is null then abort program
 struct Resources {
 
-	// f must take void* as the first argument and cast it to T*, and the filename as the second arg
-	// f must also return true if loading was a success, false otherwise
-	// e.g.: bool f(void*, std::string fileName)
+	static inline const std::string resourceFolder = "./res/";
+
+	struct Handler {
+		std::string folder;
+		std::function<std::any(std::string)> load; // takes file path as parameter
+	};
 
 	template <typename T, typename F>
-	static void addLoader(F f)
+	static void addHandler(std::string folder, F f)
 	{
-		loaders[typeid(T)] = f;
+		handlers[typeid(T)] = Handler{folder, f};
+	}
+	
+	template <typename T>
+	static void addHandler(Handler handler)
+	{
+		handlers[typeid(T)] = std::move(handler);
 	}
 
 	template <typename T>
-	static T* load(const std::string& fileName)
+	static T* load(const std::string& file)
 	{
 		static std::unordered_map<std::string, T> cache;
 
-		auto itRes = cache.find(fileName);
-		if (itRes == cache.end()) {
-			T temp;
-			auto itLoader = loaders.find(typeid(T));
-			if (itLoader == loaders.end()) {
-				std::cout << "\n\n loader for (" << typeid(T).name() << ") was not added\n";
-				std::abort();
-			} else if (!itLoader->second(&temp, "./res/" + fileName)) {
-				std::string msg = "couldn't load file: " + fileName;
-				std::cout << "\n\n" << msg << "\n\n";
-				throw std::runtime_error(msg);
-			}
-			return &(cache[fileName] = std::move(temp));
+		auto cachedValueIt = cache.find(file);
+		if (cachedValueIt != cache.end()) {
+			return &(cachedValueIt->second);
 		} else {
-			return &(itRes->second);
+			auto handlerIt = handlers.find(typeid(T));
+			if (handlerIt == handlers.end()) {
+				std::cout << "\n\n resource handler for (" << typeid(T).name() << ") was not added... aborting\n";
+				std::abort();
+			} else {
+				auto& handler = handlerIt->second;
+				std::any resource = handler.load(resourceFolder + handler.folder + "/" + file);
+				if (!resource.has_value()) {
+					std::cout << "\n resorce handler for " << typeid(T).name() << " didn't return a value... aborting\n";
+					std::abort();
+				}
+				cache[file] = std::any_cast<T&&>(std::move(resource));
+				return &cache[file];
+			}
 		}
 	}
 
 	template <typename T>
-	static bool sfmlResourceLoader(void* res, std::string fileName)
+	static std::any load_SFML_resource(std::string fileName)
 	{
-		return static_cast<T*>(res)->loadFromFile(fileName);
+		T resource;
+		resource.loadFromFile(fileName);
+		return resource;
 	}
 
 private:
-	static std::unordered_map<std::type_index, std::function<bool(void*, std::string)>> loaders;
+	static std::unordered_map<std::type_index, Handler> handlers;
 };

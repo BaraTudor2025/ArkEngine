@@ -27,6 +27,10 @@
 	type(type&&) = default; \
 	type& operator=(type&&) = default;
 
+static inline constexpr int ArkInvalidIndex = -1;
+static inline constexpr int ArkInvalidID = -1;
+//static inline constexpr int ark_invalid_index = -1;
+
 struct NonCopyable {
 	NonCopyable() = default;
 	NonCopyable(const NonCopyable&) = delete;
@@ -142,6 +146,27 @@ namespace Util {
 			return {};
 		else
 			return *it;
+	}
+
+	// return index of the element, InvalidIndex if not found
+	template <typename T, typename U>
+	inline int get_index(const T& range, const U& elem)
+	{
+		auto pos = std::find(std::begin(range), std::end(range), elem);
+		if (pos == std::end(range)) {
+			return ArkInvalidIndex;
+		}
+		return pos - std::begin(this->componentIndexes);
+	}
+
+	template <typename T, typename F>
+	inline int get_index_if(const T& range, const F& f)
+	{
+		auto pos = std::find_if(std::begin(range), std::end(range), f);
+		if (pos == std::end(range)) {
+			return ArkInvalidIndex;
+		}
+		return pos - std::begin(this->componentIndexes);
 	}
 
 	struct PolarVector {

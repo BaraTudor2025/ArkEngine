@@ -23,6 +23,7 @@
 #include "AnimationSystem.hpp"
 #include "DebugSystems.hpp"
 #include "GuiSystem.hpp"
+//#include "ArchetypeManager.hpp"
 
 using namespace std::literals;
 

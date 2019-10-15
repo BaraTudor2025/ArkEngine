@@ -106,7 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\SFML-2.5.1\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
@@ -149,7 +149,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;SFML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\SFML-2.5.1\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
@@ -183,7 +183,6 @@
     <ClInclude Include="Entities.hpp" />
     <ClInclude Include="Entity.hpp" />
     <ClInclude Include="EntityManager.hpp" />
-    <ClInclude Include="gsl-lite.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
     <ClInclude Include="Message.hpp" />
     <ClInclude Include="State.hpp" />
@@ -192,13 +191,11 @@
     <ClInclude Include="Scene.hpp" />
     <ClInclude Include="Script.hpp" />
     <ClInclude Include="SOAvector.hpp" />
-    <ClInclude Include="gsl.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />
     <ClInclude Include="ParticleScripts.hpp" />
     <ClInclude Include="RandomNumbers.hpp" />
     <ClInclude Include="ResourceManager.hpp" />
     <ClInclude Include="Scripts.hpp" />
-    <ClInclude Include="static_any.hpp" />
     <ClInclude Include="System.hpp" />
     <ClInclude Include="Transform.hpp" />
     <ClInclude Include="Util.hpp" />

@@ -15,9 +15,6 @@
     <Filter Include="ArkEngine">
       <UniqueIdentifier>{4a789863-c6c7-4419-a777-59129fe091b4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="libs">
-      <UniqueIdentifier>{c275730a-35ca-4cd0-949a-90c2b1959645}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -72,15 +69,6 @@
     </ClInclude>
     <ClInclude Include="GuiSystem.hpp">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="static_any.hpp">
-      <Filter>libs</Filter>
-    </ClInclude>
-    <ClInclude Include="gsl-lite.hpp">
-      <Filter>libs</Filter>
-    </ClInclude>
-    <ClInclude Include="gsl.hpp">
-      <Filter>libs</Filter>
     </ClInclude>
     <ClInclude Include="System.hpp">
       <Filter>ArkEngine</Filter>

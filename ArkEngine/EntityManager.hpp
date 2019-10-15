@@ -2,8 +2,9 @@
 
 #include "Component.hpp"
 #include "Script.hpp"
-#include "static_any.hpp"
 #include "Entity.hpp"
+
+#include <libs/static_any.hpp>
 
 #include <unordered_map>
 #include <typeindex>

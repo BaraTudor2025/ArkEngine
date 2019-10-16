@@ -19,9 +19,14 @@ public:
 	template <typename T>
 	T& getComponent();
 
+	// returns nullptr if component is not found
+	template <typename T>
+	T* tryGetComponent();
+
 	template <typename T, typename...Args>
 	T* addScript(Args&& ... args);
 
+	// returns nullptr if script is not found
 	template <typename T>
 	T* getScript();
 

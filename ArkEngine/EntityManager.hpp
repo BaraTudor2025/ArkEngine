@@ -105,7 +105,7 @@ public:
 		int compId = componentManager.getComponentId<T>();
 		auto& entity = getEntity(e);
 		if (entity.mask.test(compId))
-			return getComponentOfEntity<T>(e);
+			return *getComponentOfEntity<T>(e);
 
 		auto [comp, compIndex] = componentManager.addComponent<T>(std::forward<Args>(args)...);
 
@@ -116,16 +116,17 @@ public:
 	}
 
 	template <typename T>
-	T& getComponentOfEntity(Entity e)
+	T* getComponentOfEntity(Entity e)
 	{
 		auto& entity = getEntity(e);
 		int compId = componentManager.getComponentId<T>();
 		if (!entity.mask.test(compId)) {
 			// TODO (entity manager): make this an assert
 			std::cerr << "entity " << e.name() << " dosent have component " << typeid(T).name() << '\n';
+			return nullptr;
 		}
 		int compIndex = entity.componentIndexes[compId];
-		return *componentManager.getComponent<T>(compId, compIndex);
+		return componentManager.getComponent<T>(compId, compIndex);
 	}
 
 	template <typename T, typename... Args>
@@ -269,6 +270,17 @@ inline T& Entity::addComponent(Args&& ...args)
 
 template<typename T>
 inline T& Entity::getComponent()
+{
+	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	auto comp = manager->getComponentOfEntity<T>(*this);
+	if (!comp) {
+		std::cerr << " entity (" << this->name() << ") dosen't have component (" << typeid(T).name() << ")\n";
+	}
+	return *comp;
+}
+
+template<typename T>
+inline T* Entity::tryGetComponent()
 {
 	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
 	return manager->getComponentOfEntity<T>(*this);

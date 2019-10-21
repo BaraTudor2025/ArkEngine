@@ -88,6 +88,20 @@ namespace Util {
 		return u.ret;
 	}
 
+	const char* getNameOfType(std::type_index type)
+	{
+		const char* p = type.name();
+		while (*p != ' ')
+			p++;
+		return ++p;
+	}
+
+	template <typename T>
+	const char* getNameOfType()
+	{
+		return 	getNameOfType(typeid(T));
+	}
+
 	template <typename T>
 	void push_back_range(T& range, const T& inserted)
 	{

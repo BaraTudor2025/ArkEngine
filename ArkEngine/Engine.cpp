@@ -4,6 +4,7 @@
 #include "MessageBus.hpp"
 #include "State.hpp"
 #include "ResourceManager.hpp"
+#include "Gui.hpp"
 
 #include <imgui.h>
 #include <imgui-SFML.h>
@@ -79,6 +80,7 @@ void ArkEngine::updateEngine()
 	Message* p;
 	while (messageBus.pool(p))
 		stateStack.handleMessage(*p);
+
 	stateStack.processPendingChanges();
 	stateStack.update();
 }
@@ -86,13 +88,11 @@ void ArkEngine::updateEngine()
 void ArkEngine::run()
 {
 	auto lag = sf::Time::Zero;
+	auto ImGuiDeltaTime = sf::seconds(1 / 30);
 
-	std::string windowTitle;
-	windowTitle.resize(50);
+	InternalGui::init();
 
 	clock.restart();
-	sf::Color bgColor = sf::Color::Black;
-	float color[3] = {0.f, 0.f, 0.f};
 
 	while (window.isOpen()) {
 
@@ -108,34 +108,13 @@ void ArkEngine::run()
 		}
 #endif
 
-		ImGui::SFML::Update(window, deltaTime());
+		ImGui::SFML::Update(window, ImGuiDeltaTime);
+		InternalGui::render();
 
-		ImGui::Begin("Sample window"); // begin window
-
-		if (ImGui::ColorEdit3("Background color", color)) {
-			// this code gets called if color value changes, so
-			// the background color is upgraded automatically!
-			bgColor.r = static_cast<sf::Uint8>(color[0] * 255.f);
-			bgColor.g = static_cast<sf::Uint8>(color[1] * 255.f);
-			bgColor.b = static_cast<sf::Uint8>(color[2] * 255.f);
-		}
-
-		// Window title text edit
-		ImGui::InputText("Window title", windowTitle.data(), 20);
-
-		if (ImGui::Button("Update window title")) {
-			// this code gets if user clicks on the button
-			// yes, you could have written if(ImGui::InputText(...))
-			// but I do this to show how buttons work :)
-			window.setTitle(windowTitle);
-		}
-		ImGui::End(); // end window
-
-		window.clear(bgColor);
+		window.clear(backGroundColor);
 
 		stateStack.render(window);
 		ImGui::SFML::Render(window);
-
 		window.display();
 	}
 	ImGui::SFML::Shutdown();

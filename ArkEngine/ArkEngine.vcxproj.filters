@@ -29,11 +29,14 @@
     <ClCompile Include="Engine.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Gui.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Util.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ElipseShape.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -113,6 +116,15 @@
       <Filter>ArkEngine</Filter>
     </ClInclude>
     <ClInclude Include="CommandSystem.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Gui.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Logger.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
   </ItemGroup>

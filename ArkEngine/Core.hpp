@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+#include "Logger.hpp"
+
 //#define VENGINE_BUILD_DLL 0
 //
 //#if VENGINE_BUILD_DLL

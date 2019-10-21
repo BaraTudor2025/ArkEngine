@@ -167,6 +167,8 @@
   <ItemGroup>
     <ClCompile Include="AnimationSystem.cpp" />
     <ClCompile Include="Engine.cpp" />
+    <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp" />
+    <ClCompile Include="Gui.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
   </ItemGroup>
@@ -183,7 +185,9 @@
     <ClInclude Include="Entities.hpp" />
     <ClInclude Include="Entity.hpp" />
     <ClInclude Include="EntityManager.hpp" />
+    <ClInclude Include="Gui.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
+    <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Message.hpp" />
     <ClInclude Include="State.hpp" />
     <ClInclude Include="MessageBus.hpp" />

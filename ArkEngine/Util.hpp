@@ -9,6 +9,7 @@
 #include <sstream>
 #include <optional>
 #include <string>
+#include <typeindex>
 
 
 #define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
@@ -88,7 +89,7 @@ namespace Util {
 		return u.ret;
 	}
 
-	const char* getNameOfType(std::type_index type)
+	inline const char* getNameOfType(std::type_index type)
 	{
 		const char* p = type.name();
 		while (*p != ' ')
@@ -99,7 +100,7 @@ namespace Util {
 	template <typename T>
 	const char* getNameOfType()
 	{
-		return 	getNameOfType(typeid(T));
+		return getNameOfType(typeid(T));
 	}
 
 	template <typename T>

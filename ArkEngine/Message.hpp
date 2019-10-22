@@ -13,7 +13,7 @@ struct Message final {
 	{
 		// TODO (message): assert(sizeof(T) == m_size)
 		if (sizeof(T) != m_size)
-			std::cerr << " Message: sizeof(T) with T [" << typeid(T).name() << "] is not equal with message size\n\n";
+			EngineLog(LogSource::Message, LogLevel::Warning, "Type (%s) with size %d doesn't have the message size of %d", Util::getNameOfType<T>(), sizeof(T), m_size);
 		return *static_cast<T*>(m_data);
 	}
 

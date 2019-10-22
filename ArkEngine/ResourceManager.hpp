@@ -40,13 +40,13 @@ struct Resources {
 		} else {
 			auto handlerIt = handlers.find(typeid(T));
 			if (handlerIt == handlers.end()) {
-				std::cout << "\n\n resource handler for (" << typeid(T).name() << ") was not added... aborting\n";
+				EngineLog(LogSource::ResourceM, LogLevel::Error, "aborting... handler for (%s) was not added", Util::getNameOfType<T>());
 				std::abort();
 			} else {
 				auto& handler = handlerIt->second;
 				std::any resource = handler.load(resourceFolder + handler.folder + "/" + file);
 				if (!resource.has_value()) {
-					std::cout << "\n resorce handler for " << typeid(T).name() << " didn't return a value... aborting\n";
+					EngineLog(LogSource::ResourceM, LogLevel::Error, "aborting... handler for (%s) didn't return a value", Util::getNameOfType<T>());
 					std::abort();
 				}
 				cache[file] = std::any_cast<T&&>(std::move(resource));

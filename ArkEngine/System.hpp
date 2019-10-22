@@ -59,7 +59,7 @@ protected:
 private:
 	void addEntity(Entity e)
 	{
-		std::cout << "On system " << type.name() << ": entity(" << e.name() << ") added\n";
+		EngineLog(LogSource::SystemM, LogLevel::Info, "On (%s) added entity (%s)", Util::getNameOfType(type), e.name().c_str());
 		entities.push_back(e);
 		onEntityAdded(e);
 	}
@@ -111,7 +111,7 @@ public:
 		sys->messageBus = &messageBus;
 		sys->constructMask(componentManager);
 		if (sys->componentMask.none())
-			std::cout << " System " << sys->type.name() << " dosen't have any component requirements\n\n";
+			EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", Util::getNameOfType(sys->type));
 
 		return dynamic_cast<T*>(sys.get());
 	}

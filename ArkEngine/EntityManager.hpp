@@ -41,7 +41,7 @@ public:
 		else
 			entity.name = name;
 
-		std::cout << "create entity with name: " << entity.name << std::endl;
+		EngineLog(LogSource::EntityM, LogLevel::Info, "created (%s)", entity.name.c_str());
 		return e;
 	}
 
@@ -76,7 +76,7 @@ public:
 				return e;
 			}
 		}
-		std::cout << "didn't find entity with name: " << name << '\n';
+		EngineLog(LogSource::EntityM, LogLevel::Warning, "getByName(): didn't find entity (%s)", name.c_str());
 		return {};
 	}
 
@@ -84,6 +84,8 @@ public:
 	{
 		freeEntities.push_back(e.id);
 		auto& entity = getEntity(e);
+
+		EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity (%s)", entity.name.c_str());
 
 		for (int i = 0; i < entity.componentIndexes.size(); i++)
 			if (i != ArkInvalidIndex)
@@ -121,8 +123,7 @@ public:
 		auto& entity = getEntity(e);
 		int compId = componentManager.getComponentId<T>();
 		if (!entity.mask.test(compId)) {
-			// TODO (entity manager): make this an assert
-			std::cerr << "entity " << e.name() << " dosent have component " << typeid(T).name() << '\n';
+			EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType<T>());
 			return nullptr;
 		}
 		int compIndex = entity.componentIndexes[compId];
@@ -144,8 +145,7 @@ public:
 		auto& entity = getEntity(e);
 		auto script = scriptManager.getScript<T>(entity.scriptsIndex);
 		if (script == nullptr)
-			std::cerr << "entity " << e.name() << " doesn't have the " << typeid(T).name() << " script\n";
-
+			EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s) doesn't have (%s) script attached", entity.name.c_str(), Util::getNameOfType<T>());
 		return script;
 	}
 
@@ -273,9 +273,8 @@ inline T& Entity::getComponent()
 {
 	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
 	auto comp = manager->getComponentOfEntity<T>(*this);
-	if (!comp) {
-		std::cerr << " entity (" << this->name() << ") dosen't have component (" << typeid(T).name() << ")\n";
-	}
+	if (!comp)
+		EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
 	return *comp;
 }
 

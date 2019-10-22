@@ -77,7 +77,7 @@ namespace ParticleScripts {
 			p = getComponent<PointParticles>();
 			std::ifstream fin(file);
 			if (!fin.is_open()) {
-				std::cerr << "nu-i fisierul: " + file + "\n";
+				//std::cerr << "nu-i fisierul: " + file + "\n";
 				std::getchar();
 				exit(-2025);
 			}

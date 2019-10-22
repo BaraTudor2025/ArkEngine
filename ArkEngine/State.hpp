@@ -102,7 +102,7 @@ public:
 			if (changes.action == Action::Push) {
 				auto it = factories.find(changes.stateId);
 				if (it == factories.end()) {
-					std::cerr << "didn't find state with id(" << changes.stateId << ")\n";
+					EngineLog(LogSource::StateStack, LogLevel::Error, "didn't find state with id %d", changes.stateId);
 					return;
 				}
 				auto factorie = it->second;

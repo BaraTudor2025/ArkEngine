@@ -45,7 +45,7 @@ public:
 
 		auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
 		if (pos == std::end(this->componentIndexes)) {
-			std::cout << "component manager dosent have component type: " << type.name() << '\n';
+			EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", Util::getNameOfType(type));
 			return ArkInvalidIndex;
 		}
 		return pos - std::begin(this->componentIndexes);
@@ -62,7 +62,8 @@ public:
 	std::pair<T*, int> addComponent(Args&&... args) 
 	{
 		if (!hasComponentType<T>()) {
-			std::cout << "component " << typeid(T).name() << " is not supported by any system\n";
+			EngineLog(LogSource::ComponentM, LogLevel::Error, "type (%s) is not supported", Util::getNameOfType<T>());
+			return {nullptr, ArkInvalidIndex};
 		}
 
 		auto compId = getComponentId<T>();
@@ -80,11 +81,11 @@ public:
 				if constexpr (!std::is_trivially_destructible_v<T>)
 					slot->~T();
 				Util::construct_in_place<T>(slot, std::forward<Args>(args)...);
-				return std::make_pair<T*, int>(std::move(slot), std::move(index));
+				return {slot, index};
 			}
 		}
 		pool.emplace_back(std::forward<Args>(args)...);
-		return std::make_pair<T*, int>(&pool.back(), pool.size() - 1);
+		return {&pool.back(), pool.size() - 1};
 	}
 
 	template <typename T>
@@ -103,10 +104,9 @@ private:
 
 	void addComponentType(std::type_index type)
 	{
-		std::cout << "adding " << type.name() << " as component type\n";
+		EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", Util::getNameOfType(type));
 		if (componentIndexes.size() == MaxComponentTypes) {
-			std::cerr << "\n nu mai e loc de tipuri de componente, nr. max: " << MaxComponentTypes << std::endl;
-			std::cerr << " trying to add component (" << type.name() << "), no more space... aborting\n\n";
+			EngineLog(LogSource::ComponentM, LogLevel::Error, "aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, Util::getNameOfType(type));
 			std::abort();
 		}
 		componentIndexes.push_back(type);

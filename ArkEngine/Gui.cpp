@@ -57,7 +57,7 @@ std::string_view sourceToString(LogSource source)
 		return "Entity M";
 
 	case LogSource::SystemM:
-		return "System M";
+		return "Sys M";
 
 	case LogSource::ScriptM:
 		return "Script M";
@@ -94,7 +94,7 @@ struct Logger final {
 	{
 		engineLogData.push_back(std::move(info));
 	}
-
+	
 	static void render()
 	{
 		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();

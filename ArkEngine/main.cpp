@@ -395,18 +395,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	ArkEngine::pushFirstState(States::TestingState);
 
 	ArkEngine::run();
-
-	//std::string prop("");
-	//std::getline(std::cin, prop);
-	//std::vector<Entity> letters = makeLetterEntities(prop);
-	//registerEntities(letters);
-
-	//auto randomParticles = makeRandomParticlesFountains(50, 5.f, getGreenParticles(), false);
-	//registerEntities(randomParticles);
-
-	//Entity readGMag;
-	//readGMag.addScript<GeneralScripts::ReadVarFromConsole<float>>(&ParticleSystem::gravityMagnitude, "enter gravity magnitude: ");
-
 	
 	return 0;
 }

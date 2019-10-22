@@ -46,9 +46,6 @@
     <ClInclude Include="RandomNumbers.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Entities.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Scripts.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

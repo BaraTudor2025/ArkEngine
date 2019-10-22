@@ -42,7 +42,6 @@ namespace ParticleScripts {
 		{
 			log_init();
 			p = getComponent<PointParticles>();
-			std::cout << "entity: " << entity().name() << "\n";
 		}
 
 		void update() override
@@ -265,73 +264,3 @@ namespace ParticleScripts {
 	};
 
 }
-
-#if 0
-
-namespace ParticleScripts::Action {
-
-	void SpawnLater(Entity& e, std::any a)
-	{
-		std::thread waitToSpawn([&e, a = std::move(a)]() {
-			auto p = e.getComponent<PointParticles>();
-			p->spawn = false;
-			auto seconds = std::any_cast<int>(a);
-			std::this_thread::sleep_for(std::chrono::seconds(seconds));
-			p->spawn = true;
-		});
-		waitToSpawn.detach();
-	}
-
-	void ReadColorDistributionFromFile(Entity& e, std::any fileName){
-		std::thread t([&e, arg = std::move(fileName)](){
-			auto fileName = std::any_cast<std::string>(arg);
-			auto p = e.getComponent<PointParticles>();
-			while (true) {
-				std::cout << "press enter to read colors from: " + fileName;
-				std::cin.get();
-				std::ifstream fin(fileName);
-				__IMPL__readColorDistributionFromStream(fin, p);
-				fin.close();
-			}
-		});
-		t.detach();
-	}
-
-	void ReadColorDistributionFromConsole(Entity& e, std::any){
-		std::thread t([&e]() {
-			auto p = e.getComponent<PointParticles>();
-			while (true) {
-				std::cout << "enter rgb low and high: ";
-				__IMPL__readColorDistributionFromStream(std::cin, p);
-			}
-		});
-		t.detach();
-	}
-
-	void ReadColorFromConsole(Entity& e, std::any){
-		std::thread t([&e]() {
-			auto p = e.getComponent<PointParticles>();
-			while (true) {
-				std::cout << "enter rgb : ";
-				__IMPL__readColorFromStream(std::cin, p);
-			}
-		});
-		t.detach();
-	}
-
-	void ReadColorFromFile(Entity& e, std::any fileName){
-		std::thread t([&e, arg = std::move(fileName)](){
-			auto p = e.getComponent<PointParticles>();
-			auto fileName = std::any_cast<std::string>(arg);
-			while (true) {
-				std::cout << "press enter to read colors from: " + fileName;
-				std::cin.get();
-				std::ifstream fin(fileName);
-				__IMPL__readColorFromStream(fin, p);
-				fin.close();
-			}
-		});
-		t.detach();
-	}
-}
-#endif

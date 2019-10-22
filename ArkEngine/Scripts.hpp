@@ -6,26 +6,6 @@
 
 namespace GeneralScripts
 {
-	template <typename T>
-	class ReadVarFromConsole : public Script {
-		T* var;
-		std::string prompt;
-	public:
-		ReadVarFromConsole(T* var, std::string p) : prompt(p), var(var) { }
-
-		void init()
-		{
-			std::thread t([prompt = prompt, &var = *var]() {
-				while (true) {
-					std::cout << prompt;
-					std::cin >> var;
-					std::cout << std::endl;
-				}
-			});
-			t.detach();
-		}
-	};
-
 	class RegisterMousePath : public Script {
 		std::vector<sf::Vector2f> path;
 		std::string file;

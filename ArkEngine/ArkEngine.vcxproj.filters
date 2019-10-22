@@ -64,9 +64,6 @@
     <ClInclude Include="const_string.hpp">
       <Filter>Header Files\experimental</Filter>
     </ClInclude>
-    <ClInclude Include="DebugSystems.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Quad.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -126,6 +123,9 @@
     </ClInclude>
     <ClInclude Include="Util.hpp">
       <Filter>ArkEngine</Filter>
+    </ClInclude>
+    <ClInclude Include="FpsCounterSystem.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

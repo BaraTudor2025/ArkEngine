@@ -179,7 +179,7 @@
     <ClInclude Include="Component.hpp" />
     <ClInclude Include="const_string.hpp" />
     <ClInclude Include="Core.hpp" />
-    <ClInclude Include="DebugSystems.hpp" />
+    <ClInclude Include="FpsCounterSystem.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="Engine.hpp" />
     <ClInclude Include="Entities.hpp" />

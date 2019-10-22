@@ -21,7 +21,7 @@
 #include "Util.hpp"
 #include "Scripts.hpp"
 #include "AnimationSystem.hpp"
-#include "DebugSystems.hpp"
+#include "FpsCounterSystem.hpp"
 #include "GuiSystem.hpp"
 //#include "ArchetypeManager.hpp"
 
@@ -230,7 +230,6 @@ private:
 
 	void init()
 	{
-		std::cout << "este sau nu: (" << std::is_pod_v<Mesajul> << ")";
 		scene.addSystem<PointParticleSystem>();
 		scene.addSystem<PixelParticleSystem>();
 		scene.addSystem<FpsCounterSystem>();

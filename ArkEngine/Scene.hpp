@@ -119,13 +119,6 @@ public:
 
 private:
 
-	template <typename T1, typename T2>
-	static auto set_difference(const T1& range1, const T2& range2)
-	{
-		std::vector<T1::value_type> diff;
-		std::set_difference(range1.begin(), range1.end(), range2.begin(), range2.end(), std::back_inserter(diff));
-		return diff;
-	}
 
 	void processPendingData()
 	{
@@ -134,9 +127,8 @@ private:
 		createdEntities.clear();
 
 		if (auto dirtyEntities = entityManager.getDirtyEntities(); dirtyEntities.has_value()) {
-			std::vector<Entity> modifiedEntities; // entities that are modified and have not been created now
-			//std::set_difference(createdEntities.begin(), createdEntities.);
-			modifiedEntities = set_difference(createdEntities, dirtyEntities.value());
+			// modified entities that have not been created now
+			std::vector<Entity> modifiedEntities = Util::set_difference(createdEntities, dirtyEntities.value());
 			for (auto entity : modifiedEntities) {
 				systemManager.removeFromSystems(entity);
 				systemManager.addToSystems(entity);

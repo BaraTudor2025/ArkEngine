@@ -89,6 +89,14 @@ namespace Util {
 		return u.ret;
 	}
 
+	template <typename T1, typename T2>
+	auto set_difference(const T1& range1, const T2& range2) -> std::vector<typename T1::value_type>
+	{
+		std::vector<typename T1::value_type> diff;
+		std::set_difference(range1.begin(), range1.end(), range2.begin(), range2.end(), std::back_inserter(diff));
+		return diff;
+	}
+
 	inline const char* getNameOfType(std::type_index type)
 	{
 		const char* p = type.name();
@@ -143,14 +151,21 @@ namespace Util {
 		range.erase(range.begin() + index);
 	}
 
+	// return std::optional<U&> or std::optional<U> if U is pointer
 	template <typename T, typename U>
-	inline std::optional<U&> find(const T& range, const U& elem)
+	inline auto find(const T& range, const U& elem) -> std::optional<std::conditional_t<std::is_pointer_v<U>, U, U&>>
 	{
+		static_assert(std::is_same_v<typename T::value_type, U>, "'elem' must have the same type as the range elements");
 		auto it = std::find(std::begin(range), std::end(range), elem);
+
 		if (it == std::end(range))
-			return {};
-		else
-			return *it;
+			return std::nullopt;
+		else {
+			if constexpr (std::is_pointer_v<U>)
+				return std::optional<U>(*it);
+			else 
+				return std::optional<U&>(*it);
+		}
 	}
 
 	template <typename T, typename F, typename U>

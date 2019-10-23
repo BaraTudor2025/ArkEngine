@@ -32,7 +32,7 @@ public:
 	virtual void handleEvent(sf::Event) { }
 	virtual void handleMessage(const Message&) { }
 
-	bool isActive() { return isActive; }
+	bool isActive() { return active; }
 	std::type_index getType() { return type; }
 	std::string_view getName() { return name; }
 	const std::vector<Entity>& getEntities() const { return entities; }
@@ -95,7 +95,7 @@ private:
 	MessageBus* messageBus = nullptr;
 	std::type_index type;
 	std::string_view name;
-	bool isActive = true;
+	bool active = true;
 };
 
 
@@ -192,10 +192,10 @@ public:
 
 		if (activeSystem && !active) {
 			Util::erase(activeSystems, system);
-			system->isActive = false;
+			system->active = false;
 		} else if (!activeSystem && active) {
 			activeSystems.push_back(system);
-			system->isActive = true;
+			system->active = true;
 		} 
 	}
 

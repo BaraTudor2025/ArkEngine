@@ -86,10 +86,14 @@ void ArkEngine::updateEngine()
 void ArkEngine::run()
 {
 	auto lag = sf::Time::Zero;
-	auto ImGuiDeltaTime = sf::seconds(1 / 30.f);
+	auto imguiLag = sf::Time::Zero;
+	auto imgui_fixed_time = sf::seconds(1 / 60.f);
 
 	ImGui::SFML::Init(window);
 	InternalGui::init();
+
+	// call update so that program doesn't crash
+	ImGui::SFML::Update(window, imgui_fixed_time);
 
 	clock.restart();
 
@@ -107,8 +111,13 @@ void ArkEngine::run()
 		}
 #endif
 
-		ImGui::SFML::Update(window, ImGuiDeltaTime);
-		InternalGui::render();
+		// updating imgui at a consistent rate
+		imguiLag += delta_time;
+		while (imguiLag >= imgui_fixed_time) {
+			imguiLag -= imgui_fixed_time;
+			ImGui::SFML::Update(window, imgui_fixed_time);
+			InternalGui::render();
+		}
 
 		window.clear(backGroundColor);
 

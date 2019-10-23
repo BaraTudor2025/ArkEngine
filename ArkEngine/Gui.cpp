@@ -202,6 +202,7 @@ void InternalGui::init()
 
 void InternalGui::render()
 {
+	ImGui::ShowDemoWindow();
 	ImGui::Begin("MyWindow");
 	if (ImGui::BeginTabBar("GameTabBar")) {
 		for (const auto& tab : tabs) {

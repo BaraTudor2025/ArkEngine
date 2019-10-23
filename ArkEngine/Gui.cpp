@@ -88,7 +88,7 @@ std::string_view sourceToString(LogSource source)
 	}
 }
 
-struct Logger final {
+struct EngineLogger final {
 
 	static void Log(EngineLogData info)
 	{
@@ -98,9 +98,9 @@ struct Logger final {
 	static void render()
 	{
 		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-		ImGui::BeginChild("ScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
+		ImGui::BeginChild("EngineLoggerScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4,3)); // Tighten spacing
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4,3));
 
 		for (const auto& data : engineLogData) {
 			ImGui::TextUnformatted("["); ImGui::SameLine(0, 0);
@@ -119,11 +119,63 @@ struct Logger final {
 
 void InternalEngineLog(EngineLogData data)
 {
-	Logger::Log(std::move(data));
+	EngineLogger::Log(std::move(data));
 }
+
+
+struct GameLogger final {
+
+};
+
+
+// also deals with stderr
+struct StdOutLogger final {
+	
+	inline static std::stringstream ssout;
+	inline static std::stringstream sserr;
+
+	inline static std::streambuf* stdout_buf;
+	inline static std::streambuf* stderr_buf;
+
+	static void render()
+	{
+		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+		ImGui::BeginChild("StdOutScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4,3));
+
+		if (ssout.rdbuf()->in_avail() != 0) {
+			text.append("\n[stdout]:\n");
+			text.append(ssout.str());
+			
+			ssout.str("");
+			ssout.clear();
+		}
+
+		if (sserr.rdbuf()->in_avail() != 0) {
+			text.append("\n[stderr]:\n");
+			text.append(sserr.str());
+
+			sserr.str("");
+			sserr.clear();
+		}
+
+		ImGui::TextUnformatted(text.c_str());
+
+		ImGui::PopStyleVar();
+		ImGui::EndChild();
+	}
+
+	inline static std::string text;
+};
 
 void InternalGui::init()
 {
+	// redirecting stdout and stderr to stringstream to print the output to the gui console
+	StdOutLogger::stdout_buf = std::cout.rdbuf();
+	StdOutLogger::stderr_buf = std::cerr.rdbuf();
+	std::cout.set_rdbuf(StdOutLogger::ssout.rdbuf());
+	std::cerr.set_rdbuf(StdOutLogger::sserr.rdbuf());
+
 	//GuiTab consoleTab;
 	//consoleTab.name = "Console";
 	//consoleTab.render = [&]() {
@@ -140,8 +192,13 @@ void InternalGui::init()
 
 	GuiTab engineLogger;
 	engineLogger.name = "Engine Log";
-	engineLogger.render = Logger::render;
+	engineLogger.render = EngineLogger::render;
 	tabs.push_back(engineLogger);
+
+	GuiTab stdOut;
+	stdOut.name = "StdOut";
+	stdOut.render = StdOutLogger::render;
+	tabs.push_back(stdOut);
 }
 
 void InternalGui::render()

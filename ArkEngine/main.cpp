@@ -264,7 +264,7 @@ private:
 		b.moveWithMouse = true;
 		b.loadPosition("mama");
 		b.setOrigin(b.getSize() / 2.f);
-		b.onClick = []() { std::cout << "\nclick "; };
+		b.onClick = []() { std::cout << "click "; };
 		auto& t = button.addComponent<Text>();
 		t.setString("buton");
 		t.setOrigin(b.getOrigin());

@@ -8,16 +8,13 @@
 
 class Entity;
 
-// TODO (script): maybe try to return nullptr if component isn't found?
-/*
- * if a script is disabled before construction then init will not be called
-*/
 class ARK_ENGINE_API Script : public NonCopyable {
 
 public:
 	Script() = default;
 	virtual ~Script() = default;
 
+	//if a script is disabled before construction then init will not be called
 	virtual void init() { }
 	virtual void update() { }
 	virtual void handleEvent(const sf::Event&) { }
@@ -142,7 +139,7 @@ public:
 		auto script = getScript<T>(indexOfPool);
 		if (script) {
 			Util::erase(activeScripts, script);
-			Util::erase_if(scriptPools, [script](auto& p) { return p.get() == script; });
+			Util::erase_if(scriptPools.at(indexOfPool), [script](auto& p) { return p.get() == script; });
 		}
 	}
 

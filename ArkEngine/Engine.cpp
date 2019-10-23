@@ -39,8 +39,6 @@ void ArkEngine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateT
 	window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
 	stateStack.messageBus = &messageBus;
 
-	ImGui::SFML::Init(window);
-
 	Resources::addHandler<sf::Texture>("textures", Resources::load_SFML_resource<sf::Texture>);
 	Resources::addHandler<sf::Font>("fonts", Resources::load_SFML_resource<sf::Font>);
 	Resources::addHandler<sf::Image>("imags", Resources::load_SFML_resource<sf::Image>);
@@ -88,8 +86,9 @@ void ArkEngine::updateEngine()
 void ArkEngine::run()
 {
 	auto lag = sf::Time::Zero;
-	auto ImGuiDeltaTime = sf::seconds(1 / 30);
+	auto ImGuiDeltaTime = sf::seconds(1 / 30.f);
 
+	ImGui::SFML::Init(window);
 	InternalGui::init();
 
 	clock.restart();

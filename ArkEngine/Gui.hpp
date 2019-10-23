@@ -2,7 +2,6 @@
 
 #include <imgui.h>
 #include <imgui-SFML.h>
-#include <libs/tinyformat.hpp>
 
 #include <vector>
 #include <functional>

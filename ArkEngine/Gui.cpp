@@ -89,11 +89,6 @@ std::string_view sourceToString(LogSource source)
 }
 
 struct EngineLogger final {
-
-	static void Log(EngineLogData info)
-	{
-		engineLogData.push_back(std::move(info));
-	}
 	
 	static void render()
 	{
@@ -119,13 +114,33 @@ struct EngineLogger final {
 
 void InternalEngineLog(EngineLogData data)
 {
-	EngineLogger::Log(std::move(data));
+	EngineLogger::engineLogData.push_back(std::move(data));
 }
+
 
 
 struct GameLogger final {
 
+	static void render()
+	{
+		const float footer_height_to_reserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+		ImGui::BeginChild("EngineLoggerScrollingRegion", ImVec2(0, -footer_height_to_reserve), false, ImGuiWindowFlags_HorizontalScrollbar);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4,3));
+
+		ImGui::TextUnformatted(buffer.c_str());
+
+		ImGui::PopStyleVar();
+		ImGui::EndChild();
+	}
+
+	static inline std::string buffer;
 };
+
+void InternalGameLog(std::string text)
+{
+	GameLogger::buffer.append(text);
+}
+
 
 
 // also deals with stderr
@@ -168,6 +183,8 @@ struct StdOutLogger final {
 	inline static std::string text;
 };
 
+
+
 void InternalGui::init()
 {
 	// redirecting stdout and stderr to stringstream to print the output to the gui console
@@ -176,35 +193,17 @@ void InternalGui::init()
 	std::cout.set_rdbuf(StdOutLogger::ssout.rdbuf());
 	std::cerr.set_rdbuf(StdOutLogger::sserr.rdbuf());
 
-	//GuiTab consoleTab;
-	//consoleTab.name = "Console";
-	//consoleTab.render = [&]() {
-	//
-	//};
-	//tabs.push_back(consoleTab);
-
-	//GuiTab componentEditor;
-	//componentEditor.name = "Component Editor";
-	//tabs.push_back(componentEditor);
-
-	GuiTab managersInspector;
-	managersInspector.name = "Managers Inspector";
-
-	GuiTab engineLogger;
-	engineLogger.name = "Engine Log";
-	engineLogger.render = EngineLogger::render;
-	tabs.push_back(engineLogger);
-
-	GuiTab stdOut;
-	stdOut.name = "StdOut";
-	stdOut.render = StdOutLogger::render;
-	tabs.push_back(stdOut);
+	tabs.push_back({"Engine Log", EngineLogger::render});
+	//tabs.emplace_back("Managers Inspector", );
+	//tabs.emplace_back("Entity Editor");
+	tabs.push_back({"Game Log", GameLogger::render});
+	tabs.push_back({"stdout", StdOutLogger::render});
 }
 
 void InternalGui::render()
 {
 	ImGui::Begin("MyWindow");
-	if (ImGui::BeginTabBar("MyTabBar")) {
+	if (ImGui::BeginTabBar("GameTabBar")) {
 		for (const auto& tab : tabs) {
 			if (ImGui::BeginTabItem(tab.name.c_str())) {
 				tab.render();

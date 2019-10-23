@@ -18,9 +18,10 @@ class MessageBus;
 class State : public NonCopyable, public NonMovable {
 
 public:
-	State(StateStack& ss, MessageBus& mb) : stateStack(ss), messageBus(mb) { }
+	State(MessageBus& mb) : messageBus(&mb) {}
 	virtual ~State() = default;
 
+	virtual void init() { }
 	virtual void handleMessage(const Message&) = 0;
 	virtual bool handleEvent(const sf::Event&) = 0;
 	virtual bool update() = 0;
@@ -29,14 +30,15 @@ public:
 
 protected:
 
-	MessageBus& getMessageBus() { return messageBus; }
+	MessageBus& getMessageBus() { return *messageBus; }
 	void requestStackPush(int stateId);
 	void requestStackPop();
 	void requestStackClear();
 
 private:
-	StateStack& stateStack;
-	MessageBus& messageBus;
+	StateStack* stateStack;
+	MessageBus* messageBus;
+	friend class StateStack;
 };
 
 class StateStack final : public NonCopyable, public NonMovable {
@@ -53,7 +55,9 @@ public:
 	void registerState(int id)
 	{
 		factories[id] = [this]() {
-			return std::make_unique<T>(*this, *this->messageBus);
+			auto state = std::make_unique<T>(*this->messageBus);
+			state->stateStack = this;
+			return std::move(state);
 		};
 	}
 
@@ -107,6 +111,7 @@ public:
 				}
 				auto factorie = it->second;
 				stack.emplace_back(factorie());
+				stack.back()->init();
 			} else if (changes.action == Action::Pop) {
 				stack.pop_back();
 			} else if (changes.action == Action::Clear) {

@@ -16,15 +16,15 @@ const std::string& Entity::name() { return manager->getNameOfEntity(*this); }
 void Entity::setName(std::string name) { return manager->setNameOfEntity(*this, name); }
 
 void State::requestStackPush(int stateId) {
-	this->stateStack.pushState(stateId);
+	this->stateStack->pushState(stateId);
 }
 
 void State::requestStackPop() {
-	this->stateStack.popState();
+	this->stateStack->popState();
 }
 
 void State::requestStackClear() {
-	this->stateStack.clearStack();
+	this->stateStack->clearStack();
 }
 
 std::unordered_map<std::type_index, Resources::Handler> Resources::handlers;

@@ -193,7 +193,7 @@ protected:
 	Scene scene{getMessageBus()};
 
 public:
-	BasicState(StateStack& ss, MessageBus& mb) : State(ss, mb) {}
+	BasicState(MessageBus& bus) : State(bus) { }
 
 	bool handleEvent(const sf::Event& event) override
 	{
@@ -222,13 +222,13 @@ public:
 class TestingState : public BasicState {
 
 public:
-	TestingState(StateStack& ss, MessageBus& mb) : BasicState(ss, mb) { init(); }
+	TestingState(MessageBus& mb) : BasicState(mb) { }
 
 private:
 
 	int getStateId() override { return States::TestingState; }
 
-	void init()
+	void init() override
 	{
 		scene.addSystem<PointParticleSystem>();
 		scene.addSystem<PixelParticleSystem>();

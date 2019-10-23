@@ -25,23 +25,23 @@ public:
 class ARK_ENGINE_API System : public NonCopyable {
 
 public:
-	System(std::type_index type) : type(type) {}
+	System(std::type_index type) : type(type), name(Util::getNameOfType(type)) {  }
 	virtual ~System() = default;
 
 	virtual void update() { }
 	virtual void handleEvent(sf::Event) { }
 	virtual void handleMessage(const Message&) { }
 
+	bool isActive() { return isActive; }
+	std::type_index getType() { return type; }
+	std::string_view getName() { return name; }
+	const std::vector<Entity>& getEntities() const { return entities; }
+	const std::vector<std::string_view>& getComponentNames() const { return componentNames; }
+
 protected:
 	template <typename T>
 	void requireComponent() {
 		componentTypes.push_back(typeid(T));
-	}
-
-	template <typename F>
-	void forEachEntity(F f) {
-		for (auto entity : entities)
-			f(entity);
 	}
 
 	template <typename T>
@@ -78,18 +78,24 @@ private:
 	void constructMask(ComponentManager& cm)
 	{
 		for (auto type : componentTypes)
+			componentNames.push_back(Util::getNameOfType(type));
+
+		for (auto type : componentTypes)
 			componentMask.set(cm.getComponentId(type));
 		componentTypes.clear();
 	}
 
 private:
+	friend class SystemManager;
 	std::vector<Entity> entities;
-	ComponentManager::ComponentMask componentMask;
 	std::vector<std::type_index> componentTypes;
+	std::vector<std::string_view> componentNames;
+	ComponentManager::ComponentMask componentMask;
 	Scene* m_scene = nullptr;
 	MessageBus* messageBus = nullptr;
-	const std::type_index type;
-	friend class SystemManager;
+	std::type_index type;
+	std::string_view name;
+	bool isActive = true;
 };
 
 
@@ -119,16 +125,37 @@ public:
 	template <typename T>
 	T* getSystem() 
 	{
+		if (System* sys = getSystem(typeid(T)); sys)
+			return dynamic_cast<T*>(sys);
+		else
+			return nullptr;
+	}
+
+	System* getSystem(std::type_index type)
+	{
 		for (auto& system : systems)
-			if (auto s = dynamic_cast<T*>(system.get()); s)
-				return s;
+			if (system->type == type)
+				return system.get();
 		return nullptr;
+	}
+
+	std::vector<System*> getSystems()
+	{
+		std::vector<System*> retSystems;
+		for (auto& sys : systems)
+			retSystems.push_back(sys.get());
+		return retSystems;
 	}
 
 	template <typename T>
 	bool hasSystem()
 	{
-		return getSystem<T>() != nullptr;
+		return hasSystem(typeid(T));
+	}
+
+	bool hasSystem(std::type_index type)
+	{
+		return getSystem(type) != nullptr;
 	}
 
 	template <typename T>
@@ -152,16 +179,24 @@ public:
 	template <typename T>
 	void setSystemActive(bool active)
 	{
-		auto system = getSystem<T>();
+		setSystemActive(typeid(T), active);
+	}
+
+	void setSystemActive(std::type_index type, bool active)
+	{
+		System* system = getSystem(type);
 		if (!system)
 			return;
 
 		auto activeSystem = Util::find(activeSystems, system);
 
-		if(activeSystem && !active)
+		if (activeSystem && !active) {
 			Util::erase(activeSystems, system);
-		else if (!activeSystem && active)
+			system->isActive = false;
+		} else if (!activeSystem && active) {
 			activeSystems.push_back(system);
+			system->isActive = true;
+		} 
 	}
 
 	void addToSystems(Entity entity) 
@@ -173,7 +208,7 @@ public:
 					system->addEntity(entity);
 	}
 
-	void removeFromSystems(Entity entity) 
+	void removeFromSystems(Entity entity)
 	{
 		for (auto& system : systems)
 			system->removeEntity(entity);

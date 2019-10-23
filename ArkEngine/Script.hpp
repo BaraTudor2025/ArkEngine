@@ -21,7 +21,7 @@ public:
 	virtual void init() { }
 	virtual void update() { }
 	virtual void handleEvent(const sf::Event&) { }
-	template <typename T> T* getComponent() { return &m_entity.getComponent<T>(); }
+	template <typename T> T* getComponent() { return m_entity.tryGetComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 	Entity entity() { return m_entity; }
 	bool isActive() { return true; }

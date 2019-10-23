@@ -90,6 +90,11 @@ public:
 			return true;
 	}
 
+	friend bool operator<(Entity left, Entity right)
+	{
+		return left.id < right.id;
+	}
+
 private:
 
 	EntityManager* manager = nullptr;

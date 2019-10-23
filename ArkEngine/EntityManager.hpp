@@ -11,6 +11,7 @@
 #include <optional>
 #include <bitset>
 #include <tuple>
+#include <set>
 
 class EntityManager final : public NonCopyable, public NonMovable {
 
@@ -168,6 +169,19 @@ public:
 		return entity.mask;
 	}
 
+	void markAsDirty(Entity e)
+	{
+		dirtyEntities.insert(e);
+	}
+
+	std::optional<std::set<Entity>> getDirtyEntities()
+	{
+		if (dirtyEntities.empty())
+			return std::nullopt;
+		else
+			return std::move(dirtyEntities);
+	}
+
 #if 0 // disable entity children
 	void addChildTo(Entity p, Entity c)
 	{
@@ -254,10 +268,10 @@ private:
 
 private:
 	std::vector<InternalEntityData> entities;
-
+	std::set<Entity> dirtyEntities;
+	std::vector<int> freeEntities;
 	ComponentManager& componentManager;
 	ScriptManager& scriptManager;
-	std::vector<int> freeEntities;
 	//std::vector<std::vector<Entity>> childrenTree;
 };
 
@@ -265,6 +279,7 @@ template<typename T, typename ...Args>
 inline T& Entity::addComponent(Args&& ...args)
 {
 	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	manager->markAsDirty(*this);
 	return manager->addComponentOnEntity<T>(*this, std::forward<Args>(args)...);
 }
 

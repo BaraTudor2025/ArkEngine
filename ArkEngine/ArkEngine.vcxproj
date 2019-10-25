@@ -170,6 +170,7 @@
     <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp" />
     <ClCompile Include="Gui.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="ManagerInspectors.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
   </ItemGroup>
   <ItemGroup>

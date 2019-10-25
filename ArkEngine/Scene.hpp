@@ -5,7 +5,6 @@
 #include "System.hpp"
 #include "Entity.hpp"
 #include "EntityManager.hpp"
-#include "ManagerInspector.hpp"
 
 #include <SFML/Graphics/Drawable.hpp>
 
@@ -117,8 +116,12 @@ public:
 			system->render(target);
 	}
 
-private:
+	void renderInspector()
+	{
+		systemManager.renderInspector();
+	}
 
+private:
 
 	void processPendingData()
 	{

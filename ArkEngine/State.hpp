@@ -14,12 +14,13 @@
 
 class StateStack;
 class MessageBus;
+class Scene;
 
 class State : public NonCopyable, public NonMovable {
 
 public:
 	State(MessageBus& mb) : messageBus(&mb) {}
-	virtual ~State() = default;
+	virtual ~State();
 
 	virtual void init() { }
 	virtual void handleMessage(const Message&) = 0;
@@ -34,10 +35,12 @@ protected:
 	void requestStackPush(int stateId);
 	void requestStackPop();
 	void requestStackClear();
+	void addInspector(Scene&, std::string);
 
 private:
-	StateStack* stateStack;
-	MessageBus* messageBus;
+	std::vector<std::string> inspectorNames;
+	StateStack* stateStack = nullptr;
+	MessageBus* messageBus = nullptr;
 	friend class StateStack;
 };
 

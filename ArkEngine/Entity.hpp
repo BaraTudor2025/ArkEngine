@@ -75,7 +75,7 @@ public:
 #endif
 //disable entity children
 
-	const std::string& name();
+	const std::string& getName();
 
 	void setName(std::string name);
 

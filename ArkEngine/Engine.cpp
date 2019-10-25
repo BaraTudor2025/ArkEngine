@@ -11,7 +11,7 @@
 
 const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
 
-const std::string& Entity::name() { return manager->getNameOfEntity(*this); }
+const std::string& Entity::getName() { return manager->getNameOfEntity(*this); }
 
 void Entity::setName(std::string name) { return manager->setNameOfEntity(*this, name); }
 
@@ -25,6 +25,18 @@ void State::requestStackPop() {
 
 void State::requestStackClear() {
 	this->stateStack->clearStack();
+}
+
+void State::addInspector(Scene& scene, std::string name)
+{
+	inspectorNames.push_back(name);
+	InternalGui::addTab({name, [&]() { scene.renderInspector(); }});
+}
+
+State::~State()
+{
+	for (auto name : inspectorNames)
+		InternalGui::removeTab(name);
 }
 
 std::unordered_map<std::type_index, Resources::Handler> Resources::handlers;

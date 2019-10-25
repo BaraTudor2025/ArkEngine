@@ -23,6 +23,7 @@
 #include "AnimationSystem.hpp"
 #include "FpsCounterSystem.hpp"
 #include "GuiSystem.hpp"
+#include "Gui.hpp"
 //#include "ArchetypeManager.hpp"
 
 using namespace std::literals;
@@ -220,6 +221,15 @@ public:
 };
 
 class TestingState : public BasicState {
+	Entity player;
+	Entity button;
+	Entity rainbowPointParticles;
+	Entity firePointParticles;
+	Entity greenPointParticles;
+	Entity mouseTrail;
+	Entity rotatingParticles;
+	std::vector<Entity> fireWorks;
+	std::vector<Entity> particleFountains;
 
 public:
 	TestingState(MessageBus& mb) : BasicState(mb) { }
@@ -236,6 +246,7 @@ private:
 		scene.addSystem<ButtonSystem>();
 		scene.addSystem<TextSystem>();
 		scene.addSystem<AnimationSystem>();
+		addInspector(scene, "Basic Scene Inspector");
 		//scene.addSystem<TestMessageSystem>();
 
 		button = scene.createEntity("button");
@@ -337,16 +348,6 @@ private:
 		//registerEntity(fireWorks);
 		//registerEntity(particleFountains);
 	}
-
-	Entity player;
-	Entity button;
-	Entity rainbowPointParticles;
-	Entity firePointParticles;
-	Entity greenPointParticles;
-	Entity mouseTrail;
-	Entity rotatingParticles;
-	std::vector<Entity> fireWorks;
-	std::vector<Entity> particleFountains;
 };
 
 #if 0

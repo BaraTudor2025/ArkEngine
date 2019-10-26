@@ -23,6 +23,9 @@ public:
 	template <typename T>
 	T* tryGetComponent();
 
+	template <typename T>
+	void removeComponent();
+
 	template <typename T, typename...Args>
 	T* addScript(Args&& ... args);
 

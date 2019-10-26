@@ -105,6 +105,7 @@ public:
 	template <typename T, typename... Args>
 	T& addComponentOnEntity(Entity e, Args&&... args)
 	{
+		markAsDirty(e);
 		int compId = componentManager.getComponentId<T>();
 		auto& entity = getEntity(e);
 		if (entity.mask.test(compId))
@@ -129,6 +130,19 @@ public:
 		}
 		int compIndex = entity.componentIndexes[compId];
 		return componentManager.getComponent<T>(compId, compIndex);
+	}
+
+	template <typename T>
+	void removeComponentOfEntity(Entity e)
+	{
+		markAsDirty(e);
+		auto& entity = getEntity(e);
+		auto compId = componentManager.getComponentId<T>();
+		if (entity.mask.test(entity)) {
+			componentManager.removeComponent(compId, entity.componentIndexes.at(compId));
+			entity.mask.set(compId, false);
+			entity.componentIndexes.at(compId) = ArkInvalidIndex;
+		}
 	}
 
 	template <typename T, typename... Args>
@@ -279,7 +293,6 @@ template<typename T, typename ...Args>
 inline T& Entity::addComponent(Args&& ...args)
 {
 	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
-	manager->markAsDirty(*this);
 	return manager->addComponentOnEntity<T>(*this, std::forward<Args>(args)...);
 }
 
@@ -298,6 +311,13 @@ inline T* Entity::tryGetComponent()
 {
 	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
 	return manager->getComponentOfEntity<T>(*this);
+}
+
+template <typename T>
+inline void Entity::removeComponent()
+{
+	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	manager->removeComponentOfEntity(*this);
 }
 
 template<typename T, typename ...Args>

@@ -104,8 +104,10 @@ void ArkEngine::run()
 	ImGui::SFML::Init(window);
 	InternalGui::init();
 
+#ifdef NDEBUG
 	// call update so that program doesn't crash
 	ImGui::SFML::Update(window, imgui_fixed_time);
+#endif
 
 	clock.restart();
 
@@ -123,6 +125,10 @@ void ArkEngine::run()
 		}
 #endif
 
+#if defined _DEBUG || defined USE_DELTA_TIME
+		ImGui::SFML::Update(window, delta_time);
+		InternalGui::render();
+#else
 		// updating imgui at a consistent rate
 		imguiLag += delta_time;
 		while (imguiLag >= imgui_fixed_time) {
@@ -130,6 +136,7 @@ void ArkEngine::run()
 			ImGui::SFML::Update(window, imgui_fixed_time);
 			InternalGui::render();
 		}
+#endif
 
 		window.clear(backGroundColor);
 

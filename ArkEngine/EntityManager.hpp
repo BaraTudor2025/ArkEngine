@@ -33,7 +33,6 @@ public:
 			e.id = entities.size();
 			auto& entity = entities.emplace_back();
 			entity.mask.reset();
-			entity.componentIndexes.fill(ArkInvalidIndex);
 		}
 		auto& entity = getEntity(e);
 
@@ -88,9 +87,8 @@ public:
 
 		EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity (%s)", entity.name.c_str());
 
-		for (int i = 0; i < entity.componentIndexes.size(); i++)
-			if (i != ArkInvalidIndex)
-				componentManager.removeComponent(i, entity.componentIndexes[i]);
+		for (auto compData : entity.components)
+			componentManager.removeComponent(compData.id, compData.index);
 
 		scriptManager.removeScripts(entity.scriptsIndex);
 
@@ -98,23 +96,26 @@ public:
 		entity.name.clear();
 		entity.mask.reset();
 		entity.scriptsIndex = ArkInvalidIndex;
-		entity.componentIndexes.fill(ArkInvalidIndex);
+		entity.components.clear();
 	}
 
 	// if component already exists, then the existing component is returned
 	template <typename T, typename... Args>
 	T& addComponentOnEntity(Entity e, Args&&... args)
 	{
-		markAsDirty(e);
 		int compId = componentManager.getComponentId<T>();
 		auto& entity = getEntity(e);
 		if (entity.mask.test(compId))
 			return *getComponentOfEntity<T>(e);
 
-		auto [comp, compIndex] = componentManager.addComponent<T>(std::forward<Args>(args)...);
-
+		markAsDirty(e);
 		entity.mask.set(compId);
-		entity.componentIndexes.at(compId) = compIndex;
+
+		auto [comp, compIndex] = componentManager.addComponent<T>(std::forward<Args>(args)...);
+		auto& compData = entity.components.emplace_back();
+		compData.component = comp;
+		compData.id = compId;
+		compData.index = compIndex;
 
 		return *comp;
 	}
@@ -128,20 +129,19 @@ public:
 			EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType<T>());
 			return nullptr;
 		}
-		int compIndex = entity.componentIndexes[compId];
-		return componentManager.getComponent<T>(compId, compIndex);
+		return entity.getComponent<T>(compId);
 	}
 
 	template <typename T>
 	void removeComponentOfEntity(Entity e)
 	{
-		markAsDirty(e);
 		auto& entity = getEntity(e);
 		auto compId = componentManager.getComponentId<T>();
 		if (entity.mask.test(entity)) {
-			componentManager.removeComponent(compId, entity.componentIndexes.at(compId));
+			markAsDirty(e);
+			componentManager.removeComponent(compId, entity.getComponentIndex(compId));
 			entity.mask.set(compId, false);
-			entity.componentIndexes.at(compId) = ArkInvalidIndex;
+			Util::erase(entity.components, [=](const auto& compData) { return compData.id == compId; });
 		}
 	}
 
@@ -267,12 +267,35 @@ public:
 private:
 
 	struct InternalEntityData {
+
+		struct ComponentData {
+			int16_t id;
+			int16_t index;
+			void* component; // reference
+		};
 		//int16_t childrenIndex = ArkInvalidIndex;
 		//int16_t parentIndex = ArkInvalidIndex;
 		ComponentManager::ComponentMask mask;
-		std::array<int16_t, ComponentManager::MaxComponentTypes> componentIndexes;
+		std::vector<ComponentData> components;
 		int16_t scriptsIndex = ArkInvalidIndex;
 		std::string name = "";
+
+		void* getComponent(int id)
+		{
+			auto compData = std::find_if(std::begin(components), std::end(components), [=](const auto& compData) { return compData.id == id; });
+			return compData->component;
+		}
+
+		template <typename T> 
+		T* getComponent(int id) { 
+			return reinterpret_cast<T*>(getComponent(id)); 
+		}
+
+		int16_t getComponentIndex(int id)
+		{
+			auto compData = std::find_if(std::begin(components), std::end(components), [=](const auto& compData) { return compData.id == id; });
+			return compData->index;
+		}
 	};
 
 	InternalEntityData& getEntity(Entity e)

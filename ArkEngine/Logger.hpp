@@ -3,6 +3,9 @@
 #include <string>
 #include <libs/tinyformat.hpp>
 
+// else use ImGui logger
+#define USE_NATIVE_CONSOLE 0
+
 // used internally
 enum class LogSource {
 	EntityM,

@@ -114,7 +114,12 @@ struct EngineLogger final {
 
 void InternalEngineLog(EngineLogData data)
 {
+#if USE_NATIVE_CONSOLE
+	std::string text = tfm::format("[%s] [%s]: %s\n", sourceToString(data.source).data(), levelToString(data.level).data(), data.text.c_str());
+	std::cout << text;
+#else
 	EngineLogger::engineLogData.push_back(std::move(data));
+#endif
 }
 
 
@@ -138,7 +143,11 @@ struct GameLogger final {
 
 void InternalGameLog(std::string text)
 {
-	GameLogger::buffer.append(text);
+#if USE_NATIVE_CONSOLE
+	std::cout << "[GameLog]: " << text << '\n';
+#else
+	GameLogger::buffer.append(text + '\n');
+#endif
 }
 
 
@@ -187,6 +196,7 @@ struct StdOutLogger final {
 
 void InternalGui::init()
 {
+#if not USE_NATIVE_CONSOLE
 	// redirecting stdout and stderr to stringstream to print the output to the gui console
 	StdOutLogger::stdout_buf = std::cout.rdbuf();
 	StdOutLogger::stderr_buf = std::cerr.rdbuf();
@@ -194,10 +204,9 @@ void InternalGui::init()
 	std::cerr.set_rdbuf(StdOutLogger::sserr.rdbuf());
 
 	tabs.push_back({"Engine Log", EngineLogger::render});
-	//tabs.emplace_back("Managers Inspector", );
-	//tabs.emplace_back("Entity Editor");
 	tabs.push_back({"Game Log", GameLogger::render});
 	tabs.push_back({"stdout", StdOutLogger::render});
+#endif
 }
 
 void InternalGui::render()
@@ -215,25 +224,4 @@ void InternalGui::render()
 	}
 
 	ImGui::End();
-	//ImGui::ShowDemoWindow();
-	//ImGui::Begin("Sample window"); // begin window
-
-	//if (ImGui::ColorEdit3("Background color", color)) {
-	//	// this code gets called if color value changes, so
-	//	// the background color is upgraded automatically!
-	//	bgColor.r = static_cast<sf::Uint8>(color[0] * 255.f);
-	//	bgColor.g = static_cast<sf::Uint8>(color[1] * 255.f);
-	//	bgColor.b = static_cast<sf::Uint8>(color[2] * 255.f);
-	//}
-
-	// Window title text edit
-	//ImGui::InputText("Window title", windowTitle.data(), 20);
-
-	//if (ImGui::Button("Update window title")) {
-	// this code gets if user clicks on the button
-	// yes, you could have written if(ImGui::InputText(...))
-	// but I do this to show how buttons work :)
-	//window.setTitle(windowTitle);
-	//}
-	//ImGui::End(); // end window
 }

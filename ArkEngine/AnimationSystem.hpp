@@ -86,7 +86,9 @@ private:
 class AnimationSystem : public System, public Renderer {
 
 public:
-	AnimationSystem() : System(typeid(AnimationSystem))
+	AnimationSystem() : System(typeid(AnimationSystem)) { }
+
+	void init() override
 	{
 		requireComponent<Transform>();
 		requireComponent<Animation>();
@@ -101,7 +103,9 @@ public:
 
 class MeshSystem : public System, public Renderer {
 public:
-	MeshSystem() : System(typeid(MeshSystem))
+	MeshSystem() : System(typeid(MeshSystem)) { }
+
+	void init() override
 	{
 		requireComponent<Transform>();
 		requireComponent<Mesh>();

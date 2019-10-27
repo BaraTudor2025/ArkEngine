@@ -28,6 +28,7 @@ public:
 	System(std::type_index type) : type(type), name(Util::getNameOfType(type)) {  }
 	virtual ~System() = default;
 
+	virtual void init() { }
 	virtual void update() { }
 	virtual void handleEvent(sf::Event) { }
 	virtual void handleMessage(const Message&) { }
@@ -38,6 +39,7 @@ protected:
 	template <typename T>
 	void requireComponent() {
 		componentTypes.push_back(typeid(T));
+		componentManager->addComponentType<T>();
 	}
 
 	template <typename T>
@@ -83,13 +85,15 @@ private:
 
 private:
 	friend class SystemManager;
+	ComponentManager* componentManager = nullptr;
 	std::vector<Entity> entities;
 	std::vector<std::type_index> componentTypes;
-	std::vector<std::string_view> componentNames;
 	ComponentManager::ComponentMask componentMask;
 	Scene* m_scene = nullptr;
 	MessageBus* messageBus = nullptr;
 	std::type_index type;
+	// used for inspection
+	std::vector<std::string_view> componentNames;
 	std::string_view name;
 	bool active = true;
 };
@@ -107,15 +111,17 @@ public:
 		if (hasSystem<T>())
 			return getSystem<T>();
 
-		auto& sys = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
-		activeSystems.push_back(sys.get());
-		sys->m_scene = &scene;
-		sys->messageBus = &messageBus;
-		sys->constructMask(componentManager);
-		if (sys->componentMask.none())
-			EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", Util::getNameOfType(sys->type));
+		auto& system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+		activeSystems.push_back(system.get());
+		system->m_scene = &scene;
+		system->componentManager = &componentManager;
+		system->messageBus = &messageBus;
+		system->init();
+		system->constructMask(componentManager);
+		if (system->componentMask.none())
+			EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", Util::getNameOfType(system->type));
 
-		return dynamic_cast<T*>(sys.get());
+		return dynamic_cast<T*>(system.get());
 	}
 
 	template <typename T>

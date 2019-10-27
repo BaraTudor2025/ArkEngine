@@ -174,7 +174,9 @@ inline PointParticles getGreenParticles()
 class PointParticleSystem : public System, public Renderer {
 
 public:
-	PointParticleSystem() : System(typeid(PointParticleSystem))
+	PointParticleSystem() : System(typeid(PointParticleSystem)) { }
+
+	void init() override
 	{
 		requireComponent<PointParticles>();
 	}
@@ -197,7 +199,9 @@ private:
 class PixelParticleSystem : public System, public Renderer {
 
 public:
-	PixelParticleSystem() : System(typeid(PixelParticleSystem))
+	PixelParticleSystem() : System(typeid(PixelParticleSystem)) { }
+
+	void init() override
 	{
 		requireComponent<PixelParticles>();
 	}

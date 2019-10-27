@@ -40,9 +40,6 @@ public:
 	// add component type if not present
 	int getComponentId(std::type_index type)
 	{
-		if (!hasComponentType(type))
-			addComponentType(type);
-
 		auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
 		if (pos == std::end(this->componentIndexes)) {
 			EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", Util::getNameOfType(type));
@@ -102,8 +99,13 @@ public:
 
 private:
 
-	void addComponentType(std::type_index type)
+	template <typename T>
+	void addComponentType()
 	{
+		const auto& type = typeid(T);
+		if (hasComponentType(type))
+			return;
+
 		EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", Util::getNameOfType(type));
 		if (componentIndexes.size() == MaxComponentTypes) {
 			EngineLog(LogSource::ComponentM, LogLevel::Error, "aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, Util::getNameOfType(type));
@@ -122,6 +124,7 @@ private:
 	}
 
 private:
+	friend class System;
 	using any_pool = static_any<sizeof(ComponentPool<void*>)>;
 	std::array<any_pool, MaxComponentTypes> componentPools; // component table
 	std::vector<std::type_index> componentIndexes; // index of std::type_index represents index of component pool inside component table

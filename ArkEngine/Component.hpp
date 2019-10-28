@@ -14,27 +14,19 @@ struct ARK_ENGINE_API Component {
 
 };
 
-// TOOD (comp manager): add a vector of destructors since we construct in place when 
-class ComponentManager final : public NonCopyable  { 
+
+
+class ComponentManager final : NonCopyable {
 
 public:
-
+	using byte = std::byte;
 	static inline constexpr std::size_t MaxComponentTypes = 32;
 	using ComponentMask = std::bitset<MaxComponentTypes>;
-
-	template <typename T>
-	using ComponentPool = std::deque<T>;
 
 	bool hasComponentType(std::type_index type)
 	{
 		auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
 		return pos != std::end(this->componentIndexes);
-	} 
-
-	template <typename T>
-	bool hasComponentType()
-	{
-		return hasComponentType(typeid(T));
 	} 
 
 	int getComponentId(std::type_index type)
@@ -53,58 +45,47 @@ public:
 		return getComponentId(typeid(T));
 	}
 
-	// returns [component*, index]
-	template <typename T, typename...Args>
-	std::pair<T*, int> addComponent(Args&&... args) 
+	template <typename T, typename... Args>
+	auto addComponent(Args&&... args) -> std::pair<T*, int>
 	{
-		if (!hasComponentType<T>()) {
-			EngineLog(LogSource::ComponentM, LogLevel::Error, "type (%s) is not supported", Util::getNameOfType<T>());
-			return {nullptr, ArkInvalidIndex};
-		}
-
-		auto compId = getComponentId<T>();
-		auto& pool = getComponentPool<T>(compId, true);
-		auto it = freeComponents.find(compId);
-
-		if (it != freeComponents.end()) {
-			auto& [compId, freeSlots] = *it;
-			if (!freeSlots.empty()) {
-				int index = freeSlots.back();
-				freeSlots.pop_back();
-
-				T* slot = &pool.at(index);
-				if constexpr (!std::is_trivially_destructible_v<T>)
-					metadataTable[typeid(T)].destruct(slot);
-				Util::construct_in_place<T>(slot, std::forward<Args>(args)...);
-				return {slot, index};
-			}
-		}
-		pool.emplace_back(std::forward<Args>(args)...);
-		return {&pool.back(), pool.size() - 1};
+		auto& pool = pools.at(getComponentId<T>());
+		auto [component, index] = pool.getFreeSlot();
+		if constexpr (sizeof...(Args) == 0)
+			EngineLog(LogSource::ComponentM, LogLevel::Warning, "niciun argument pt %s", typeid(T).name());
+		//std::memset(component, 0, pool.metadata.size);
+		Util::construct_in_place<T>(component, std::forward<Args>(args)...);
+		return {reinterpret_cast<T*>(component), index};
 	}
 
-	template <typename T>
-	T* getComponent(int compId, int index)
+	auto addComponent(int compId) -> std::pair<byte*, int>
 	{
-		auto& pool = getComponentPool<T>(compId, false);
-		return &pool.at(index);
+		auto& pool = pools.at(compId);
+		auto [component, index] = pool.getFreeSlot();
+		pool.metadata.default_construct(component);
+		return {component, index};
 	}
 
-	void* copyComponent(std::type_index type, void* component)
+	auto copyComponent(int compId, int index) -> std::pair<byte*, int>
 	{
-		//auto& metadata = metadataTable[type];
-		//ComponentPool pool = getComponentPool(type);
-		//if (metadata.isCopyable) {
-		//	pool.
-		//}
+		auto& pool = pools.at(compId);
+		return pool.copyComponent(index);
+	}
+
+	auto copyComponent(std::type_index type, int index) -> std::pair<byte*, int>
+	{
+		return copyComponent(getComponentId(type), index);
 	}
 
 	void removeComponent(int compId, int index)
 	{
-		freeComponents[compId].push_back(index);
+		auto& pool = pools.at(compId);
+		pool.removeComponent(index);
 	}
 
-private:
+	void removeComponent(std::type_index type, int index)
+	{
+		removeComponent(getComponentId(type), index);
+	}
 
 	template <typename T>
 	void addComponentType()
@@ -119,49 +100,49 @@ private:
 			std::abort();
 		}
 		componentIndexes.push_back(type);
-
-		ComponentMetadata metadata;
-		metadata.constructMetadataFrom<T>();
-		metadataTable[typeid(T)] = metadata;
+		pools.emplace_back();
+		pools.back().constructPoolFrom<T>();
 	}
 
-	template <typename T>
-	ComponentPool<T>& getComponentPool(int compId, bool addPool)
-	{
-		auto& any_pool = this->componentPools.at(compId);
-		if (addPool && any_pool.empty())
-			any_pool = ComponentPool<T>();
-		return any_cast<ComponentPool<T>>(any_pool);
-	}
 
 private:
-	using constructor_t = void (*)(void*);
-	using copy_constructor_t = void (*)(void*, const void*);
-	using destructor_t = void (*)(void*);
 
-	template <typename T> static void defaultConstructorInstace(T* This) { new (This)T(); }
-	template <typename T> static void copyConstructorInstace(T* This, const T* That) { new (This)T(*That); }
-	template <typename T> static void destructorInstance(T* This) { This->~T(); }
-
-	struct ComponentMetadata {
+	struct Metadata {
 		std::string_view name;
 		int size;
 		bool isDefaultConstructible;
 		bool isCopyable;
 
-	private:
-		constructor_t default_constructor = nullptr;
-		copy_constructor_t copy_constructor = nullptr;
-		destructor_t destructor = nullptr;
+		Metadata() = default;
 
-	public:
-		ComponentMetadata() = default;
+		void default_construct(void* p) {
+			if (default_constructor)
+				default_constructor(p);
+		}
+
+		void copy_construct(void* This, const void* That) {
+			if (copy_constructor)
+				copy_constructor(This, That);
+		}
+
+		void destruct(void* p) {
+			if (destructor)
+				destructor(p);
+		}
 
 		template <typename T>
 		void constructMetadataFrom()
 		{
-			size = sizeof(T);
 			name = Util::getNameOfType<T>();
+
+			constexpr int nBytes = 16;
+			size = sizeof(T);
+			// align to nBytes
+			if (size < nBytes)
+				size = nBytes;
+			else if (size % nBytes != 0)
+				size = size + nBytes - (size % nBytes);
+			// else size is already aligned
 
 			if constexpr (std::is_default_constructible_v<T>) {
 				default_constructor = Util::reinterpretCast<constructor_t>(defaultConstructorInstace<T>);
@@ -175,33 +156,108 @@ private:
 			if constexpr (!std::is_trivially_destructible_v<T>)
 				destructor = Util::reinterpretCast<destructor_t>(destructorInstance<T>);
 		}
+		
+	private:
+		template <typename T> static void defaultConstructorInstace(T* This) { new (This)T(); }
+		template <typename T> static void copyConstructorInstace(T* This, const T* That) { new (This)T(*That); }
+		template <typename T> static void destructorInstance(T* This) { This->~T(); }
 
-		void default_construct(void* p)
-		{
-			if (default_constructor)
-				default_constructor(p);
-		}
+		using constructor_t = void (*)(void*);
+		using copy_constructor_t = void (*)(void*, const void*);
+		using destructor_t = void (*)(void*);
 
-		void copy_construct(void* This, const void* That)
-		{
-			if (copy_constructor)
-				copy_constructor(This, That);
-		}
-
-		void destruct(void* p)
-		{
-			if (destructor)
-				destructor(p);
-		}
+		constructor_t default_constructor = nullptr;
+		copy_constructor_t copy_constructor = nullptr;
+		destructor_t destructor = nullptr;
 	};
 
-private:
+
+	class ComponentPool {
+
+	public:
+
+		template <typename T>
+		void constructPoolFrom()
+		{
+			metadata.constructMetadataFrom<T>();
+			int kiloByte = 2 * 1024;
+			numberOfComponentsPerChunk = kiloByte / metadata.size;
+			chunk_size = metadata.size * numberOfComponentsPerChunk;
+			//std::cout << "num: " <<  << "\n\n";
+			GameLog("for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d) ", typeid(T).name(), chunk_size, numberOfComponentsPerChunk, metadata.size);
+		}
+
+		auto copyComponent(int index) -> std::pair<byte*, int>
+		{
+			auto [newComponent, newIndex] = getFreeSlot();
+			byte* component = getComponent(index);
+			if (metadata.isCopyable)
+				metadata.copy_construct(newComponent, component);
+			else
+				metadata.default_construct(newComponent);
+			return {newComponent, newIndex};
+		}
+
+		void removeComponent(int index)
+		{
+			byte* component = getComponent(index);
+			metadata.destruct(component);
+			freeComponents.push_back(index);
+		}
+
+		std::pair<int, int> getNums(int index)
+		{
+			int chunkNum = index / numberOfComponentsPerChunk;
+			int componentNum = index % numberOfComponentsPerChunk;
+			return {chunkNum, componentNum};
+		}
+
+		byte* getComponent(int index)
+		{
+			auto [chunkNum, componentNum] = getNums(index);
+			auto& chunk = chunks.at(chunkNum);
+			byte* component = &chunk.buffer.at(componentNum * metadata.size);
+			return component;
+		}
+
+		auto getFreeSlot() -> std::pair<byte*, int>
+		{
+			if (freeComponents.empty()) {
+				if (chunks.empty())
+					chunks.emplace_back(chunk_size);
+				if (chunks.back().numberOfComponents == numberOfComponentsPerChunk) {
+					chunks.emplace_back(chunk_size);
+				}
+				auto& chunk = chunks.back();
+				int index = numberOfComponentsPerChunk * (chunks.size() - 1) + chunk.numberOfComponents;
+				byte* component = getComponent(index);
+				chunk.numberOfComponents += 1;
+				return {component, index};
+			} else {
+				int index = freeComponents.back();
+				freeComponents.pop_back();
+				return {getComponent(index), index};
+			}
+		}
+
+		struct Chunk {
+			Chunk(int CHUNK_SIZE) : buffer(CHUNK_SIZE), numberOfComponents(0) { }
+			int numberOfComponents;
+			std::vector<byte> buffer;
+		};
+
+	public:
+		Metadata metadata;
+	private:
+		int numberOfComponentsPerChunk;
+		int chunk_size;
+		std::vector<Chunk> chunks;
+		std::vector<int> freeComponents;
+	};
+
+
 	friend class System;
-	std::vector<std::type_index> componentIndexes; // index of std::type_index represents index of component pool inside component table
-	std::unordered_map<std::type_index, ComponentMetadata> metadataTable;
-	using any_pool = static_any<sizeof(ComponentPool<void*>)>;
-	std::array<any_pool, MaxComponentTypes> componentPools; // component table
-	std::unordered_map<int, std::vector<int>> freeComponents; // indexed by compId, vector<int> holds the indexes of free components
+	//std::unordered_map<std::type_index, ComponentPool> pools;
+	std::vector<std::type_index> componentIndexes;
+	std::vector<ComponentPool> pools;
 };
-
-

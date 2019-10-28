@@ -10,8 +10,12 @@
 #include <vector>
 #include <type_traits>
 
+template <typename T>
 struct ARK_ENGINE_API Component {
-
+	Component()
+	{
+		static_assert(std::is_default_constructible_v<T>, "Component needs to have default constructor");
+	}
 };
 
 
@@ -90,6 +94,7 @@ public:
 	template <typename T>
 	void addComponentType()
 	{
+		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		const auto& type = typeid(T);
 		if (hasComponentType(type))
 			return;

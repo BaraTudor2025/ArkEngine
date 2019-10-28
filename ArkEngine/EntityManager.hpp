@@ -315,14 +315,14 @@ private:
 template<typename T, typename ...Args>
 inline T& Entity::addComponent(Args&& ...args)
 {
-	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 	return manager->addComponentOnEntity<T>(*this, std::forward<Args>(args)...);
 }
 
 template<typename T>
 inline T& Entity::getComponent()
 {
-	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 	auto comp = manager->getComponentOfEntity<T>(*this);
 	if (!comp)
 		EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
@@ -332,14 +332,14 @@ inline T& Entity::getComponent()
 template<typename T>
 inline T* Entity::tryGetComponent()
 {
-	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 	return manager->getComponentOfEntity<T>(*this);
 }
 
 template <typename T>
 inline void Entity::removeComponent()
 {
-	static_assert(std::is_base_of_v<Component, T>, " T is not a Component");
+	static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 	manager->removeComponentOfEntity(*this);
 }
 

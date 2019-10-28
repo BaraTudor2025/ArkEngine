@@ -8,7 +8,7 @@
 
 class Entity;
 
-struct ARK_ENGINE_API Transform final : public Component, public sf::Transformable {
+struct ARK_ENGINE_API Transform final : public Component<Transform>, public sf::Transformable {
 
 	using sf::Transformable::Transformable;
 	operator const sf::Transform&() const { return this->getTransform();  }

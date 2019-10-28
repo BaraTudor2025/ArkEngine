@@ -7,28 +7,46 @@
 
 #include <fstream>
 
-struct Text : Component, sf::Text { 
+struct Text : Component<Text>, sf::Text { 
 
-	Text(std::string fontName = "KeepCalm-Medium.ttf") : fontName(fontName) { }
+	Text(std::string fontName = "KeepCalm-Medium.ttf") : fileName(fontName) 
+	{
+		setFont(fontName);
+	}
 
 	bool moveWithMouse = false;
 
+	void setFont(std::string fileName) {
+		this->fileName = fileName;
+		this->sf::Text::setFont(*Resources::load<sf::Font>(fileName));
+	}
+
+	std::string_view getFontFamily() {
+		return this->getFont()->getInfo().family.c_str();
+	}
+
+	std::string_view getFileName() {
+		return fileName;
+	}
+
 private:
-	std::string fontName;
+	std::string fileName;
 
 	friend class TextSystem;
 };
 
-struct Button : Component, sf::RectangleShape {
+struct Button : Component<Button>, sf::RectangleShape {
+
+	Button() = default;
 
 	Button(sf::FloatRect rect, std::string texture = "")
-		: textureName(texture), rect(rect)
 	{
-		this->setSize({ this->rect.width, this->rect.height });
-		this->move(this->rect.left, this->rect.top);
+		setRect(rect);
+		if(!texture.empty())
+			setTexture(texture);
 	}
 
-	std::function<void()> onClick;
+	std::function<void()> onClick = []() {};
 
 	void savePosition(std::string file) { 
 		std::ofstream fout("./res/gui_data/" + file);
@@ -41,6 +59,19 @@ struct Button : Component, sf::RectangleShape {
 		float x, y;
 		fin >> x >> y;
 		this->setPosition(x, y);
+	}
+
+	void setRect(sf::FloatRect rect)
+	{
+		this->rect = rect;
+		this->setSize({ this->rect.width, this->rect.height });
+		this->move(this->rect.left, this->rect.top);
+	}
+
+	void setTexture(std::string fileName)
+	{
+		this->textureName = fileName;
+		this->sf::RectangleShape::setTexture(Resources::load<sf::Texture>(fileName));
 	}
 
 	bool moveWithMouse = false;
@@ -61,13 +92,6 @@ public:
 	void init() override
 	{
 		requireComponent<Button>();
-	}
-
-	void onEntityAdded(Entity entity) override
-	{
-		auto& b = entity.getComponent<Button>();
-		if (!b.textureName.empty())
-			b.setTexture(Resources::load<sf::Texture>(b.textureName)); 
 	}
 
 	void update() override
@@ -134,12 +158,6 @@ public:
 	void init() override
 	{
 		requireComponent<Text>();
-	}
-
-	void onEntityAdded(Entity entity) override
-	{
-		auto& t = entity.getComponent<Text>();
-		t.setFont(*Resources::load<sf::Font>(t.fontName));
 	}
 
 	void render(sf::RenderTarget& target) override

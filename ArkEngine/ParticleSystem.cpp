@@ -13,8 +13,6 @@
 void PointParticleSystem::onEntityAdded(Entity entity)
 {
 	auto& p = entity.getComponent<PointParticles>();
-	p.vertices.resize(p.count);
-	p.data.resize(p.count);
 	if (p.spawn)
 		p.deathTimer = sf::Time::Zero;
 	else
@@ -129,10 +127,6 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 void PixelParticleSystem::onEntityAdded(Entity entity)
 {
 	auto& p = entity.getComponent<PixelParticles>();
-	p.quads.resize(p.count);
-	p.data.resize(p.count);
-	for (auto& q : p.quads)
-		q.setColors(p.colors.first, p.colors.second);
 	if (p.spawn)
 		p.deathTimer = sf::Time::Zero;
 	else

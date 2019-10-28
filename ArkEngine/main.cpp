@@ -78,7 +78,7 @@ public:
 
 		runningParticles = getComponent<PixelParticles>();
 		auto pp = runningParticles;
-		pp->particlesPerSecond = pp->count / 2;
+		pp->particlesPerSecond = pp->getParticleNumber() / 2;
 		pp->size = { 6, 3 };
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };

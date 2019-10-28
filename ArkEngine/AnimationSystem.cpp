@@ -24,25 +24,6 @@ inline decltype(auto) Animation::get()
 	else if constexpr (N == 5) return (this->uvRect);
 }
 
-void AnimationSystem::onEntityAdded(Entity entity)
-{
-	auto& a = entity.getComponent<Animation>();
-
-	auto visitor = [](const std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) {
-		return sf::Vector2u{ frameCounts.first, (uint32_t)frameCounts.second.size() }; // size means the number of columns
-	}; 
-	auto[fcX, fcY] = std::visit(overloaded{
-		visitor,
-		[](sf::Vector2u frameCount) { return frameCount; }
-	}, a.frameCount);
-
-	a.texture = Resources::load<sf::Texture>(a.fileName);
-	a.uvRect.width = a.texture->getSize().x / (float)fcX;
-	a.uvRect.height = a.texture->getSize().y / (float)fcY;
-	a.elapsedTime = sf::seconds(0);
-	a.currentFrame.x = 0;
-}
-
 void AnimationSystem::update()
 {
 	for (auto entity : getEntities()) {

@@ -15,9 +15,11 @@
 
 static inline constexpr auto PI = 3.14159f;
 
-struct PointParticles final : public Component {
+struct PointParticles final : public Component<PointParticles> {
 
+	PointParticles() : vertices(0), data(0) { }
 	COPYABLE(PointParticles)
+	MOVABLE(PointParticles)
 
 	PointParticles(int count, sf::Time lifeTime,
 	          Distribution<float> speedArgs = { 0, 0 },
@@ -31,35 +33,51 @@ struct PointParticles final : public Component {
 	    getColor(getColor)
 	{ 
 		lifeTimeDistribution.type = lifeTimeDistType;
-		this->makeLifeTimeDist();
+		setParticleNumber(count);
+		setLifeTime(lifeTime);
 	}
 
-	size_t count;
-	sf::Time lifeTime;
+	void setParticleNumber(int count) { 
+		this->count = count;
+		this->vertices.resize(count);
+		this->data.resize(count);
+	}
 
-	Distribution<float> speedDistribution;
-	Distribution<float> angleDistribution;
+	int getParticleNumber() {
+		return count;
+	}
+
+	void setLifeTime(sf::Time lifeTime) {
+		setLifeTime(lifeTime, lifeTimeDistribution.type);
+	}
+
+	void setLifeTime(sf::Time lifeTime, DistributionType type) {
+		this->lifeTime = lifeTime;
+		if(type == DistributionType::uniform)
+			this->makeLifeTimeDistUniform();
+		else
+			this->makeLifeTimeDistNormal();
+	}
+
+	Distribution<float> speedDistribution{0.f, 0.f};
+	Distribution<float> angleDistribution{0.f, 2 * 3.14159f};
 
 	sf::Vector2f emitter{ 0.f, 0.f };
-	std::function<sf::Color()> getColor;
+	std::function<sf::Color()> getColor = []() { return sf::Color::White; };
 
 	bool spawn = false;
 	bool fireworks = false;
 	bool applyTransform = false;
 
-	// call if lifeTime is modified
-	void makeLifeTimeDist() noexcept {
-		if (lifeTimeDistribution.type == DistributionType::uniform)
-			this->makeLifeTimeDistUniform();
-		else
-			this->makeLifeTimeDistNormal();
-	}
+private:
+
 	void makeLifeTimeDistUniform(float divLowerBound = 4) noexcept { 
 		lifeTimeDistribution = {
 			lifeTime.asMilliseconds() / divLowerBound,
 			(float)lifeTime.asMilliseconds(),
 			DistributionType::uniform };
 	}
+
 	void makeLifeTimeDistNormal() noexcept {
 		lifeTimeDistribution = {
 			lifeTime.asMilliseconds() / 2.f,
@@ -67,39 +85,62 @@ struct PointParticles final : public Component {
 			DistributionType::normal };
 	}
 
-private:
 	struct InternalData {
 		sf::Vector2f speed;
 		sf::Time lifeTime = sf::Time::Zero;
 	};
+
+	int count = 0;
+	sf::Time lifeTime = sf::Time::Zero;
 	std::vector<sf::Vertex>	vertices;
 	std::vector<InternalData> data;
 	sf::Time deathTimer = sf::Time::Zero;
-	Distribution<float> lifeTimeDistribution;
+	Distribution<float> lifeTimeDistribution{0.f, 0.f};
 	bool areDead() const { return deathTimer >= lifeTime; }
-	friend class ParticleSystem;
 	friend class PointParticleSystem;
 };
 
-struct PixelParticles : public Component {
+struct PixelParticles : public Component<PixelParticles> {
 
 	using Colors = std::pair<sf::Color, sf::Color>;
 
+	PixelParticles() : quads(0), data(0) { }
 	COPYABLE(PixelParticles)
+	MOVABLE(PixelParticles)
 
 	PixelParticles(size_t count, sf::Time lifeTime, sf::Vector2f size, Colors colors)
-		:count(count), particlesPerSecond(count), size(size), colors(colors), lifeTime(lifeTime) { }
+		:count(count), particlesPerSecond(count), size(size), colors(colors), lifeTime(lifeTime) 
+	{
+		setParticleNumber(count);
+		setColors(colors);
+	}
 
-	size_t count;
-	float particlesPerSecond;
-	sf::Vector2f size;
-	Colors colors;
-	sf::Vector2f emitter;
-	float speed;
-	sf::Time lifeTime;
+	void setParticleNumber(int count) { 
+		this->count = count;
+		this->quads.resize(count);
+		this->data.resize(count);
+	}
+
+	int getParticleNumber() {
+		return count;
+	}
+
+	void setColors(Colors colors)
+	{
+		this->colors = colors;
+		for (auto& q : quads)
+			q.setColors(colors.first, colors.second);
+	}
+
+	float particlesPerSecond = 0;
+	sf::Vector2f size{1.f, 1.f};
+	Colors colors{sf::Color::Red, sf::Color::Yellow};
+	sf::Vector2f emitter{0.f, 0.f};
+	float speed = 0;
+	sf::Time lifeTime = sf::Time::Zero;
 	Distribution<float> angleDistribution = { 0, 2 * PI, DistributionType::normal };
 	bool spawn = false;
-	sf::Vector2f gravity;
+	sf::Vector2f gravity{0.f, 0.f};
 	sf::FloatRect platform; // particles can't go through this
 
 private:
@@ -107,13 +148,13 @@ private:
 		sf::Vector2f speed;
 		sf::Time lifeTime = sf::Time::Zero;
 	};
+	int count = 0;
 	float particlesToSpawn = 0; // internal counter of particles to spawn per second
 	int spawnBeingPos = 0;
 	std::vector<Quad> quads;
 	std::vector<InternalData> data;
 	sf::Time deathTimer = sf::Time::Zero;
 	bool areDead() const { return deathTimer >= lifeTime; }
-	friend class ParticleSystem;
 	friend class PixelParticleSystem;
 };
 

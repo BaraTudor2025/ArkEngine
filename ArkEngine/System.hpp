@@ -38,6 +38,7 @@ public:
 protected:
 	template <typename T>
 	void requireComponent() {
+		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		componentTypes.push_back(typeid(T));
 		componentManager->addComponentType<T>();
 	}

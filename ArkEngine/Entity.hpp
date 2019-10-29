@@ -16,6 +16,8 @@ public:
 	template <typename T, typename...Args>
 	T& addComponent(Args&& ... args);
 
+	void addComponent(std::type_index type);
+
 	template <typename T>
 	T& getComponent();
 
@@ -25,6 +27,8 @@ public:
 
 	template <typename T>
 	void removeComponent();
+
+	void removeComponent(std::type_index type);
 
 	template <typename T, typename...Args>
 	T* addScript(Args&& ... args);

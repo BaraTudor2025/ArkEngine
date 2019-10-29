@@ -108,40 +108,54 @@ public:
 		if (entity.mask.test(compId))
 			return *getComponentOfEntity<T>(e);
 
+		auto component = addComponentOnEntity(e, typeid(T));
+		Util::construct_in_place<T>(component, std::forward<Args>(args)...);
+		return *reinterpret_cast<T*>(component);
+	}
+
+	void* addComponentOnEntity(Entity e, std::type_index type)
+	{
+		int compId = componentManager.getComponentId(type);
+		auto& entity = getEntity(e);
+		if (entity.mask.test(compId))
+			return getComponentOfEntity(e, type);
 		markAsDirty(e);
 		entity.mask.set(compId);
 
-		auto [comp, compIndex] = componentManager.addComponent<T>(std::forward<Args>(args)...);
+		auto [comp, compIndex] = componentManager.addComponent(compId);
 		auto& compData = entity.components.emplace_back();
 		compData.component = comp;
 		compData.id = compId;
 		compData.index = compIndex;
+		return comp;
+	}
 
-		return *comp;
+	void* getComponentOfEntity(Entity e, std::type_index type)
+	{
+		auto& entity = getEntity(e);
+		int compId = componentManager.getComponentId(type);
+		if (!entity.mask.test(compId)) {
+			EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType(type));
+			return nullptr;
+		}
+		return entity.getComponent(compId);
 	}
 
 	template <typename T>
 	T* getComponentOfEntity(Entity e)
 	{
-		auto& entity = getEntity(e);
-		int compId = componentManager.getComponentId<T>();
-		if (!entity.mask.test(compId)) {
-			EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType<T>());
-			return nullptr;
-		}
-		return entity.getComponent<T>(compId);
+		return reinterpret_cast<T*>(getComponentOfEntity(e, typeid(T)));
 	}
 
-	template <typename T>
-	void removeComponentOfEntity(Entity e)
+	void removeComponentOfEntity(Entity e, std::type_index type)
 	{
 		auto& entity = getEntity(e);
-		auto compId = componentManager.getComponentId<T>();
-		if (entity.mask.test(entity)) {
+		auto compId = componentManager.getComponentId(type);
+		if (entity.mask.test(compId)) {
 			markAsDirty(e);
 			componentManager.removeComponent(compId, entity.getComponentIndex(compId));
 			entity.mask.set(compId, false);
-			Util::erase(entity.components, [=](const auto& compData) { return compData.id == compId; });
+			Util::erase_if(entity.components, [compId](const auto& compData) { return compData.id == compId; });
 		}
 	}
 
@@ -263,15 +277,15 @@ public:
 	}
 #endif // disable entity children
 
-
 private:
 
 	struct InternalEntityData {
-
 		struct ComponentData {
+			using Self = const ComponentData&;
 			int16_t id;
 			int16_t index;
 			void* component; // reference
+			friend bool operator==(Self left, Self right) { return left.id == right.id; }
 		};
 		//int16_t childrenIndex = ArkInvalidIndex;
 		//int16_t parentIndex = ArkInvalidIndex;
@@ -329,6 +343,11 @@ inline T& Entity::getComponent()
 	return *comp;
 }
 
+inline void Entity::addComponent(std::type_index type)
+{
+	manager->addComponentOnEntity(*this, type);
+}
+
 template<typename T>
 inline T* Entity::tryGetComponent()
 {
@@ -340,7 +359,12 @@ template <typename T>
 inline void Entity::removeComponent()
 {
 	static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-	manager->removeComponentOfEntity(*this);
+	manager->removeComponentOfEntity(*this, typeid(T));
+}
+
+inline void Entity::removeComponent(std::type_index type)
+{
+	manager->removeComponentOfEntity(*this, type);
 }
 
 template<typename T, typename ...Args>

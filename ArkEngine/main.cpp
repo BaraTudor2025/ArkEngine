@@ -265,6 +265,8 @@ private:
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
 		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 		player.addScript<MovePlayer>(400, 180);
+		player.addComponent<PointParticles>();
+		player.removeComponent<PointParticles>();
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
 		button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
@@ -311,7 +313,13 @@ private:
 		rotatingParticles.addScript<TraillingEffect>();
 		//plimbarica.addScript<ReadColorFromConsole>();
 
-		mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
+		//mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
+		mouseTrail.addComponent(typeid(PointParticles));
+		auto& mouseParticles = mouseTrail.getComponent<PointParticles>();
+		mouseParticles.setParticleNumber(1000);
+		mouseParticles.setLifeTime(sf::seconds(5), DistributionType::normal);
+		mouseParticles.speedDistribution = {0.f, 2.f};
+		mouseParticles.angleDistribution = {0.f, 0.f};
 		mouseTrail.addScript<EmittFromMouse>();
 		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 		mouseTrail.addScript<TraillingEffect>();

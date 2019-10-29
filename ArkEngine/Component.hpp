@@ -49,18 +49,6 @@ public:
 		return getComponentId(typeid(T));
 	}
 
-	template <typename T, typename... Args>
-	auto addComponent(Args&&... args) -> std::pair<T*, int>
-	{
-		auto& pool = pools.at(getComponentId<T>());
-		auto [component, index] = pool.getFreeSlot();
-		if constexpr (sizeof...(Args) == 0)
-			EngineLog(LogSource::ComponentM, LogLevel::Warning, "niciun argument pt %s", typeid(T).name());
-		//std::memset(component, 0, pool.metadata.size);
-		Util::construct_in_place<T>(component, std::forward<Args>(args)...);
-		return {reinterpret_cast<T*>(component), index};
-	}
-
 	auto addComponent(int compId) -> std::pair<byte*, int>
 	{
 		auto& pool = pools.at(compId);
@@ -75,20 +63,10 @@ public:
 		return pool.copyComponent(index);
 	}
 
-	auto copyComponent(std::type_index type, int index) -> std::pair<byte*, int>
-	{
-		return copyComponent(getComponentId(type), index);
-	}
-
 	void removeComponent(int compId, int index)
 	{
 		auto& pool = pools.at(compId);
 		pool.removeComponent(index);
-	}
-
-	void removeComponent(std::type_index type, int index)
-	{
-		removeComponent(getComponentId(type), index);
 	}
 
 	template <typename T>

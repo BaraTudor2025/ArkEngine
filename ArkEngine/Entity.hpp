@@ -13,6 +13,8 @@ public:
 	Entity() = default;
 	~Entity() = default;
 
+	Entity clone(std::string name="");
+
 	template <typename T, typename...Args>
 	T& addComponent(Args&& ... args);
 

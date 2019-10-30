@@ -13,10 +13,12 @@
 #include <tuple>
 #include <set>
 
+class Scene;
+
 class EntityManager final : public NonCopyable, public NonMovable {
 
 public:
-	EntityManager(ComponentManager& cm, ScriptManager& sm): componentManager(cm), scriptManager(sm) {}
+	EntityManager(Scene& s, ComponentManager& cm, ScriptManager& sm): scene(s), componentManager(cm), scriptManager(sm) {}
 	~EntityManager() = default;
 
 public:
@@ -45,13 +47,30 @@ public:
 		return e;
 	}
 
-	// TODO (entity manager): figure out a way to copy components without templates
-	// only components are copied, scripts are excluded, maybe it's possible in ArchetypeManager?
-	Entity cloneEntity(Entity e)
+	Entity cloneEntity(Entity e, std::string name)
 	{
-		//Entity hClone = createEntity();
-		//auto entity = getEntity(e);
-		//auto clone = getEntity(hClone);
+		auto& entity = getEntity(e);
+		bool emptyName = false;
+		if (name.empty())
+			emptyName = true;
+
+		Entity hClone = createEntity(name);
+		auto& clone = getEntity(hClone);
+		if (emptyName) {
+			clone.name.append("_cloneof_");
+			clone.name.append(entity.name);
+		}
+
+		for (auto compData : entity.components) {
+			auto [component, index] = componentManager.copyComponent(compData.id, compData.index);
+			clone.mask.set(compData.id);
+			auto& cloneCompData = clone.components.emplace_back();
+			cloneCompData.component = component;
+			cloneCompData.id = compData.id;
+			cloneCompData.index = index;
+		}
+		addToScene(hClone);
+		return hClone;
 	}
 
 	const std::string& getNameOfEntity(Entity e)
@@ -279,6 +298,8 @@ public:
 
 private:
 
+	void addToScene(Entity e);
+
 	struct InternalEntityData {
 		struct ComponentData {
 			using Self = const ComponentData&;
@@ -321,10 +342,16 @@ private:
 	std::vector<InternalEntityData> entities;
 	std::set<Entity> dirtyEntities;
 	std::vector<int> freeEntities;
+	Scene& scene;
 	ComponentManager& componentManager;
 	ScriptManager& scriptManager;
 	//std::vector<std::vector<Entity>> childrenTree;
 };
+
+inline Entity Entity::clone(std::string name)
+{
+	return manager->cloneEntity(*this, name);
+}
 
 template<typename T, typename ...Args>
 inline T& Entity::addComponent(Args&& ...args)

@@ -93,14 +93,12 @@ private:
 	struct Metadata {
 		std::string_view name;
 		int size;
-		bool isDefaultConstructible;
-		bool isCopyable;
+		bool isCopyable = false;
 
 		Metadata() = default;
 
 		void default_construct(void* p) {
-			if (default_constructor)
-				default_constructor(p);
+			default_constructor(p);
 		}
 
 		void copy_construct(void* This, const void* That) {
@@ -127,14 +125,12 @@ private:
 				size = size + nBytes - (size % nBytes);
 			// else size is already aligned
 
-			if constexpr (std::is_default_constructible_v<T>) {
-				default_constructor = Util::reinterpretCast<constructor_t>(defaultConstructorInstace<T>);
-				isDefaultConstructible = true;
-			}
+			default_constructor = Util::reinterpretCast<constructor_t>(defaultConstructorInstace<T>);
 
-			isCopyable = std::is_copy_constructible_v<T>;
-			if constexpr (!std::is_trivially_copy_constructible_v<T>)
+			if constexpr (std::is_copy_constructible_v<T>) {
 				copy_constructor = Util::reinterpretCast<copy_constructor_t>(copyConstructorInstace<T>);
+				isCopyable = true;
+			}
 
 			if constexpr (!std::is_trivially_destructible_v<T>)
 				destructor = Util::reinterpretCast<destructor_t>(destructorInstance<T>);
@@ -166,8 +162,7 @@ private:
 			int kiloByte = 2 * 1024;
 			numberOfComponentsPerChunk = kiloByte / metadata.size;
 			chunk_size = metadata.size * numberOfComponentsPerChunk;
-			//std::cout << "num: " <<  << "\n\n";
-			GameLog("for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d) ", typeid(T).name(), chunk_size, numberOfComponentsPerChunk, metadata.size);
+			EngineLog(LogSource::ComponentM, LogLevel::Info, "for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d) ", Util::getNameOfType<T>(), chunk_size, numberOfComponentsPerChunk, metadata.size);
 		}
 
 		auto copyComponent(int index) -> std::pair<byte*, int>

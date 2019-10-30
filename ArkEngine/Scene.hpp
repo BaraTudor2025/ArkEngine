@@ -18,7 +18,7 @@ public:
 	Scene(MessageBus& bus)
 		: componentManager(),
 		scriptManager(),
-		entityManager(componentManager, scriptManager),
+		entityManager(*this, componentManager, scriptManager),
 		systemManager(bus, *this, componentManager)
 	{}
 
@@ -148,6 +148,7 @@ private:
 	}
 
 private:
+	friend class EntityManager;
 	ComponentManager componentManager;
 	ScriptManager scriptManager;
 	EntityManager entityManager;

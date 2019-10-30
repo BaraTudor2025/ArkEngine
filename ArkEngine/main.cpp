@@ -251,11 +251,11 @@ private:
 
 		button = scene.createEntity("button");
 		player = scene.createEntity("player");
-		mouseTrail = scene.createEntity("mouseTrail");
-		rainbowPointParticles = scene.createEntity("rainbow ps");
-		greenPointParticles = scene.createEntity("green ps");
-		firePointParticles = scene.createEntity("fire ps");
-		rotatingParticles = scene.createEntity("rotating ps");
+		mouseTrail = scene.createEntity("mouse_trail");
+		rainbowPointParticles = scene.createEntity("rainbow_ps");
+		greenPointParticles = scene.createEntity("green_ps");
+		firePointParticles = scene.createEntity("fire_ps");
+		rotatingParticles = scene.createEntity("rotating_ps");
 
 		//fireWorks.resize(0);
 		//createEntity(fireWorks);
@@ -292,6 +292,10 @@ private:
 		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
 		rainbowPointParticles.addScript<SpawnOnRightClick>();
 		rainbowPointParticles.addScript<EmittFromMouse>();
+
+		Entity rainbowClone = rainbowPointParticles.clone();
+		rainbowClone.addScript<SpawnOnLeftClick>();
+		rainbowClone.addScript<EmittFromMouse>();
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		firePointParticles.addScript<SpawnOnLeftClick>();

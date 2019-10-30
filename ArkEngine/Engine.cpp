@@ -15,6 +15,11 @@ const std::string& Entity::getName() { return manager->getNameOfEntity(*this); }
 
 void Entity::setName(std::string name) { return manager->setNameOfEntity(*this, name); }
 
+void EntityManager::addToScene(Entity e)
+{
+	scene.createdEntities.push_back(e);
+}
+
 void State::requestStackPush(int stateId) {
 	this->stateStack->pushState(stateId);
 }

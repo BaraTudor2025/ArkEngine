@@ -119,6 +119,7 @@ public:
 	void renderInspector()
 	{
 		systemManager.renderInspector();
+		entityManager.renderInspector();
 	}
 
 private:

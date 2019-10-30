@@ -43,6 +43,11 @@ public:
 		return pos - std::begin(this->componentIndexes);
 	}
 
+	std::type_index getTypeFromId(int id)
+	{
+		return componentIndexes.at(id);
+	}
+
 	template <typename T>
 	int getComponentId()
 	{

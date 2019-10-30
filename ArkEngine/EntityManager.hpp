@@ -296,6 +296,8 @@ public:
 	}
 #endif // disable entity children
 
+	void renderInspector();
+
 private:
 
 	void addToScene(Entity e);

@@ -99,6 +99,11 @@ private:
 	bool active = true;
 };
 
+template <typename T>
+class SystemT : public System {
+public:
+	SystemT() : System(typeid(T)) { }
+};
 
 class SystemManager {
 

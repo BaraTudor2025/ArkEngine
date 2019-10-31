@@ -84,11 +84,9 @@ private:
 };
 
 
-class ButtonSystem : public System, public Renderer {
+class ButtonSystem : public SystemT<ButtonSystem>, public Renderer {
 
 public:
-	ButtonSystem() : System(typeid(ButtonSystem)) { }
-
 	void init() override
 	{
 		requireComponent<Button>();
@@ -150,11 +148,9 @@ private:
 
 };
 
-class TextSystem : public System, public Renderer {
+class TextSystem : public SystemT<TextSystem>, public Renderer {
 
 public:
-	TextSystem() : System(typeid(TextSystem)) { }
-
 	void init() override
 	{
 		requireComponent<Text>();

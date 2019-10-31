@@ -7,19 +7,17 @@
 #include "ResourceManager.hpp"
 #include "System.hpp"
 
-class FpsCounterSystem : public System, public Renderer {
+class FpsCounterSystem : public SystemT<FpsCounterSystem>, public Renderer {
 	sf::Time updateElapsed;
 	sf::Text text;
 	int updateFPS = 0;
 
 public:
-
-	FpsCounterSystem() : System(typeid(FpsCounterSystem)) {
+	FpsCounterSystem() {
 		text.setFont(*Resources::load<sf::Font>("KeepCalm-Medium.ttf"));
 		text.setCharacterSize(15);
 		text.setFillColor(sf::Color::White);
 	}
-
 
 private:
 	void update() override {

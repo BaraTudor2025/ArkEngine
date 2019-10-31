@@ -125,10 +125,9 @@ private:
 	template <std::size_t N> decltype(auto) get();
 };
 
-class AnimationSystem : public System, public Renderer {
+class AnimationSystem : public SystemT<AnimationSystem>, public Renderer {
 
 public:
-	AnimationSystem() : System(typeid(AnimationSystem)) { }
 
 	void init() override
 	{
@@ -141,9 +140,8 @@ public:
 	void render(sf::RenderTarget& target) override;
 };
 
-class MeshSystem : public System, public Renderer {
+class MeshSystem : public SystemT<MeshSystem>, public Renderer {
 public:
-	MeshSystem() : System(typeid(MeshSystem)) { }
 
 	void init() override
 	{

@@ -19,7 +19,6 @@ class EntityManager final : public NonCopyable, public NonMovable {
 
 public:
 	EntityManager(Scene& s, ComponentManager& cm, ScriptManager& sm): scene(s), componentManager(cm), scriptManager(sm) {}
-	~EntityManager() = default;
 
 public:
 
@@ -50,13 +49,9 @@ public:
 	Entity cloneEntity(Entity e, std::string name)
 	{
 		auto& entity = getEntity(e);
-		bool emptyName = false;
-		if (name.empty())
-			emptyName = true;
-
 		Entity hClone = createEntity(name);
 		auto& clone = getEntity(hClone);
-		if (emptyName) {
+		if (name.empty()) {
 			clone.name.append("_cloneof_");
 			clone.name.append(entity.name);
 		}
@@ -297,6 +292,20 @@ public:
 #endif // disable entity children
 
 	void renderInspector();
+
+	~EntityManager()
+	{
+		int id = 0;
+		for (auto& entity : entities) {
+			auto it = std::find(freeEntities.begin(), freeEntities.end(), id);
+			// component is not destroyed
+			if(it == freeEntities.end()){
+				for (auto compData : entity.components)
+					componentManager.removeComponent(compData.id, compData.index);
+			}
+			id += 1;
+		}
+	}
 
 private:
 

@@ -18,7 +18,7 @@
 
 namespace ParticleScripts {
 
-	class EmittFromMouse : public Script {
+	class EmittFromMouse : public ScriptT<EmittFromMouse> {
 		PointParticles* p;
 	public:
 		void init() override
@@ -32,7 +32,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class TraillingEffect : public Script {
+	class TraillingEffect : public ScriptT<TraillingEffect> {
 		sf::Vector2f prevEmitter;
 		PointParticles* p;
 	public:
@@ -61,7 +61,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class PlayModel : public Script {
+	class PlayModel : public ScriptT<PlayModel> {
 		std::vector<sf::Vector2f> model;
 		std::vector<sf::Vector2f>::iterator curr;
 		std::string file;
@@ -69,6 +69,7 @@ namespace ParticleScripts {
 		sf::Vector2f offset;
 	public:
 
+		PlayModel() = default;
 		PlayModel(std::string file, sf::Vector2f offset = { 0.f, 0.f }) : file(file), offset(offset) { }
 
 		void init() override
@@ -132,7 +133,7 @@ namespace ParticleScripts {
 	};
 
 
-	class RoatateEmitter : public Script {
+	class RotateEmitter : public ScriptT<RotateEmitter> {
 		sf::Transform t;
 		PointParticles* p;
 		//Transform* t;
@@ -141,7 +142,8 @@ namespace ParticleScripts {
 		float angleSpeed;
 
 	public:
-		RoatateEmitter(float angle, sf::Vector2f around, float distance)
+		RotateEmitter() = default;
+		RotateEmitter(float angle, sf::Vector2f around, float distance)
 			:angleSpeed(angle), around(around), distance(distance, 0) { }
 
 		void init() override
@@ -162,12 +164,13 @@ namespace ParticleScripts {
 		}
 	};
 
-	class Rotate : public Script {
+	class Rotate : public ScriptT<Rotate> {
 		Transform* t;
 		float angle;
 		sf::Vector2f around;
 
 	public:
+		Rotate() = default;
 		Rotate(float angle, sf::Vector2f around) : angle(angle), around(around) { }
 
 		void init() override {
@@ -186,7 +189,7 @@ namespace ParticleScripts {
 	};
 
 
-	class SpawnOnRightClick : public Script {
+	class SpawnOnRightClick : public ScriptT<SpawnOnRightClick> {
 		PointParticles* p;
 	public:
 		void init()
@@ -214,7 +217,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class SpawnOnLeftClick : public Script {
+	class SpawnOnLeftClick : public ScriptT<SpawnOnLeftClick> {
 		PointParticles* p;
 	public:
 		void init() override
@@ -241,16 +244,16 @@ namespace ParticleScripts {
 	};
 
 	template <typename T = PointParticles>
-	class DeSpawnOnMouseClick : public Script {
+	class DeSpawnOnMouseClick : public ScriptT<DeSpawnOnMouseClick<T>> {
 		T* p = nullptr;
 	public:
 		void init() override
 		{
 			log_init();
 			if constexpr (std::is_base_of_v<Script, T>)
-				p = getScript<T>();
+				p = this->getScript<T>();
 			if constexpr (std::is_same_v<PointParticles, T>)
-				p = getComponent<T>();
+				p = this->getComponent<T>();
 		}
 		void handleEvent(const sf::Event& event) override
 		{

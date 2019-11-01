@@ -42,7 +42,7 @@ class ColisionSystem : public System {
 
 #endif
 
-class MovePlayer : public Script {
+class MovePlayer : public ScriptT<MovePlayer> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
@@ -52,6 +52,7 @@ class MovePlayer : public Script {
 	sf::Vector2f particleEmitterOffsetRight;
 public:
 
+	MovePlayer() = default;
 	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
 
 	void scale(float factor)
@@ -291,11 +292,21 @@ private:
 
 		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
 		rainbowPointParticles.addScript<SpawnOnRightClick>();
-		rainbowPointParticles.addScript<EmittFromMouse>();
+		rainbowPointParticles.addScript(typeid(EmittFromMouse));
 
 		Entity rainbowClone = rainbowPointParticles.clone();
+		rainbowClone.addScript<SpawnOnRightClick>();
+		rainbowClone.removeScript(typeid(SpawnOnRightClick));
 		rainbowClone.addScript<SpawnOnLeftClick>();
+		rainbowClone.setScriptActive<SpawnOnLeftClick>(false);
 		rainbowClone.addScript<EmittFromMouse>();
+
+		std::thread thread([=]() mutable {
+			std::this_thread::sleep_for(std::chrono::seconds(4));
+			rainbowClone.setScriptActive(typeid(SpawnOnLeftClick), true);
+
+		});
+		thread.detach();
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		firePointParticles.addScript<SpawnOnLeftClick>();
@@ -313,7 +324,7 @@ private:
 		//plimb->emitter = ArkEngine::center();
 		//plimb->emitter.x += 100;
 		//plimbarica.addScript<Rotate>(360/2, ArkEngine::center());
-		rotatingParticles.addScript<RoatateEmitter>(180, ArkEngine::center(), 100);
+		rotatingParticles.addScript<RotateEmitter>(180, ArkEngine::center(), 100);
 		rotatingParticles.addScript<TraillingEffect>();
 		//plimbarica.addScript<ReadColorFromConsole>();
 

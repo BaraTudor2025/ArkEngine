@@ -5,16 +5,17 @@
 #include "Entity.hpp"
 
 #include <SFML/Window/Event.hpp>
+#include <functional>
 
 class Entity;
 
 class ARK_ENGINE_API Script : public NonCopyable {
 
 public:
-	Script() = default;
+	Script(std::type_index type) : type(type), name(Util::getNameOfType(type)) {}
 	virtual ~Script() = default;
 
-	//if a script is disabled before construction then init will not be called
+	//if a script is disabled in the same frame of construction then init will not be called
 	virtual void init() { }
 	virtual void update() { }
 	virtual void handleEvent(const sf::Event&) { }
@@ -27,9 +28,27 @@ private:
 	Entity m_entity;
 	bool active = true;
 	bool isInitialized = false;
+	std::type_index type;
+	std::string_view name;
 
 	friend class EntityManager;
 	friend class ScriptManager;
+};
+
+template <typename T>
+int addScriptTypeToFactorie();
+
+// helper class
+template <typename T>
+class ScriptT : public Script {
+	// calling this function at start up time
+	static inline const auto _ = addScriptTypeToFactorie<T>();
+public:
+	ScriptT() : Script(typeid(T))
+	{
+		static_assert(std::is_base_of_v<Script, T>);
+		static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
+	}
 };
 
 
@@ -40,7 +59,22 @@ public:
 	~ScriptManager() = default;
 
 	template <typename T, typename... Args>
-	T* addScript(int16_t& indexOfPool, Args&& ... args)
+	T* addScript(int16_t& indexOfPool, Args&&... args)
+	{
+		auto createScript = [&]() {
+			return std::make_unique<T>(std::forward<Args>(args)...);
+		};
+		auto script = addScriptImpl(indexOfPool, typeid(T), createScript);
+		return dynamic_cast<T*>(script);
+	}
+
+	Script* addScript(int16_t& indexOfPool, std::type_index type)
+	{
+		auto& factorie = factories.at(type);
+		return addScriptImpl(indexOfPool, type, factorie);
+	}	
+
+	Script* addScriptImpl(int16_t& indexOfPool, std::type_index type, std::function<std::unique_ptr<Script>()> factorie)
 	{
 		if (indexOfPool == ArkInvalidIndex) {
 			if (!freePools.empty()) {
@@ -50,40 +84,42 @@ public:
 				indexOfPool = scriptPools.size();
 				scriptPools.emplace_back();
 			}
-		} else if (hasScript<T>(indexOfPool)) {
-			return getScript<T>(indexOfPool);
+		} else if (hasScript(indexOfPool, type)) {
+			return getScript(indexOfPool, type);
 		}
 
 		auto& scripts = scriptPools.at(indexOfPool);
-		auto& script = scripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+		auto& script = scripts.emplace_back(factorie());
 		pendingScripts.push_back(script.get());
 
-		return dynamic_cast<T*>(script.get());
+		return script.get();
 	}
-	
-	template <typename T>
-	bool hasScript(int indexOfPool) {
-		return getScript<T>(indexOfPool) != nullptr;
+
+	bool hasScript(int indexOfPool, std::type_index type) {
+		return getScript(indexOfPool, type) != nullptr;
 	}
 
 	template <typename T>
 	T* getScript(int indexOfPool)
+	{
+		return dynamic_cast<T*>(getScript(indexOfPool, typeid(T)));
+	}
+
+	Script* getScript(int indexOfPool, std::type_index type)
 	{
 		if (indexOfPool == ArkInvalidIndex)
 			return nullptr;
 
 		auto& scripts = scriptPools.at(indexOfPool);
 		for (auto& script : scripts)
-			if (auto s = dynamic_cast<T*>(script.get()); s)
-				return s;
-
+			if (script->type == type)
+				return script.get();
 		return nullptr;
 	}
 
-	template <typename T>
-	void setActive(int indexOfPool, bool active)
+	void setActive(int indexOfPool, bool active, std::type_index type)
 	{
-		auto script = getScript<T>(indexOfPool);
+		auto script = getScript(indexOfPool, type);
 		if (!script)
 			return;
 
@@ -91,6 +127,7 @@ public:
 			script->active = false;
 			pendingDeactivatedScripts.push_back(script);
 		} else if (!script->active && active) {
+			Util::erase(pendingDeactivatedScripts, script);
 			script->active = true;
 			auto isCurrentlyActive = Util::find(activeScripts, script);
 			auto isPending = Util::find(pendingScripts, script);
@@ -121,7 +158,6 @@ public:
 		pendingDeactivatedScripts.clear();
 	}
 
-	// f must take Script* as arg
 	// used by Scene to call handleEvent, handleMessage, update
 	template <typename F>
 	void forEachScript(F f)
@@ -130,16 +166,17 @@ public:
 			f(script);
 	}
 
-	template <typename T>
-	void removeScript(int indexOfPool)
+	void removeScript(int indexOfPool, std::type_index type)
 	{
 		if (indexOfPool == ArkInvalidIndex)
 			return;
 
-		auto script = getScript<T>(indexOfPool);
+		auto script = getScript(indexOfPool, type);
 		if (script) {
 			Util::erase(activeScripts, script);
-			Util::erase_if(scriptPools.at(indexOfPool), [script](auto& p) { return p.get() == script; });
+			Util::erase(pendingScripts, script);
+			Util::erase(pendingDeactivatedScripts, script);
+			Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->type == type; });
 		}
 	}
 
@@ -160,7 +197,23 @@ private:
 	std::vector<std::vector<std::unique_ptr<Script>>> scriptPools;
 	std::vector<int> freePools;
 	std::vector<Script*> activeScripts;
-	std::vector<Script*> pendingScripts;
+	std::vector<Script*> pendingScripts; // set to active or initialize
 	std::vector<Script*> pendingDeactivatedScripts;
+	static inline std::unordered_map<std::type_index, std::function<std::unique_ptr<Script>()>> factories;
 	friend class EntityManager;
+
+	template <typename T>
+	friend int addScriptTypeToFactorie()
+	{
+		static_assert(std::is_base_of_v<Script, T>);
+		static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
+
+		auto& factories = ScriptManager::factories;
+		if (auto it = factories.find(typeid(T)); it == factories.end()) {
+			factories[typeid(T)] = []() -> std::unique_ptr<Script> {
+				return std::make_unique<T>();
+			};
+		}
+		return 0;
+	}
 };

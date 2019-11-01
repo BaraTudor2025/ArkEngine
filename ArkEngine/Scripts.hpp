@@ -6,11 +6,12 @@
 
 namespace GeneralScripts
 {
-	class RegisterMousePath : public Script {
+	class RegisterMousePath : public ScriptT<RegisterMousePath> {
 		std::vector<sf::Vector2f> path;
 		std::string file;
 	public:
 
+		RegisterMousePath() = default;
 		RegisterMousePath(std::string file) : file(file) { }
 
 		void update()

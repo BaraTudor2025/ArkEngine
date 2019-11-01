@@ -182,6 +182,14 @@ public:
 		return script;
 	}
 
+	Script* addScriptOnEntity(Entity e, std::type_index type)
+	{
+		auto& entity = getEntity(e);
+		auto script = scriptManager.addScript(entity.scriptsIndex, type);
+		script->m_entity = e;
+		return script;
+	}
+
 	template <typename T>
 	T* getScriptOfEntity(Entity e)
 	{
@@ -192,18 +200,31 @@ public:
 		return script;
 	}
 
-	template <typename T>
-	void removeScriptOfEntity(Entity e)
+	Script* getScriptOfEntity(Entity e, std::type_index type)
 	{
 		auto& entity = getEntity(e);
-		scriptManager.removeScript<T>(entity.scriptsIndex);
+		auto script = scriptManager.getScript(entity.scriptsIndex, type);
+		if (script == nullptr)
+			EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s) doesn't have (%s) script attached", entity.name.c_str(), Util::getNameOfType(type));
+		return script;
 	}
 
-	template <typename T>
-	void setScriptActive(Entity e, bool active)
+	bool hasScript(Entity e, std::type_index type)
 	{
 		auto& entity = getEntity(e);
-		scriptManager.setActive<T>(entity.scriptsIndex, active);
+		return scriptManager.hasScript(entity.scriptsIndex, type);
+	}
+
+	void removeScriptOfEntity(Entity e, std::type_index type)
+	{
+		auto& entity = getEntity(e);
+		scriptManager.removeScript(entity.scriptsIndex, type);
+	}
+
+	void setScriptActive(Entity e, bool active, std::type_index type)
+	{
+		auto& entity = getEntity(e);
+		scriptManager.setActive(entity.scriptsIndex, active, type);
 	}
 
 	const ComponentManager::ComponentMask& getComponentMaskOfEntity(Entity e) {
@@ -397,7 +418,7 @@ template <typename T>
 inline void Entity::removeComponent()
 {
 	static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-	manager->removeComponentOfEntity(*this, typeid(T));
+	this->removeComponent(typeid(T));
 }
 
 inline void Entity::removeComponent(std::type_index type)
@@ -405,11 +426,17 @@ inline void Entity::removeComponent(std::type_index type)
 	manager->removeComponentOfEntity(*this, type);
 }
 
+
 template<typename T, typename ...Args>
 inline T* Entity::addScript(Args&& ...args)
 {
 	static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
 	return manager->addScriptOnEntity<T>(*this, std::forward<Args>(args)...);
+}
+
+inline Script* Entity::addScript(std::type_index type)
+{
+	return manager->addScriptOnEntity(*this, type);
 }
 
 template<typename T>
@@ -419,18 +446,44 @@ inline T* Entity::getScript()
 	return manager->getScriptOfEntity<T>(*this);
 }
 
+inline Script* Entity::getScript(std::type_index type)
+{
+	return manager->getScriptOfEntity(*this, type);
+}
+
+template <typename T>
+inline bool Entity::hasScript()
+{
+	return this->hasScript(typeid(T));
+}
+
+inline bool Entity::hasScript(std::type_index type)
+{
+	return manager->hasScript(*this, type);
+}
+
 template<typename T>
 inline void Entity::setScriptActive(bool active)
 {
 	static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
-	return manager->setScriptActive<T>(*this, active);
+	this->setScriptActive(typeid(T), active);
+}
+
+inline void Entity::setScriptActive(std::type_index type, bool active)
+{
+	manager->setScriptActive(*this, active, type);
 }
 
 template<typename T>
 inline void Entity::removeScript()
 {
 	static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
-	return manager->removeScriptOfEntity<T>(*this);
+	this->removeScript(typeid(T));
+}
+
+inline void Entity::removeScript(std::type_index type)
+{
+	manager->removeScriptOfEntity(*this, type);
 }
 
 

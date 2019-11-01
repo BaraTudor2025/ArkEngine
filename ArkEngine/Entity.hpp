@@ -4,6 +4,7 @@
 #include "Component.hpp"
 
 class EntityManager;
+class Script;
 
 // this is more of a handle
 // func definitions are at the bottom of EntityManager.hpp
@@ -13,12 +14,16 @@ public:
 	Entity() = default;
 	~Entity() = default;
 
-	Entity clone(std::string name="");
+	Entity clone(std::string name = "");
+
+	//TODO: Entity cloneWithScripts(std::string name = "");
+
 
 	template <typename T, typename...Args>
 	T& addComponent(Args&& ... args);
 
 	void addComponent(std::type_index type);
+
 
 	template <typename T>
 	T& getComponent();
@@ -27,23 +32,42 @@ public:
 	template <typename T>
 	T* tryGetComponent();
 
+
 	template <typename T>
 	void removeComponent();
 
 	void removeComponent(std::type_index type);
 
+
 	template <typename T, typename...Args>
 	T* addScript(Args&& ... args);
+
+	Script* addScript(std::type_index type);
 
 	// returns nullptr if script is not found
 	template <typename T>
 	T* getScript();
 
+	Script* getScript(std::type_index type);
+
+
+	template <typename T>
+	bool hasScript();
+
+	bool hasScript(std::type_index type);
+
+
 	template <typename T>
 	void setScriptActive(bool active);
 
-	template <typename T>
+	void setScriptActive(std::type_index type, bool active);
+	
+
+	template <typename T> 
 	void removeScript();
+
+	void removeScript(std::type_index type);
+
 
 	const ComponentManager::ComponentMask& getComponentMask();
 

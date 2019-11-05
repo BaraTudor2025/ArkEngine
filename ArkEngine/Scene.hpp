@@ -128,16 +128,17 @@ private:
 	{
 		for (auto entity : createdEntities)
 			systemManager.addToSystems(entity);
-		createdEntities.clear();
 
-		if (auto dirtyEntities = entityManager.getDirtyEntities(); dirtyEntities.has_value()) {
-			// modified entities that have not been created now
-			std::vector<Entity> modifiedEntities = Util::set_difference(createdEntities, dirtyEntities.value());
-			for (auto entity : modifiedEntities) {
+		if (auto modifiedEntities = entityManager.getModifiedEntities(); modifiedEntities.has_value()) {
+			// modified entities that have not been created now (entites created this frame are also marked as 'modified')
+			std::vector<Entity> me = Util::set_difference(modifiedEntities.value(), createdEntities);
+			for (auto entity : me) {
+				EngineLog(LogSource::EntityM, LogLevel::Info, "modified (%s)", entity.getName().c_str());
 				systemManager.removeFromSystems(entity);
 				systemManager.addToSystems(entity);
 			}
 		}
+		createdEntities.clear();
 
 		scriptManager.processPendingScripts();
 

@@ -133,7 +133,7 @@ public:
 		auto& entity = getEntity(e);
 		if (entity.mask.test(compId))
 			return getComponentOfEntity(e, type);
-		markAsDirty(e);
+		markAsModified(e);
 		entity.mask.set(compId);
 
 		auto [comp, compIndex] = componentManager.addComponent(compId);
@@ -166,7 +166,7 @@ public:
 		auto& entity = getEntity(e);
 		auto compId = componentManager.getComponentId(type);
 		if (entity.mask.test(compId)) {
-			markAsDirty(e);
+			markAsModified(e);
 			componentManager.removeComponent(compId, entity.getComponentIndex(compId));
 			entity.mask.set(compId, false);
 			Util::erase_if(entity.components, [compId](const auto& compData) { return compData.id == compId; });
@@ -232,12 +232,12 @@ public:
 		return entity.mask;
 	}
 
-	void markAsDirty(Entity e)
+	void markAsModified(Entity e)
 	{
 		dirtyEntities.insert(e);
 	}
 
-	std::optional<std::set<Entity>> getDirtyEntities()
+	std::optional<std::set<Entity>> getModifiedEntities()
 	{
 		if (dirtyEntities.empty())
 			return std::nullopt;

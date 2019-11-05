@@ -98,13 +98,21 @@ void SystemManager::renderInspector()
 void EntityManager::renderInspector()
 {
 	if (ImGui::TreeNode("Entities:")) {
+		int i = 0;
 		for (auto& entity : entities) {
 			ImGui::Separator();
+
+			if (auto it = std::find(freeEntities.begin(), freeEntities.end(), i); it != freeEntities.end()) {
+				ImGui::BulletText("free_entity_%d", i);
+				i += 1;
+				continue;
+			}
 
 			const std::vector<std::unique_ptr<Script>>* scripts = nullptr;
 			if(entity.scriptsIndex != ArkInvalidIndex)
 				scripts = &(scriptManager.getScripts(entity.scriptsIndex));
 			int scriptNum = scripts ? scripts->size() : 0;
+
 			std::string text = tfm::format("%s: C(%d) S(%d)", entity.name.c_str(), entity.components.size(), scriptNum);
 			if (ImGui::TreeNode(text.c_str())) {
 				float indent_w = 7;
@@ -126,6 +134,7 @@ void EntityManager::renderInspector()
 				ImGui::Unindent(indent_w);
 				ImGui::TreePop();
 			}
+			i += 1;
 		}
 		ImGui::TreePop();
 	}

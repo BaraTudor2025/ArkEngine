@@ -19,13 +19,14 @@ public:
 	virtual void init() { }
 	virtual void update() { }
 	virtual void handleEvent(const sf::Event&) { }
+
 	template <typename T> T* getComponent() { return m_entity.tryGetComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 	Entity entity() { return m_entity; }
 	void deactivate() { m_entity.setScriptActive(type, false); }
-	bool isActive() { return true; }
+	bool isActive() { return active; }
 
-	std::string_view name;
+	const std::string_view name;
 
 private:
 	Entity m_entity;

@@ -46,7 +46,7 @@ public:
 	T* addSystem(Args&&... args) {
 		static_assert(std::is_base_of_v<System, T>, " T not a system type");
 		auto system = systemManager.addSystem<T>(std::forward<T>(args)...);
-		if (std::is_base_of_v<Renderer, T>)
+		if constexpr (std::is_base_of_v<Renderer, T>)
 			renderers.push_back(system);
 		return system;
 	}

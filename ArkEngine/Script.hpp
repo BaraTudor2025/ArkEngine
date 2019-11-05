@@ -22,14 +22,16 @@ public:
 	template <typename T> T* getComponent() { return m_entity.tryGetComponent<T>(); }
 	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 	Entity entity() { return m_entity; }
+	void deactivate() { m_entity.setScriptActive(type, false); }
 	bool isActive() { return true; }
+
+	std::string_view name;
 
 private:
 	Entity m_entity;
 	bool active = true;
 	bool isInitialized = false;
 	std::type_index type;
-	std::string_view name;
 
 	friend class EntityManager;
 	friend class ScriptManager;
@@ -115,6 +117,11 @@ public:
 			if (script->type == type)
 				return script.get();
 		return nullptr;
+	}
+
+	const std::vector<std::unique_ptr<Script>>& getScripts(int indexOfPool)
+	{
+		return scriptPools[indexOfPool];
 	}
 
 	void setActive(int indexOfPool, bool active, std::type_index type)

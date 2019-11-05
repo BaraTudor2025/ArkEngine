@@ -297,8 +297,8 @@ private:
 		Entity rainbowClone = rainbowPointParticles.clone();
 		rainbowClone.addScript<SpawnOnRightClick>();
 		rainbowClone.removeScript(typeid(SpawnOnRightClick));
-		rainbowClone.addScript<SpawnOnLeftClick>();
-		rainbowClone.setScriptActive<SpawnOnLeftClick>(false);
+		rainbowClone.addScript<SpawnOnLeftClick>()->deactivate();
+		//rainbowClone.setScriptActive<SpawnOnLeftClick>(false);
 		rainbowClone.addScript<EmittFromMouse>();
 
 		std::thread thread([=]() mutable {

@@ -1,5 +1,6 @@
 #include "Gui.hpp"
 #include "Logger.hpp"
+#include "ResourceManager.hpp"
 
 sf::Color levelToColor(LogLevel level)
 {
@@ -192,7 +193,7 @@ struct StdOutLogger final {
 	inline static std::string text;
 };
 
-
+static ImFont* arkFont;
 
 void InternalGui::init()
 {
@@ -207,12 +208,23 @@ void InternalGui::init()
 	tabs.push_back({"Game Log", GameLogger::render});
 	tabs.push_back({"stdout", StdOutLogger::render});
 #endif
+	ImGuiStyle& imguiStyle = ImGui::GetStyle();
+	imguiStyle.ChildRounding = 3;
+	imguiStyle.FrameRounding = 3;
+	imguiStyle.GrabRounding = 2;
+	imguiStyle.AntiAliasedFill = true;
+	imguiStyle.AntiAliasedLines = true;
+
+	ImGuiIO& io = ImGui::GetIO();
+	std::string file = Resources::resourceFolder + "fonts/Inconsolata.otf";
+	arkFont = io.Fonts->AddFontFromFileTTF(file.c_str(), 15);
+	ImGui::SFML::UpdateFontTexture();
 }
 
 void InternalGui::render()
 {
-	ImGui::ShowDemoWindow();
 	ImGui::Begin("MyWindow");
+	ImGui::PushFont(arkFont);
 	if (ImGui::BeginTabBar("GameTabBar")) {
 		for (const auto& tab : tabs) {
 			if (ImGui::BeginTabItem(tab.name.c_str())) {
@@ -222,6 +234,6 @@ void InternalGui::render()
 		}
 		ImGui::EndTabBar();
 	}
-
+	ImGui::PopFont();
 	ImGui::End();
 }

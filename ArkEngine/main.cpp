@@ -221,6 +221,52 @@ public:
 	}
 };
 
+// one time use component, it is removed from its entity after thes action is performed
+struct DelayedAction : Component<DelayedAction> {
+
+	DelayedAction() = default;
+	
+	DelayedAction(sf::Time time, std::function<void(Entity)> fun)
+	{
+		setAction(time, fun);
+	}
+
+	void setAction(sf::Time time, std::function<void(Entity)> fun)
+	{
+		this->time = time;
+		action = std::move(fun);
+	}
+
+private:
+	sf::Time time;
+	std::function<void(Entity)> action;
+
+	friend class DelayedActionSystem;
+};
+
+class DelayedActionSystem : public SystemT<DelayedActionSystem> {
+public:
+	void init() override
+	{
+		requireComponent<DelayedAction>();
+	}
+
+	void update() override
+	{
+		for (auto entity : getEntities()) {
+			auto& da = entity.getComponent<DelayedAction>();
+			da.time -= ArkEngine::deltaTime();
+			if (da.time <= sf::Time::Zero) {
+				if (da.action) {
+					auto action = std::move(da.action);
+					entity.removeComponent<DelayedAction>();
+					action(entity);
+				}
+			}
+		}
+	}
+};
+
 class TestingState : public BasicState {
 	Entity player;
 	Entity button;
@@ -247,6 +293,7 @@ private:
 		scene.addSystem<ButtonSystem>();
 		scene.addSystem<TextSystem>();
 		scene.addSystem<AnimationSystem>();
+		scene.addSystem<DelayedActionSystem>();
 		addInspector(scene, "Basic Scene Inspector");
 		//scene.addSystem<TestMessageSystem>();
 
@@ -297,20 +344,18 @@ private:
 		Entity rainbowClone = rainbowPointParticles.clone();
 		rainbowClone.addScript<SpawnOnRightClick>();
 		rainbowClone.removeScript(typeid(SpawnOnRightClick));
-		rainbowClone.addScript<SpawnOnLeftClick>()->deactivate();
-		//rainbowClone.setScriptActive<SpawnOnLeftClick>(false);
+		//rainbowClone.addScript<SpawnOnLeftClick>()->deactivate();
 		rainbowClone.addScript<EmittFromMouse>();
-
-		std::thread thread([=]() mutable {
-			std::this_thread::sleep_for(std::chrono::seconds(4));
-			rainbowClone.setScriptActive(typeid(SpawnOnLeftClick), true);
-
+		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](Entity e) {
+			//e.setScriptActive<SpawnOnLeftClick>(true);
 		});
-		thread.detach();
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		firePointParticles.addScript<SpawnOnLeftClick>();
 		firePointParticles.addScript<EmittFromMouse>();
+		firePointParticles.addComponent<DelayedAction>(sf::seconds(5), [this](Entity e) {
+			scene.destroyEntity(e);
+		});
 
 		auto& grassP = greenPointParticles.addComponent<PointParticles>(getGreenParticles());
 		grassP.spawn = true;

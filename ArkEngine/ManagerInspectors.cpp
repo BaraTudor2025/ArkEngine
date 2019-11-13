@@ -2,6 +2,8 @@
 #include "System.hpp"
 #include "Entity.hpp"
 #include "EntityManager.hpp"
+#include "Transform.hpp"
+#include "RandomNumbers.hpp"
 
 #include <imgui.h>
 #include <libs/tinyformat.hpp>
@@ -100,13 +102,13 @@ void EntityManager::renderInspector()
 	if (ImGui::TreeNode("Entities:")) {
 		int i = 0;
 		for (auto& entity : entities) {
-			ImGui::Separator();
 
 			if (auto it = std::find(freeEntities.begin(), freeEntities.end(), i); it != freeEntities.end()) {
-				ImGui::BulletText("free_entity_%d", i);
+				//ImGui::BulletText("free_entity_%d", i);
 				i += 1;
 				continue;
 			}
+			ImGui::Separator();
 
 			const std::vector<std::unique_ptr<Script>>* scripts = nullptr;
 			if(entity.scriptsIndex != ArkInvalidIndex)
@@ -138,4 +140,257 @@ void EntityManager::renderInspector()
 		}
 		ImGui::TreePop();
 	}
+	renderEditor();
 }
+
+void EntityManager::renderEditor()
+{
+	int windowHeight = 440;
+	int windowWidth = 500;
+    ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight));
+	static bool _open = true;
+
+	if (ImGui::Begin("Entity editor", &_open)) {
+
+		// entity list
+		static int selectedEntity = -1;
+		int entityId = 0;
+        ImGui::BeginChild("left_pane", ImVec2(150, 0), true);
+		for (auto& entity : entities) {
+
+			if (auto it = std::find(freeEntities.begin(), freeEntities.end(), entityId); it != freeEntities.end()) {
+				if (selectedEntity == entityId)
+					selectedEntity = -1;
+				entityId += 1;
+				continue;
+			}
+			if (ImGui::Selectable(entity.name.c_str(), selectedEntity == entityId)) {
+				selectedEntity = entityId;
+			}
+			entityId += 1;
+		}
+		ImGui::EndChild();
+		ImGui::SameLine();
+
+		// selected entity editor
+		ImGui::BeginChild("right_pane", ImVec2(0, 0), false);
+		if (selectedEntity != -1) {
+
+			// entity name at the top
+			auto& entity = entities.at(selectedEntity);
+			ImGui::Text("Entity: %s", entity.name.c_str());
+			ImGui::Separator();
+
+			// component editor
+			ImGui::TextUnformatted("Components:");
+			int componentWidgetId = 0;
+			for (auto& compData : entity.components) {
+				auto compType = componentManager.getTypeFromId(compData.id);
+				// custom editor
+				if (std::type_index(typeid(Transform)) == compType) {
+					//renderEditTransform();
+				} else {
+					ImGui::BulletText(Util::getNameOfType(compType));
+					// remove component button
+					ImGui::PushID(&compType);
+					if (ImGui::BeginPopupContextItem("remove_this_component_menu")) {
+						if (ImGui::Button("remove componet")) {
+							Entity e;
+							e.id = selectedEntity;
+							e.manager = this;
+							e.removeComponent(compType);
+						}
+						ImGui::EndPopup();
+					}
+					ImGui::PopID();
+
+					// 
+					componentManager.renderEditorOfComponent(&componentWidgetId, compData.id, compData.component);
+					ImGui::Separator();
+				}
+			}
+
+			// add components list
+			auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
+				auto& types = *static_cast<std::vector<std::type_index>*> (data);
+				*out_text = Util::getNameOfType(types.at(index));
+				return true; 
+			};
+			int componentItemIndex;
+			auto& types = componentManager.getTypes();
+			if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, static_cast<void*>(&types), types.size())) {
+				Entity e;
+				e.id = selectedEntity;
+				e.manager = this;
+				e.addComponent(types.at(componentItemIndex));
+			}
+
+			// script editor
+			ImGui::NewLine();
+			ImGui::NewLine();
+			if (entity.scriptsIndex != ArkInvalidIndex) {
+				ImGui::TextUnformatted("Scripts:");
+				auto& scripts = scriptManager.getScripts(entity.scriptsIndex);
+				for (auto& script : scripts) {
+					ImGui::BulletText(script->name.data());
+					// remove script button
+					ImGui::PushID(&script->type);
+					if (ImGui::BeginPopupContextItem("remove_this_script_menu")) {
+						std::string label = tfm::format("remove %s", Util::getNameOfType(script->type));
+						if (ImGui::Button(label.c_str())) {
+							Entity e;
+							e.id = selectedEntity;
+							e.manager = this;
+							e.removeScript(script->type);
+						}
+						ImGui::EndPopup();
+					}
+					ImGui::PopID();
+					// render_script_editor[script->type](script.get());
+					ImGui::Separator();
+				}
+			}
+
+			// add scripts list
+			auto scriptGetter = [](void* data, int index, const char** out_text) mutable -> bool {
+				auto& types = *static_cast<decltype(ScriptManager::factories)*>(data);
+				auto it = types.begin();
+				std::advance(it, index);
+				*out_text = Util::getNameOfType(it->first);
+				return true;
+			};
+			int scriptItemIndex;
+			if (ImGui::Combo("add_script", &scriptItemIndex, scriptGetter, static_cast<void*>(&ScriptManager::factories), ScriptManager::factories.size())) {
+				Entity e;
+				e.id = selectedEntity;
+				e.manager = this;
+				auto it = ScriptManager::factories.begin();
+				std::advance(it, scriptItemIndex);
+				e.addScript(it->first);
+			}
+		}
+		ImGui::EndChild();
+	}
+	ImGui::End();
+}
+
+
+void ArkSetFieldName(std::string_view name)
+{
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextUnformatted(name.data());
+	ImGui::SameLine();
+}
+
+void ArkSetWidthEnd(std::string_view name)
+{
+	auto textLen = ImGui::CalcTextSize(name.data()).x;
+	ImGui::SetNextItemWidth(-textLen - 2);
+}
+
+void ArkSetWidthPercent(float value)
+{
+	//ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
+	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth() * 0.2f);
+}
+
+std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManager::fieldRendererTable = {
+
+	{ typeid(int), [](std::string_view name, const void* pField) {
+		int field = *static_cast<const int*>(pField);
+		ArkSetFieldName(name);
+		if (ImGui::InputInt("", &field, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			ImGui::SetKeyboardFocusHere(0);
+			return std::any{field};
+		}
+		return std::any{};
+	} }, 
+
+	{ typeid(bool), [](std::string_view name, const void* pField) {
+		bool field = *static_cast<const bool*>(pField);
+		ArkSetFieldName(name);
+		if (ImGui::Checkbox("", &field)) {
+			return std::any{field};
+		}
+		return std::any{};
+	} }, 
+
+	{ typeid(sf::Vector2f), [](std::string_view name, const void* pField) {
+		sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);
+		ArkSetFieldName(name);
+		float v[2] = {vec.x, vec.y};
+		if (ImGui::InputFloat2("", v, 1, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			vec.x = v[0];
+			vec.y = v[1];
+			return std::any{vec};
+		}
+		return std::any{};
+	} },
+
+	{ typeid(sf::Color), [](std::string_view name, const void* pField) {
+		sf::Color color = *static_cast<const sf::Color*>(pField);
+		ArkSetFieldName(name);
+		float v[4] = {
+			static_cast<float>(color.r) / 255.f,
+			static_cast<float>(color.g) / 255.f,
+			static_cast<float>(color.b) / 255.f,
+			static_cast<float>(color.a) / 255.f
+		};
+
+		if (ImGui::ColorEdit4("", v)) {
+			color.r = static_cast<uint8_t>(v[0] * 255.f);
+			color.g = static_cast<uint8_t>(v[1] * 255.f);
+			color.b = static_cast<uint8_t>(v[2] * 255.f);
+			color.a = static_cast<uint8_t>(v[3] * 255.f);
+			return std::any{color};
+		}
+		return std::any{};
+	} },
+
+	{ typeid(sf::Time), [](std::string_view name, const void* pField) {
+		sf::Time time = *static_cast<const sf::Time*>(pField);
+		ArkSetFieldName(name);
+
+		int millisec = time.asMilliseconds();
+		ArkSetWidthEnd("as milliseconds");
+		if (ImGui::InputInt("as milliseconds", &millisec, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue))
+			return std::any{sf::milliseconds(millisec)};
+
+		return std::any{};
+	} }, 
+
+	{ typeid(Distribution<float>), [](std::string_view name, const void* pField) {
+		Distribution<float> dist = *static_cast<const Distribution<float>*>(pField);
+		float v[2] = {dist.a, dist.b};
+		ArkSetFieldName(name);
+		//ArkSetWidthEnd(name);
+		if (ImGui::InputFloat2("", v, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			dist.a = v[0];
+			dist.b = v[1];
+			return std::any{dist};
+		}
+		
+		auto distTypeName = std::string(name) + " type";
+		ArkSetFieldName(distTypeName);
+		//ArkSetWidthEnd(distTypeName);
+		bool isNormal = dist.type == DistributionType::normal;
+		//std::string distNamePreview = (isNormal ? "normal" : "uniform");
+		if (ImGui::BeginCombo("", (isNormal ? "normal" : "uniform"))) {
+
+			if (ImGui::Selectable("normal", isNormal))
+				dist.type = DistributionType::normal;
+			if (isNormal)
+				ImGui::SetItemDefaultFocus();
+
+			if (ImGui::Selectable("uniform", !isNormal))
+				dist.type = DistributionType::uniform;
+			if (!isNormal)
+				ImGui::SetItemDefaultFocus();
+
+			ImGui::EndCombo();
+			return std::any{dist};
+		}
+		return std::any{};
+	} }
+};
+

@@ -4,11 +4,14 @@
 #include "Util.hpp"
 
 #include <libs/static_any.hpp>
+#include <libs/Meta.h>
 
 #include <bitset>
 #include <unordered_map>
 #include <vector>
 #include <type_traits>
+#include <functional>
+#include <any>
 
 template <typename T>
 struct ARK_ENGINE_API Component {
@@ -18,7 +21,10 @@ struct ARK_ENGINE_API Component {
 	}
 };
 
-
+namespace ImGui {
+	void PushID(int);
+	void PopID();
+}
 
 class ComponentManager final : NonCopyable {
 
@@ -92,13 +98,29 @@ public:
 		pools.back().constructPoolFrom<T>();
 	}
 
+	void renderEditorOfComponent(int* widgetId, int compId, void* component)
+	{
+		auto& pool = pools.at(compId);
+		pool.metadata.renderFields(widgetId, component);
+	}
+
+	std::vector<std::type_index>& getTypes() {
+		return this->componentIndexes;
+	}
+
 
 private:
+
+	using FieldFunc = std::function<std::any(std::string_view, const void*)>;
+	static std::unordered_map<std::type_index, FieldFunc> fieldRendererTable;
 
 	struct Metadata {
 		std::string_view name;
 		int size;
 		bool isCopyable = false;
+		std::function<void(int*, void*)> renderFields; // render in editor
+		//std::function<json(void*)> serialize;
+		//std::function<void(void*, const json*)> deserialize;
 
 		Metadata() = default;
 
@@ -139,6 +161,36 @@ private:
 
 			if constexpr (!std::is_trivially_destructible_v<T>)
 				destructor = Util::reinterpretCast<destructor_t>(destructorInstance<T>);
+
+
+			renderFields = [this](int* widgetId, void* pComp) {
+				T& component = *static_cast<T*>(pComp);
+				std::any newValue;
+
+				meta::doForAllMembers<T>([widgetId, &newValue, &component, &table = fieldRendererTable](auto& member) mutable {
+					using MemberT = meta::get_member_type<decltype(member)>;
+					auto& renderField = table.at(typeid(MemberT));
+
+					ImGui::PushID(*widgetId);
+					if (member.canGetConstRef())
+						newValue = renderField(member.getName(), &member.get(component));
+					else /* if (member.hasGetter()) /**/ {
+						MemberT local = member.getCopy(component);
+						newValue = renderField(member.getName(), &local);
+					}
+					ImGui::PopID();
+					*widgetId += 1;
+
+					if (newValue.has_value()) {
+						if(member.hasSetter()){
+							member.set(component, std::any_cast<MemberT>(newValue));
+						} else if (member.canGetRef()){
+							member.getRef(component) = std::any_cast<MemberT>(newValue);
+						}
+					}
+					newValue.reset();
+				});
+			};
 		}
 		
 	private:

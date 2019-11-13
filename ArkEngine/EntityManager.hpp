@@ -313,6 +313,7 @@ public:
 #endif // disable entity children
 
 	void renderInspector();
+	void renderEditor();
 
 	~EntityManager()
 	{

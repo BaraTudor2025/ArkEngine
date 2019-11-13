@@ -54,8 +54,10 @@ namespace ParticleScripts {
 					speed = std::clamp<float>(speed, 0, 5);
 				} else
 					p->spawn = false;
-				p->angleDistribution = { angle - PI / 6, angle + PI / 6 };
-				p->speedDistribution = { 5 * speed , 20 * speed };
+				auto at = p->angleDistribution.type;
+				auto st = p->speedDistribution.type;
+				p->angleDistribution = {angle - PI / 6, angle + PI / 6 , at};
+				p->speedDistribution = {5 * speed , 20 * speed , st};
 				prevEmitter = p->emitter;
 			}
 		}

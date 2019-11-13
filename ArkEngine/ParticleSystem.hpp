@@ -13,6 +13,8 @@
 #include <SFML/System/Time.hpp>
 #include <SFML/Graphics.hpp>
 
+#include <libs/Meta.h>
+
 static inline constexpr auto PI = 3.14159f;
 
 struct PointParticles final : public Component<PointParticles> {
@@ -43,8 +45,12 @@ struct PointParticles final : public Component<PointParticles> {
 		this->data.resize(count);
 	}
 
-	int getParticleNumber() {
+	int getParticleNumber() const {
 		return count;
+	}
+
+	sf::Time getLifeTime() const {
+		return lifeTime;
 	}
 
 	void setLifeTime(sf::Time lifeTime) {
@@ -99,6 +105,20 @@ private:
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class PointParticleSystem;
 };
+
+namespace meta {
+	template <> inline auto registerMembers<PointParticles>() {
+		return members(
+			member("particleNumber", &PointParticles::getParticleNumber, &PointParticles::setParticleNumber),
+			member("lifeTime", &PointParticles::getLifeTime, &PointParticles::setLifeTime),
+			member("spawn", &PointParticles::spawn),
+			member("fireworks", &PointParticles::fireworks),
+			member("emitter", &PointParticles::emitter),
+			member("speedDistribution", &PointParticles::speedDistribution),
+			member("angleDistribution", &PointParticles::angleDistribution)
+		);
+	}
+}
 
 struct PixelParticles : public Component<PixelParticles> {
 

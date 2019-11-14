@@ -304,7 +304,15 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 			return std::any{field};
 		}
 		return std::any{};
-	} }, 
+	} },
+
+	{ typeid(float), [](std::string_view name, const void* pField) {
+		float field = *static_cast<const float*>(pField);
+		ArkSetFieldName(name);
+		if (ImGui::InputFloat("", &field, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue))
+			return std::any{field};
+		return std::any{};
+	} },
 
 	{ typeid(bool), [](std::string_view name, const void* pField) {
 		bool field = *static_cast<const bool*>(pField);
@@ -314,6 +322,17 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		}
 		return std::any{};
 	} }, 
+
+	{ typeid(std::string), [](std::string_view name, const void* pField) {
+		std::string field = *static_cast<const std::string*>(pField);
+		char buff[50];
+		field.copy(buff, field.size());
+		buff[field.size()] = '\0';
+		ArkSetFieldName(name);
+		if (ImGui::InputText("", buff, field.size() + 1, ImGuiInputTextFlags_EnterReturnsTrue))
+			return std::any{std::string(buff, field.size())};
+		return std::any{};
+	} },
 
 	{ typeid(sf::Vector2f), [](std::string_view name, const void* pField) {
 		sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);

@@ -197,6 +197,7 @@ public:
 		for (auto& script : scripts) {
 			EngineLog(LogSource::ScriptM, LogLevel::Info, "deleting (%s)", script->name.data());
 			deleteScriptFromLists(indexOfPool, script->type);
+			Util::erase(scriptsToBeDeleted, std::pair{indexOfPool, script->type});
 		}
 			
 		scripts.clear();

@@ -145,8 +145,9 @@ void EntityManager::renderInspector()
 
 void EntityManager::renderEditor()
 {
-	int windowHeight = 440;
-	int windowWidth = 500;
+	//int windowHeight = 440;
+	int windowHeight = 700;
+	int windowWidth = 600;
     ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight));
 	static bool _open = true;
 
@@ -279,19 +280,17 @@ void ArkSetFieldName(std::string_view name)
 {
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted(name.data());
-	ImGui::SameLine();
+
+	const float widthPercentage = 0.5;
+	ImVec2 textSize = ImGui::CalcTextSize(name.data());
+	float width = ImGui::GetContentRegionAvailWidth();
+	ImGui::SameLine(0, width * widthPercentage - textSize.x);
+	ImGui::SetNextItemWidth(-2);
 }
 
-void ArkSetWidthEnd(std::string_view name)
+void ArkKeepFocus()
 {
-	auto textLen = ImGui::CalcTextSize(name.data()).x;
-	ImGui::SetNextItemWidth(-textLen - 2);
-}
-
-void ArkSetWidthPercent(float value)
-{
-	//ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
-	ImGui::SetNextItemWidth(ImGui::GetContentRegionAvailWidth() * 0.2f);
+	ImGui::SetKeyboardFocusHere(0);
 }
 
 std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManager::fieldRendererTable = {
@@ -368,11 +367,11 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 
 	{ typeid(sf::Time), [](std::string_view name, const void* pField) {
 		sf::Time time = *static_cast<const sf::Time*>(pField);
-		ArkSetFieldName(name);
+		auto label = std::string(name) + "(as milliseconds)";
+		ArkSetFieldName(label);
 
 		int millisec = time.asMilliseconds();
-		ArkSetWidthEnd("as milliseconds");
-		if (ImGui::InputInt("as milliseconds", &millisec, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue))
+		if (ImGui::InputInt("", &millisec, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue))
 			return std::any{sf::milliseconds(millisec)};
 
 		return std::any{};
@@ -382,7 +381,6 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		Distribution<float> dist = *static_cast<const Distribution<float>*>(pField);
 		float v[2] = {dist.a, dist.b};
 		ArkSetFieldName(name);
-		//ArkSetWidthEnd(name);
 		if (ImGui::InputFloat2("", v, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
 			dist.a = v[0];
 			dist.b = v[1];
@@ -391,9 +389,7 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		
 		auto distTypeName = std::string(name) + " type";
 		ArkSetFieldName(distTypeName);
-		//ArkSetWidthEnd(distTypeName);
 		bool isNormal = dist.type == DistributionType::normal;
-		//std::string distNamePreview = (isNormal ? "normal" : "uniform");
 		if (ImGui::BeginCombo("", (isNormal ? "normal" : "uniform"))) {
 
 			if (ImGui::Selectable("normal", isNormal))

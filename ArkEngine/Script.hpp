@@ -146,6 +146,12 @@ public:
 
 	void processPendingScripts()
 	{
+		for (auto& delScript : scriptsToBeDeleted) {
+			deleteScriptFromLists(delScript.first, delScript.second);
+			deleteScript(delScript.first, delScript.second);
+		}
+		scriptsToBeDeleted.clear();
+
 		if (pendingScripts.empty() && pendingDeactivatedScripts.empty())
 			return;
 
@@ -179,13 +185,7 @@ public:
 		if (indexOfPool == ArkInvalidIndex)
 			return;
 
-		auto script = getScript(indexOfPool, type);
-		if (script) {
-			Util::erase(activeScripts, script);
-			Util::erase(pendingScripts, script);
-			Util::erase(pendingDeactivatedScripts, script);
-			Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->type == type; });
-		}
+		scriptsToBeDeleted.emplace_back(indexOfPool, type);
 	}
 
 	void removeScripts(int indexOfPool)
@@ -194,19 +194,34 @@ public:
 			return;
 
 		auto& scripts = scriptPools.at(indexOfPool);
-		for (auto& script : scripts)
-			Util::erase_if(activeScripts, [&script](auto& s) { return s == script.get(); });
+		for (auto& script : scripts) {
+			EngineLog(LogSource::ScriptM, LogLevel::Info, "deleting (%s)", script->name.data());
+			deleteScriptFromLists(indexOfPool, script->type);
+		}
 			
 		scripts.clear();
 		freePools.push_back(indexOfPool);
 	}
 
 private:
+	void deleteScriptFromLists(int indexOfPool, std::type_index type) {
+		auto script = getScript(indexOfPool, type);
+		Util::erase(activeScripts, script);
+		Util::erase(pendingScripts, script);
+		Util::erase(pendingDeactivatedScripts, script);
+	}
+
+	void deleteScript(int indexOfPool, std::type_index type) {
+		Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->type == type; });
+	}
+
+private:
 	std::vector<std::vector<std::unique_ptr<Script>>> scriptPools;
 	std::vector<int> freePools;
 	std::vector<Script*> activeScripts;
-	std::vector<Script*> pendingScripts; // set to active or initialize
+	std::vector<Script*> pendingScripts; // set to active and/or initialize
 	std::vector<Script*> pendingDeactivatedScripts;
+	std::vector<std::pair<int, std::type_index>> scriptsToBeDeleted; // indexOfPool and type
 	static inline std::unordered_map<std::type_index, std::function<std::unique_ptr<Script>()>> factories;
 	friend class EntityManager;
 

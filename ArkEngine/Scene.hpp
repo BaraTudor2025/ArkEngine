@@ -82,7 +82,7 @@ public:
 		systemManager.removeSystem<T>();
 	}
 
-	void forwardEvent(const sf::Event& event)
+	void handleEvent(const sf::Event& event)
 	{
 		systemManager.forEachSystem([&event](System* system){
 			system->handleEvent(event);
@@ -92,7 +92,7 @@ public:
 		});
 	}
 
-	void forwardMessage(const Message& message)
+	void handleMessage(const Message& message)
 	{
 		systemManager.forEachSystem([&message](System* system){
 			system->handleMessage(message);

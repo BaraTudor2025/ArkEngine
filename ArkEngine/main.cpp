@@ -199,13 +199,13 @@ public:
 
 	bool handleEvent(const sf::Event& event) override
 	{
-		scene.forwardEvent(event);
+		scene.handleEvent(event);
 		return false;
 	}
 
 	void handleMessage(const Message& message) override
 	{
-		scene.forwardMessage(message);
+		scene.handleMessage(message);
 	}
 
 	bool update() override
@@ -457,7 +457,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
-	ArkEngine::create(ArkEngine::resolutionFourByThree, "Articifii!", sf::seconds(1/120.f), settings);
+	ArkEngine::create(ArkEngine::resolutionFullHD, "Articifii!", sf::seconds(1/120.f), settings);
 	ArkEngine::backGroundColor = sf::Color(50, 50, 50);
 	ArkEngine::getWindow().setVerticalSyncEnabled(false);
 	ArkEngine::registerState<class TestingState>(States::TestingState);

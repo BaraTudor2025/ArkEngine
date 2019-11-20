@@ -24,7 +24,16 @@ struct ARK_ENGINE_API Component {
 namespace ImGui {
 	void PushID(int);
 	void PopID();
+	bool BeginCombo(const char* label, const char* preview_value, int flags);
+	void EndCombo();
+	void SetItemDefaultFocus();
+	void Indent(float);
+	void Unindent(float);
+	void Text(char const*, ...);
 }
+
+extern void ArkSetFieldName(std::string_view name);
+extern bool ArkSelectable(const char* label, bool selected); // forward to ImGui::Selectable
 
 class ComponentManager final : NonCopyable {
 
@@ -139,6 +148,77 @@ private:
 		}
 
 		template <typename T>
+		static bool renderEnumFields(T& currentValue)
+		{
+			static_assert(std::is_enum_v<T>);
+			const auto& fields = meta::registerEnum<T>();
+
+			const char* currFieldName = nullptr;
+			for (const auto& field : fields)
+				if (field.value == currentValue)
+					currFieldName = field.name;
+
+			if (ImGui::BeginCombo("", currFieldName, 0)) {
+				for (const auto& field : fields) {
+					if (ArkSelectable(field.name, field.value == currentValue)) {
+						ImGui::EndCombo();
+						currentValue = field.value;
+						return true;
+					}
+					if (field.value == currentValue)
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+			return false;
+		}
+
+		template <typename T>
+		static void renderFieldsOfType(int* widgetId, void* pValue){
+			T& valueToRender = *static_cast<T*>(pValue);
+			std::any newValue;
+
+			meta::doForAllMembers<T>([widgetId, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
+				using MemberT = meta::get_member_type<decltype(member)>;
+				ImGui::PushID(*widgetId);
+				if constexpr (meta::isRegistered<MemberT>()) {
+					// recursively render members
+					auto value = member.getCopy(valueToRender);
+					ImGui::Text("%s:", member.getName());
+					renderFieldsOfType<MemberT>(widgetId, &value);
+					member.set(valueToRender, value);
+				} else if constexpr (std::is_enum_v<MemberT>) {
+					// render enum values
+					auto value = member.getCopy(valueToRender);
+					ArkSetFieldName(member.getName());
+					if (renderEnumFields(value))
+						member.set(valueToRender, value);
+				} else {
+					// render field using predefined table
+					auto& renderField = table.at(typeid(MemberT));
+
+					if (member.canGetConstRef())
+						newValue = renderField(member.getName(), &member.get(valueToRender));
+					else /* if (member.hasGetter()) /**/ {
+						MemberT local = member.getCopy(valueToRender);
+						newValue = renderField(member.getName(), &local);
+					}
+
+					if (newValue.has_value()) {
+						if (member.hasSetter()) {
+							member.set(valueToRender, std::any_cast<MemberT>(newValue));
+						} else if (member.canGetRef()) {
+							member.getRef(valueToRender) = std::any_cast<MemberT>(newValue);
+						}
+					}
+					newValue.reset();
+				}
+				ImGui::PopID();
+				*widgetId += 1;
+			});
+		}
+
+		template <typename T>
 		void constructMetadataFrom()
 		{
 			name = Util::getNameOfType<T>();
@@ -162,35 +242,7 @@ private:
 			if constexpr (!std::is_trivially_destructible_v<T>)
 				destructor = Util::reinterpretCast<destructor_t>(destructorInstance<T>);
 
-
-			renderFields = [this](int* widgetId, void* pComp) {
-				T& component = *static_cast<T*>(pComp);
-				std::any newValue;
-
-				meta::doForAllMembers<T>([widgetId, &newValue, &component, &table = fieldRendererTable](auto& member) mutable {
-					using MemberT = meta::get_member_type<decltype(member)>;
-					auto& renderField = table.at(typeid(MemberT));
-
-					ImGui::PushID(*widgetId);
-					if (member.canGetConstRef())
-						newValue = renderField(member.getName(), &member.get(component));
-					else /* if (member.hasGetter()) /**/ {
-						MemberT local = member.getCopy(component);
-						newValue = renderField(member.getName(), &local);
-					}
-					ImGui::PopID();
-					*widgetId += 1;
-
-					if (newValue.has_value()) {
-						if(member.hasSetter()){
-							member.set(component, std::any_cast<MemberT>(newValue));
-						} else if (member.canGetRef()){
-							member.getRef(component) = std::any_cast<MemberT>(newValue);
-						}
-					}
-					newValue.reset();
-				});
-			};
+			renderFields = renderFieldsOfType<T>;
 		}
 		
 	private:

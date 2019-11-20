@@ -187,28 +187,23 @@ void EntityManager::renderEditor()
 			int componentWidgetId = 0;
 			for (auto& compData : entity.components) {
 				auto compType = componentManager.getTypeFromId(compData.id);
-				// custom editor
-				if (std::type_index(typeid(Transform)) == compType) {
-					//renderEditTransform();
-				} else {
-					ImGui::BulletText(Util::getNameOfType(compType));
-					// remove component button
-					ImGui::PushID(&compType);
-					if (ImGui::BeginPopupContextItem("remove_this_component_menu")) {
-						if (ImGui::Button("remove componet")) {
-							Entity e;
-							e.id = selectedEntity;
-							e.manager = this;
-							e.removeComponent(compType);
-						}
-						ImGui::EndPopup();
-					}
-					ImGui::PopID();
-
-					// 
-					componentManager.renderEditorOfComponent(&componentWidgetId, compData.id, compData.component);
-					ImGui::Separator();
+				ImGui::BulletText(Util::getNameOfType(compType));
+				// remove component button
+				auto typeNameSize = ImGui::GetItemRectSize();
+				auto buttonTextSize = ImGui::CalcTextSize("remove component");
+				auto width = ImGui::GetContentRegionAvailWidth();
+				ImGui::SameLine(0, width - typeNameSize.x - buttonTextSize.x - 10);
+				ImGui::PushID(&compData);
+				if (ImGui::Button("remove component")) {
+					Entity e;
+					e.id = selectedEntity;
+					e.manager = this;
+					e.removeComponent(compType);
 				}
+				ImGui::PopID();
+
+				componentManager.renderEditorOfComponent(&componentWidgetId, compData.id, compData.component);
+				ImGui::Separator();
 			}
 
 			// add components list
@@ -275,20 +270,27 @@ void EntityManager::renderEditor()
 	ImGui::End();
 }
 
-
-void ArkSetFieldName(std::string_view name)
+void ArkAlign(std::string_view str, float widthPercentage)
 {
-	ImGui::AlignTextToFramePadding();
-	ImGui::TextUnformatted(name.data());
-
-	const float widthPercentage = 0.5;
-	ImVec2 textSize = ImGui::CalcTextSize(name.data());
+	ImVec2 textSize = ImGui::CalcTextSize(str.data());
 	float width = ImGui::GetContentRegionAvailWidth();
 	ImGui::SameLine(0, width * widthPercentage - textSize.x);
 	ImGui::SetNextItemWidth(-2);
 }
 
-void ArkKeepFocus()
+void ArkSetFieldName(std::string_view name)
+{
+	ImGui::AlignTextToFramePadding();
+	ImGui::TextUnformatted(name.data());
+	ArkAlign(name, 0.5);
+}
+
+bool ArkSelectable(const char* label, bool selected)
+{
+	return ImGui::Selectable(label, selected);
+}
+
+void ArkFocusHere()
 {
 	ImGui::SetKeyboardFocusHere(0);
 }
@@ -299,7 +301,7 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		int field = *static_cast<const int*>(pField);
 		ArkSetFieldName(name);
 		if (ImGui::InputInt("", &field, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
-			ImGui::SetKeyboardFocusHere(0);
+			ArkFocusHere();
 			return std::any{field};
 		}
 		return std::any{};
@@ -309,6 +311,7 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		float field = *static_cast<const float*>(pField);
 		ArkSetFieldName(name);
 		if (ImGui::InputFloat("", &field, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue))
+			ArkFocusHere();
 			return std::any{field};
 		return std::any{};
 	} },
@@ -317,6 +320,7 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		bool field = *static_cast<const bool*>(pField);
 		ArkSetFieldName(name);
 		if (ImGui::Checkbox("", &field)) {
+			ArkFocusHere();
 			return std::any{field};
 		}
 		return std::any{};
@@ -329,6 +333,7 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		buff[field.size()] = '\0';
 		ArkSetFieldName(name);
 		if (ImGui::InputText("", buff, field.size() + 1, ImGuiInputTextFlags_EnterReturnsTrue))
+			ArkFocusHere();
 			return std::any{std::string(buff, field.size())};
 		return std::any{};
 	} },
@@ -337,7 +342,8 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);
 		ArkSetFieldName(name);
 		float v[2] = {vec.x, vec.y};
-		if (ImGui::InputFloat2("", v, 1, ImGuiInputTextFlags_EnterReturnsTrue)) {
+		if (ImGui::InputFloat2("", v, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			ArkFocusHere();
 			vec.x = v[0];
 			vec.y = v[1];
 			return std::any{vec};
@@ -367,44 +373,13 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 
 	{ typeid(sf::Time), [](std::string_view name, const void* pField) {
 		sf::Time time = *static_cast<const sf::Time*>(pField);
-		auto label = std::string(name) + "(as milliseconds)";
+		std::string label = std::string(name) + " (as seconds)";
 		ArkSetFieldName(label);
+		float sec = time.asSeconds();
+		if (ImGui::InputFloat("", &sec, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue))
+			ArkFocusHere();
+			return std::any{sf::seconds(sec)};
 
-		int millisec = time.asMilliseconds();
-		if (ImGui::InputInt("", &millisec, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue))
-			return std::any{sf::milliseconds(millisec)};
-
-		return std::any{};
-	} }, 
-
-	{ typeid(Distribution<float>), [](std::string_view name, const void* pField) {
-		Distribution<float> dist = *static_cast<const Distribution<float>*>(pField);
-		float v[2] = {dist.a, dist.b};
-		ArkSetFieldName(name);
-		if (ImGui::InputFloat2("", v, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
-			dist.a = v[0];
-			dist.b = v[1];
-			return std::any{dist};
-		}
-		
-		auto distTypeName = std::string(name) + " type";
-		ArkSetFieldName(distTypeName);
-		bool isNormal = dist.type == DistributionType::normal;
-		if (ImGui::BeginCombo("", (isNormal ? "normal" : "uniform"))) {
-
-			if (ImGui::Selectable("normal", isNormal))
-				dist.type = DistributionType::normal;
-			if (isNormal)
-				ImGui::SetItemDefaultFocus();
-
-			if (ImGui::Selectable("uniform", !isNormal))
-				dist.type = DistributionType::uniform;
-			if (!isNormal)
-				ImGui::SetItemDefaultFocus();
-
-			ImGui::EndCombo();
-			return std::any{dist};
-		}
 		return std::any{};
 	} }
 };

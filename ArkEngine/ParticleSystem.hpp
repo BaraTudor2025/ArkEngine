@@ -119,23 +119,6 @@ namespace meta {
 			member("angleDistribution", &PointParticles::angleDistribution)
 		);
 	}
-
-	template <> inline auto registerMembers<Distribution<float>>()
-	{
-		return members(
-			member("lower", &Distribution<float>::a),
-			member("upper", &Distribution<float>::b),
-			member("type", &Distribution<float>::type)
-		);
-	}
-
-	template <> inline auto registerEnum<DistributionType>()
-	{
-		return enumValues<DistributionType>(
-			enumValue("uniform", DistributionType::uniform),
-			enumValue("normal", DistributionType::normal)
-		);
-	}
 }
 
 struct PixelParticles : public Component<PixelParticles> {

@@ -193,30 +193,58 @@ class BasicState : public State {
 
 protected:
 	Scene scene{getMessageBus()};
+	sf::Sprite screen;
+	sf::Texture screenImage;
+	bool takenSS = false;
+	bool pauseScene = false;
 
 public:
 	BasicState(MessageBus& bus) : State(bus) { }
 
 	bool handleEvent(const sf::Event& event) override
 	{
-		scene.handleEvent(event);
+		if(!pauseScene)
+			scene.handleEvent(event);
+
+		if (event.type == sf::Event::KeyPressed)
+			if (event.key.code == sf::Keyboard::F1) {
+				pauseScene = !pauseScene;
+				takenSS = false;
+			}
+
 		return false;
 	}
 
 	void handleMessage(const Message& message) override
 	{
-		scene.handleMessage(message);
+		if(!pauseScene)
+			scene.handleMessage(message);
 	}
 
 	bool update() override
 	{
-		scene.update();
+		if(!pauseScene)
+			scene.update();
 		return false;
 	}
 
 	bool render(sf::RenderTarget& target) override
 	{
-		scene.render(target);
+		if (!pauseScene) {
+			scene.render(target);
+		} else if(!takenSS){
+			scene.render(target);
+			takenSS = true;
+			auto& win = ArkEngine::getWindow();
+			auto [x, y] = win.getSize();
+			screenImage.create(x, y);
+			screenImage.update(win);
+			screen.setTexture(screenImage);
+			target.draw(screen);
+		} else if (takenSS) {
+			target.draw(screen);
+		}
+
 		return false;
 	}
 };

@@ -223,8 +223,10 @@ public:
 
 	bool update() override
 	{
-		if(!pauseScene)
+		if (!pauseScene)
 			scene.update();
+		else
+			scene.processPendingData();
 		return false;
 	}
 

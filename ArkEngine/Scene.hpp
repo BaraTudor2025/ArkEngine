@@ -122,8 +122,6 @@ public:
 		entityManager.renderInspector();
 	}
 
-private:
-
 	void processPendingData()
 	{
 		for (auto entity : createdEntities)

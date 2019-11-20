@@ -53,6 +53,33 @@ struct type_list
 namespace meta
 {
 
+/* Ark addition */
+template <typename T>
+struct EnumValue {
+	using type = T;
+	const char* name;
+	T value;
+};
+
+template <typename T>
+auto enumValue(const char* name, T value)
+{
+	return EnumValue<T>{name, value};
+}
+
+template <typename T, typename... Ts>
+auto enumValues(Ts&&... args)
+{
+	return std::array<EnumValue<T>, sizeof...(Ts)> { std::forward<Ts>(args)... };
+}
+
+template <typename T> inline auto registerEnum();
+
+template <typename T> inline auto getEnumValues() /* -> array<T,N> */ { return registerEnum<T>(); }
+
+
+/* original MetaStuff */
+
 template <typename... Args>
 auto members(Args&&... args);
 

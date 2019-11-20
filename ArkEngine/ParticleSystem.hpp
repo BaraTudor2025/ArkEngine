@@ -107,7 +107,8 @@ private:
 };
 
 namespace meta {
-	template <> inline auto registerMembers<PointParticles>() {
+	template <> inline auto registerMembers<PointParticles>()
+	{
 		return members(
 			member("particleNumber", &PointParticles::getParticleNumber, &PointParticles::setParticleNumber),
 			member("lifeTime", &PointParticles::getLifeTime, &PointParticles::setLifeTime),
@@ -116,6 +117,23 @@ namespace meta {
 			member("emitter", &PointParticles::emitter),
 			member("speedDistribution", &PointParticles::speedDistribution),
 			member("angleDistribution", &PointParticles::angleDistribution)
+		);
+	}
+
+	template <> inline auto registerMembers<Distribution<float>>()
+	{
+		return members(
+			member("lower", &Distribution<float>::a),
+			member("upper", &Distribution<float>::b),
+			member("type", &Distribution<float>::type)
+		);
+	}
+
+	template <> inline auto registerEnum<DistributionType>()
+	{
+		return enumValues<DistributionType>(
+			enumValue("uniform", DistributionType::uniform),
+			enumValue("normal", DistributionType::normal)
 		);
 	}
 }

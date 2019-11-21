@@ -142,7 +142,7 @@ struct PixelParticles : public Component<PixelParticles> {
 		this->data.resize(count);
 	}
 
-	int getParticleNumber() {
+	int getParticleNumber() const {
 		return count;
 	}
 
@@ -151,6 +151,10 @@ struct PixelParticles : public Component<PixelParticles> {
 		this->colors = colors;
 		for (auto& q : quads)
 			q.setColors(colors.first, colors.second);
+	}
+
+	Colors getColors() const {
+		return colors;
 	}
 
 	float particlesPerSecond = 0;
@@ -178,6 +182,32 @@ private:
 	bool areDead() const { return deathTimer >= lifeTime; }
 	friend class PixelParticleSystem;
 };
+
+namespace meta {
+	template <> inline auto registerMembers<PixelParticles::Colors>()
+	{
+		return members(
+			member("dominant", &PixelParticles::Colors::first),
+			member("subdominant", &PixelParticles::Colors::second)
+		);
+	}
+
+	template <> inline auto registerMembers<PixelParticles>()
+	{
+		return members(
+			member("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),
+			member("particles_per_second", &PixelParticles::particlesPerSecond),
+			member("spawn", &PixelParticles::spawn),
+			member("speed", &PixelParticles::speed),
+			member("gravity", &PixelParticles::gravity),
+			member("emitter", &PixelParticles::emitter),
+			member("size", &PixelParticles::size),
+			member("life_time", &PixelParticles::lifeTime),
+			member("angle_dist", &PixelParticles::angleDistribution),
+			member("colors", &PixelParticles::getColors, &PixelParticles::setColors)
+		);
+	}
+}
 
 // templates
 

@@ -290,9 +290,9 @@ bool ArkSelectable(const char* label, bool selected)
 	return ImGui::Selectable(label, selected);
 }
 
-void ArkFocusHere()
+void ArkFocusHere(int i=-1)
 {
-	ImGui::SetKeyboardFocusHere(0);
+	ImGui::SetKeyboardFocusHere(i);
 }
 
 std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManager::fieldRendererTable = {
@@ -342,7 +342,7 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);
 		ArkSetFieldName(name);
 		float v[2] = {vec.x, vec.y};
-		if (ImGui::InputFloat2("", v, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
+		if (ImGui::InputFloat2("", v, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
 			ArkFocusHere();
 			vec.x = v[0];
 			vec.y = v[1];

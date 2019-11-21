@@ -6,6 +6,8 @@
 #include <SFML/Graphics/Transformable.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
 
+#include <libs/Meta.h>
+
 class Entity;
 
 struct ARK_ENGINE_API Transform final : public Component<Transform>, public sf::Transformable {
@@ -113,3 +115,14 @@ private:
 	std::vector<Transform*> m_children{};
 	//int m_depth;
 };
+
+namespace meta {
+	template <> inline auto registerMembers<Transform>()
+	{
+		return members(
+			member("position", &Transform::getPosition, &Transform::setPosition),
+			member("scale", &Transform::getScale, &Transform::setScale),
+			member("roatation", &Transform::getRotation, &Transform::setRotation)
+		);
+	}
+}

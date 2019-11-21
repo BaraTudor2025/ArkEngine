@@ -174,25 +174,30 @@ private:
 		}
 
 		template <typename T>
-		static void renderFieldsOfType(int* widgetId, void* pValue){
+		static bool renderFieldsOfType(int* widgetId, void* pValue){
 			T& valueToRender = *static_cast<T*>(pValue);
 			std::any newValue;
+			bool modified = false;
 
-			meta::doForAllMembers<T>([widgetId, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
+			meta::doForAllMembers<T>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
 				using MemberT = meta::get_member_type<decltype(member)>;
 				ImGui::PushID(*widgetId);
 				if constexpr (meta::isRegistered<MemberT>()) {
 					// recursively render members
 					auto value = member.getCopy(valueToRender);
 					ImGui::Text("%s:", member.getName());
-					renderFieldsOfType<MemberT>(widgetId, &value);
-					member.set(valueToRender, value);
+					if (renderFieldsOfType<MemberT>(widgetId, &value)) {
+						member.set(valueToRender, value);
+						modified = true;
+					}
 				} else if constexpr (std::is_enum_v<MemberT>) {
 					// render enum values
 					auto value = member.getCopy(valueToRender);
 					ArkSetFieldName(member.getName());
-					if (renderEnumFields(value))
+					if (renderEnumFields(value)) {
 						member.set(valueToRender, value);
+						modified = true;
+					}
 				} else {
 					// render field using predefined table
 					auto& renderField = table.at(typeid(MemberT));
@@ -207,8 +212,10 @@ private:
 					if (newValue.has_value()) {
 						if (member.hasSetter()) {
 							member.set(valueToRender, std::any_cast<MemberT>(newValue));
+							modified = true;
 						} else if (member.canGetRef()) {
 							member.getRef(valueToRender) = std::any_cast<MemberT>(newValue);
+							modified = true;
 						}
 					}
 					newValue.reset();
@@ -216,6 +223,7 @@ private:
 				ImGui::PopID();
 				*widgetId += 1;
 			});
+			return modified;
 		}
 
 		template <typename T>

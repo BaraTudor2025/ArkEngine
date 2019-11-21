@@ -320,7 +320,6 @@ std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManage
 		bool field = *static_cast<const bool*>(pField);
 		ArkSetFieldName(name);
 		if (ImGui::Checkbox("", &field)) {
-			ArkFocusHere();
 			return std::any{field};
 		}
 		return std::any{};

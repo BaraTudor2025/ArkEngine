@@ -140,6 +140,7 @@ struct PixelParticles : public Component<PixelParticles> {
 		this->count = count;
 		this->quads.resize(count);
 		this->data.resize(count);
+		this->setColors(this->colors);
 	}
 
 	int getParticleNumber() const {

@@ -24,6 +24,7 @@
 #include "FpsCounterSystem.hpp"
 #include "GuiSystem.hpp"
 #include "Gui.hpp"
+#include "SceneInspector.hpp"
 //#include "ArchetypeManager.hpp"
 
 using namespace std::literals;
@@ -46,8 +47,8 @@ class MovePlayer : public ScriptT<MovePlayer> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
-	float speed;
-	float rotationSpeed;
+	float speed = 400;
+	float rotationSpeed = 180;
 	sf::Vector2f particleEmitterOffsetLeft;
 	sf::Vector2f particleEmitterOffsetRight;
 public:
@@ -307,6 +308,7 @@ class TestingState : public BasicState {
 	Entity rotatingParticles;
 	std::vector<Entity> fireWorks;
 	std::vector<Entity> particleFountains;
+	SceneInspector inspector{scene};
 
 public:
 	TestingState(MessageBus& mb) : BasicState(mb) { }
@@ -324,7 +326,7 @@ private:
 		scene.addSystem<TextSystem>();
 		scene.addSystem<AnimationSystem>();
 		scene.addSystem<DelayedActionSystem>();
-		addInspector(scene, "Basic Scene Inspector");
+		addTab("scene inspector", [&]() { inspector.render(); });
 		//scene.addSystem<TestMessageSystem>();
 
 		button = scene.createEntity("button");

@@ -4,6 +4,9 @@
 #include "EntityManager.hpp"
 #include "Transform.hpp"
 #include "RandomNumbers.hpp"
+#include "Scene.hpp"
+
+#include "SceneInspector.hpp"
 
 #include <imgui.h>
 #include <libs/tinyformat.hpp>
@@ -49,7 +52,7 @@ void treeWithSeparators(std::string_view label, T& range, F getLabel, F2 renderE
 	}
 }
 
-void SystemManager::renderInspector()
+void SceneInspector::renderSystemInspector()
 {
 	auto getLabel = [](auto& system) {
 		return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->entities.size(), system->componentNames.size());
@@ -67,14 +70,18 @@ void SystemManager::renderInspector()
 		}
 	};
 
-	treeWithSeparators("Systems:", systems, getLabel, renderElem);
+	treeWithSeparators("Systems:", systemManager.systems, getLabel, renderElem);
 }
 #endif
 
-void SystemManager::renderInspector()
+SceneInspector::SceneInspector(Scene& scene)
+	: entityManager(scene.entityManager), systemManager(scene.systemManager), scriptManager(scene.scriptManager), componentManager(scene.componentManager)
+{}
+
+void SceneInspector::renderSystemInspector()
 {
 	if (ImGui::TreeNode("Systems:")) {
-		for (auto& system : systems) {
+		for (auto& system : systemManager.systems) {
 			std::string text = tfm::format("%s: E(%d) C(%d)", system->name.data(), system->entities.size(), system->componentNames.size());
 			if (ImGui::TreeNodeEx(text.c_str(), ImGuiTreeNodeFlags_CollapsingHeader)) {
 				float indent_w = 10;
@@ -97,14 +104,14 @@ void SystemManager::renderInspector()
 	}
 }
 
-void EntityManager::renderInspector()
+void SceneInspector::renderEntityInspector()
 {
 	if (ImGui::TreeNode("Entities:")) {
 		int i = 0;
-		for (auto& entity : entities) {
+		for (auto& entity : entityManager.entities) {
 
-			if (auto it = std::find(freeEntities.begin(), freeEntities.end(), i); it != freeEntities.end()) {
-				//ImGui::BulletText("free_entity_%d", i);
+			// skip free/unused entities
+			if (auto it = std::find(entityManager.freeEntities.begin(), entityManager.freeEntities.end(), i); it != entityManager.freeEntities.end()) {
 				i += 1;
 				continue;
 			}
@@ -140,12 +147,10 @@ void EntityManager::renderInspector()
 		}
 		ImGui::TreePop();
 	}
-	renderEditor();
 }
 
-void EntityManager::renderEditor()
+void SceneInspector::renderEntityEditor()
 {
-	//int windowHeight = 440;
 	int windowHeight = 700;
 	int windowWidth = 600;
     ImGui::SetNextWindowSize(ImVec2(windowWidth, windowHeight));
@@ -157,9 +162,9 @@ void EntityManager::renderEditor()
 		static int selectedEntity = -1;
 		int entityId = 0;
         ImGui::BeginChild("left_pane", ImVec2(150, 0), true);
-		for (auto& entity : entities) {
+		for (auto& entity : entityManager.entities) {
 
-			if (auto it = std::find(freeEntities.begin(), freeEntities.end(), entityId); it != freeEntities.end()) {
+			if (auto it = std::find(entityManager.freeEntities.begin(), entityManager.freeEntities.end(), entityId); it != entityManager.freeEntities.end()) {
 				if (selectedEntity == entityId)
 					selectedEntity = -1;
 				entityId += 1;
@@ -173,12 +178,12 @@ void EntityManager::renderEditor()
 		ImGui::EndChild();
 		ImGui::SameLine();
 
-		// selected entity editor
+		// editor of selected entity
 		ImGui::BeginChild("right_pane", ImVec2(0, 0), false);
 		if (selectedEntity != -1) {
 
 			// entity name at the top
-			auto& entity = entities.at(selectedEntity);
+			auto& entity = entityManager.entities.at(selectedEntity);
 			ImGui::Text("Entity: %s", entity.name.c_str());
 			ImGui::Separator();
 
@@ -197,7 +202,7 @@ void EntityManager::renderEditor()
 				if (ImGui::Button("remove component")) {
 					Entity e;
 					e.id = selectedEntity;
-					e.manager = this;
+					e.manager = &entityManager;
 					e.removeComponent(compType);
 				}
 				ImGui::PopID();
@@ -217,7 +222,7 @@ void EntityManager::renderEditor()
 			if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, static_cast<void*>(&types), types.size())) {
 				Entity e;
 				e.id = selectedEntity;
-				e.manager = this;
+				e.manager = &entityManager;
 				e.addComponent(types.at(componentItemIndex));
 			}
 
@@ -236,7 +241,7 @@ void EntityManager::renderEditor()
 						if (ImGui::Button(label.c_str())) {
 							Entity e;
 							e.id = selectedEntity;
-							e.manager = this;
+							e.manager = &entityManager;
 							e.removeScript(script->type);
 						}
 						ImGui::EndPopup();
@@ -259,7 +264,7 @@ void EntityManager::renderEditor()
 			if (ImGui::Combo("add_script", &scriptItemIndex, scriptGetter, static_cast<void*>(&ScriptManager::factories), ScriptManager::factories.size())) {
 				Entity e;
 				e.id = selectedEntity;
-				e.manager = this;
+				e.manager = &entityManager;
 				auto it = ScriptManager::factories.begin();
 				std::advance(it, scriptItemIndex);
 				e.addScript(it->first);
@@ -295,7 +300,7 @@ void ArkFocusHere(int i=-1)
 	ImGui::SetKeyboardFocusHere(i);
 }
 
-std::unordered_map<std::type_index, ComponentManager::FieldFunc> ComponentManager::fieldRendererTable = {
+std::unordered_map<std::type_index, SceneInspector::FieldFunc> SceneInspector::fieldRendererTable = {
 
 	{ typeid(int), [](std::string_view name, const void* pField) {
 		int field = *static_cast<const int*>(pField);

@@ -35,7 +35,7 @@
     <ClCompile Include="Gui.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ManagerInspectors.cpp">
+    <ClCompile Include="SceneInspector.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -126,6 +126,9 @@
     </ClInclude>
     <ClInclude Include="FpsCounterSystem.hpp">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SceneInspector.hpp">
+      <Filter>ArkEngine</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

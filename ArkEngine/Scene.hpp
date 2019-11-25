@@ -116,12 +116,6 @@ public:
 			system->render(target);
 	}
 
-	void renderInspector()
-	{
-		systemManager.renderInspector();
-		entityManager.renderInspector();
-	}
-
 	void processPendingData()
 	{
 		for (auto entity : createdEntities)
@@ -149,6 +143,7 @@ public:
 
 private:
 	friend class EntityManager;
+	friend class SceneInspector;
 	ComponentManager componentManager;
 	ScriptManager scriptManager;
 	EntityManager entityManager;

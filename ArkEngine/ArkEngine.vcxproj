@@ -170,7 +170,7 @@
     <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp" />
     <ClCompile Include="Gui.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="ManagerInspectors.cpp" />
+    <ClCompile Include="SceneInspector.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -188,6 +188,7 @@
     <ClInclude Include="Gui.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
     <ClInclude Include="Logger.hpp" />
+    <ClInclude Include="SceneInspector.hpp" />
     <ClInclude Include="Message.hpp" />
     <ClInclude Include="State.hpp" />
     <ClInclude Include="MessageBus.hpp" />

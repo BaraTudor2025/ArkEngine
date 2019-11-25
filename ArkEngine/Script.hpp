@@ -36,6 +36,7 @@ private:
 
 	friend class EntityManager;
 	friend class ScriptManager;
+	friend class SceneInspector;
 };
 
 template <typename T>
@@ -225,6 +226,7 @@ private:
 	std::vector<std::pair<int, std::type_index>> scriptsToBeDeleted; // indexOfPool and type
 	static inline std::unordered_map<std::type_index, std::function<std::unique_ptr<Script>()>> factories;
 	friend class EntityManager;
+	friend class SceneInspector;
 
 	template <typename T>
 	friend int addScriptTypeToFactorie()

@@ -32,16 +32,18 @@ void State::requestStackClear() {
 	this->stateStack->clearStack();
 }
 
-void State::addInspector(Scene& scene, std::string name)
+void State::addTab(std::string name, std::function<void()> render)
 {
-	inspectorNames.push_back(name);
-	InternalGui::addTab({name, [&]() { scene.renderInspector(); }});
+	InternalGui::addTab({name, render});
+}
+
+void State::removeTab(std::string name)
+{
+	InternalGui::removeTab(name);
 }
 
 State::~State()
 {
-	for (auto name : inspectorNames)
-		InternalGui::removeTab(name);
 }
 
 std::unordered_map<std::type_index, Resources::Handler> Resources::handlers;

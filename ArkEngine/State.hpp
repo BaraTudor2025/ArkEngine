@@ -35,10 +35,10 @@ protected:
 	void requestStackPush(int stateId);
 	void requestStackPop();
 	void requestStackClear();
-	void addInspector(Scene&, std::string);
+	void addTab(std::string, std::function<void()>);
+	void removeTab(std::string);
 
 private:
-	std::vector<std::string> inspectorNames;
 	StateStack* stateStack = nullptr;
 	MessageBus* messageBus = nullptr;
 	friend class StateStack;

@@ -86,6 +86,7 @@ private:
 
 private:
 	friend class SystemManager;
+	friend class SceneInspector;
 	ComponentManager* componentManager = nullptr;
 	std::vector<Entity> entities;
 	std::vector<std::type_index> componentTypes;
@@ -222,10 +223,8 @@ public:
 			system->removeEntity(entity);
 	}
 
-	// implemented in ManagerInspectors.cpp
-	void renderInspector();
-
-private:
+private: 
+	friend class SceneInspector;
 	std::vector<std::unique_ptr<System>> systems;
 	std::vector<System*> activeSystems;
 	MessageBus& messageBus;

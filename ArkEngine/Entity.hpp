@@ -33,6 +33,7 @@ public:
 	T* tryGetComponent();
 
 
+	// should only be used in the paused editor, or if only one system requires the 'T' component
 	template <typename T>
 	void removeComponent();
 
@@ -133,4 +134,5 @@ private:
 	EntityManager* manager = nullptr;
 	int id = ArkInvalidIndex;
 	friend class EntityManager;
+	friend class SceneInspector;
 };

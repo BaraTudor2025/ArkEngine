@@ -312,9 +312,6 @@ public:
 	}
 #endif // disable entity children
 
-	void renderInspector();
-	void renderEditor();
-
 	~EntityManager()
 	{
 		int id = 0;
@@ -378,6 +375,7 @@ private:
 	Scene& scene;
 	ComponentManager& componentManager;
 	ScriptManager& scriptManager;
+	friend class SceneInspector;
 	//std::vector<std::vector<Entity>> childrenTree;
 };
 

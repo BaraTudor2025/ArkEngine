@@ -189,7 +189,7 @@ void SceneInspector::renderEntityEditor()
 
 			// component editor
 			ImGui::TextUnformatted("Components:");
-			int componentWidgetId = 0;
+			int widgetId = 0;
 			for (auto& compData : entity.components) {
 				auto compType = componentManager.getTypeFromId(compData.id);
 				ImGui::BulletText(Util::getNameOfType(compType));
@@ -207,7 +207,7 @@ void SceneInspector::renderEntityEditor()
 				}
 				ImGui::PopID();
 
-				componentManager.renderEditorOfComponent(&componentWidgetId, compData.id, compData.component);
+				componentManager.renderEditorOfComponent(&widgetId, compData.id, compData.component);
 				ImGui::Separator();
 			}
 
@@ -230,6 +230,7 @@ void SceneInspector::renderEntityEditor()
 			ImGui::NewLine();
 			ImGui::NewLine();
 			if (entity.scriptsIndex != ArkInvalidIndex) {
+				//int scriptWidgetId = 0;
 				ImGui::TextUnformatted("Scripts:");
 				auto& scripts = scriptManager.getScripts(entity.scriptsIndex);
 				for (auto& script : scripts) {
@@ -247,25 +248,25 @@ void SceneInspector::renderEntityEditor()
 						ImGui::EndPopup();
 					}
 					ImGui::PopID();
-					// render_script_editor[script->type](script.get());
+					scriptManager.renderEditorOfScript(&widgetId, script.get());
 					ImGui::Separator();
 				}
 			}
 
 			// add scripts list
 			auto scriptGetter = [](void* data, int index, const char** out_text) mutable -> bool {
-				auto& types = *static_cast<decltype(ScriptManager::factories)*>(data);
+				auto& types = *static_cast<decltype(ScriptManager::metadata)*>(data);
 				auto it = types.begin();
 				std::advance(it, index);
 				*out_text = Util::getNameOfType(it->first);
 				return true;
 			};
 			int scriptItemIndex;
-			if (ImGui::Combo("add_script", &scriptItemIndex, scriptGetter, static_cast<void*>(&ScriptManager::factories), ScriptManager::factories.size())) {
+			if (ImGui::Combo("add_script", &scriptItemIndex, scriptGetter, static_cast<void*>(&ScriptManager::metadata), ScriptManager::metadata.size())) {
 				Entity e;
 				e.id = selectedEntity;
 				e.manager = &entityManager;
-				auto it = ScriptManager::factories.begin();
+				auto it = ScriptManager::metadata.begin();
 				std::advance(it, scriptItemIndex);
 				e.addScript(it->first);
 			}

@@ -40,13 +40,13 @@ private:
 };
 
 template <typename T>
-int addScriptTypeToFactorie();
+int registerScript();
 
 // helper class
 template <typename T>
 class ScriptT : public Script {
 	// calling this function at start up time
-	static inline const auto _ = addScriptTypeToFactorie<T>();
+	static inline const auto _ = registerScript<T>();
 public:
 	ScriptT() : Script(typeid(T))
 	{
@@ -74,8 +74,8 @@ public:
 
 	Script* addScript(int16_t& indexOfPool, std::type_index type)
 	{
-		auto& factorie = factories.at(type);
-		return addScriptImpl(indexOfPool, type, factorie);
+		auto& ctor = metadata.at(type).construct;
+		return addScriptImpl(indexOfPool, type, ctor);
 	}	
 
 	Script* addScriptImpl(int16_t& indexOfPool, std::type_index type, std::function<std::unique_ptr<Script>()> factorie)
@@ -205,6 +205,11 @@ public:
 		freePools.push_back(indexOfPool);
 	}
 
+	void renderEditorOfScript(int* id, Script* script)
+	{
+		metadata.at(script->type).renderFields(id, script);
+	}
+
 private:
 	void deleteScriptFromLists(int indexOfPool, std::type_index type) {
 		auto script = getScript(indexOfPool, type);
@@ -220,23 +225,31 @@ private:
 private:
 	std::vector<std::vector<std::unique_ptr<Script>>> scriptPools;
 	std::vector<int> freePools;
+
 	std::vector<Script*> activeScripts;
 	std::vector<Script*> pendingScripts; // set to active and/or initialize
 	std::vector<Script*> pendingDeactivatedScripts;
 	std::vector<std::pair<int, std::type_index>> scriptsToBeDeleted; // indexOfPool and type
-	static inline std::unordered_map<std::type_index, std::function<std::unique_ptr<Script>()>> factories;
+
 	friend class EntityManager;
 	friend class SceneInspector;
 
+	struct ScriptMetadata {
+		std::function<std::unique_ptr<Script>()> construct;
+		std::function<void(int*, void*)> renderFields;
+	};
+	static inline std::unordered_map<std::type_index, ScriptMetadata> metadata;
+
 	template <typename T>
-	friend int addScriptTypeToFactorie()
+	friend int registerScript()
 	{
 		static_assert(std::is_base_of_v<Script, T>);
 		static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
 
-		auto& factories = ScriptManager::factories;
-		if (auto it = factories.find(typeid(T)); it == factories.end()) {
-			factories[typeid(T)] = []() -> std::unique_ptr<Script> {
+		auto& metadata = ScriptManager::metadata;
+		if (auto it = metadata.find(typeid(T)); it == metadata.end()) {
+			metadata[typeid(T)].renderFields = SceneInspector::renderFieldsOfType<T>;
+			metadata[typeid(T)].construct = []() -> std::unique_ptr<Script> {
 				return std::make_unique<T>();
 			};
 		}

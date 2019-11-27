@@ -47,46 +47,57 @@ class MovePlayer : public ScriptT<MovePlayer> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
-	float speed = 400;
 	float rotationSpeed = 180;
 	sf::Vector2f particleEmitterOffsetLeft;
 	sf::Vector2f particleEmitterOffsetRight;
-public:
 
-	MovePlayer() = default;
-	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
-
-	void scale(float factor)
+	void resetOffset()
 	{
-		transform->scale(factor, factor);
-		particleEmitterOffsetLeft = particleEmitterOffsetLeft * transform->getScale();
-		particleEmitterOffsetRight = particleEmitterOffsetRight * transform->getScale();
-	}
-
-	void init() override {
-		animation = getComponent<Animation>();
-
-		transform = getComponent<Transform>();
-		transform->setOrigin(animation->frameSize() / 2.f);
-		transform->move(ArkEngine::center());
-
 		particleEmitterOffsetLeft = { -165, 285 };
 		{
 			auto[x, y] = particleEmitterOffsetLeft;
 			particleEmitterOffsetRight = { -x, y };
 		}
+	}
 
-		this->scale(0.10);
+public:
+	float speed = 400;
 
+	MovePlayer() = default;
+	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
+
+	void setScale(sf::Vector2f scale)
+	{
+		transform->setScale(scale);
+		resetOffset();
+		particleEmitterOffsetLeft = particleEmitterOffsetLeft * transform->getScale();
+		particleEmitterOffsetRight = particleEmitterOffsetRight * transform->getScale();
+		runningParticles->size = {60, 30};
+		runningParticles->size = runningParticles->size * transform->getScale();
+	}
+
+	sf::Vector2f getScale() const
+	{
+		return transform->getScale();
+	}
+
+	void init() override {
+		transform = getComponent<Transform>();
+		animation = getComponent<Animation>();
 		runningParticles = getComponent<PixelParticles>();
+
+		transform->setOrigin(animation->frameSize() / 2.f);
+		transform->move(ArkEngine::center());
+
 		auto pp = runningParticles;
 		pp->particlesPerSecond = pp->getParticleNumber() / 2;
-		pp->size = { 6, 3 };
+		pp->size = { 60, 30 };
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
 		auto[w, h] = ArkEngine::windowSize();
 		pp->platform = { ArkEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
+		this->setScale({0.1, 0.1});
 	}
 
 	void update() override {
@@ -134,6 +145,26 @@ public:
 		}
 	}
 };
+
+namespace meta {
+	template <> inline auto registerMembers<MovePlayer>()
+	{
+		return members(
+			member("speed", &MovePlayer::speed),
+			member("scale", &MovePlayer::getScale, &MovePlayer::setScale)
+		);
+	}
+
+	template <> inline auto registerMembers<ParticleScripts::RotateEmitter>()
+	{
+		using namespace ParticleScripts;
+		return members(
+			member("distance", &RotateEmitter::distance),
+			member("angular_speed", &RotateEmitter::angleSpeed),
+			member("origin", &RotateEmitter::around)
+		);
+	}
+}
 
 //enum class GameTag { Bullet, Player, Wall };
 

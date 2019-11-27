@@ -139,11 +139,12 @@ namespace ParticleScripts {
 		sf::Transform t;
 		PointParticles* p;
 		//Transform* t;
+
+	public:
 		sf::Vector2f distance;
 		sf::Vector2f around;
 		float angleSpeed;
 
-	public:
 		RotateEmitter() = default;
 		RotateEmitter(float angle, sf::Vector2f around, float distance)
 			:angleSpeed(angle), around(around), distance(distance, 0) { }

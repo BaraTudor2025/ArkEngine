@@ -178,6 +178,21 @@ namespace meta {
 /* TODO (general): add a archetype component manager*/
 /* TODO (entity cloning): add to the ComponentManager std::map<std::type_index, std::funciton<int(void)>> factories; return:int is the index in the pool */
 
+/* TODO: 
+	* small vector
+	* optional ref
+	* refactor Util::find
+	* optimize rng
+	* add 'ark' namespace
+	* add serialization(nlohmann json)
+	* add more options to gui editor
+	* add scripting with lua(sol3) and/or chaiscript
+	* custom allocator for lua/scripts/systems
+	* dynamic aabb tree for colision
+	* ParticleSystem shaders with point size
+*/
+
+
 enum MessageType {
 	TestData,
 	PodData,

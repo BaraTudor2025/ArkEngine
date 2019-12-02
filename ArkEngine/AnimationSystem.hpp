@@ -75,7 +75,7 @@ struct Animation : public Component<Animation> {
 	bool flipX = false;
 	bool flipY = false;
 
-	void setTexture(std::string name)
+	void setTexture(const std::string& name)
 	{
 		fileName = name;
 		auto visitor = [](const std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) {
@@ -91,7 +91,7 @@ struct Animation : public Component<Animation> {
 		uvRect.height = texture->getSize().y / (float)fcY;
 	}
 
-	std::string_view getTexture() {
+	const std::string& getTexture() const {
 		return fileName;
 	}
 
@@ -124,6 +124,16 @@ private:
 	template <std::size_t, typename> friend struct std::tuple_element;
 	template <std::size_t N> decltype(auto) get();
 };
+
+namespace meta {
+	template <> inline auto registerMembers<Animation>()
+	{
+		return members(
+			member("texture", &Animation::getTexture, &Animation::setTexture),
+			member("frameTime", &Animation::frameTime)
+		);
+	}
+}
 
 class AnimationSystem : public SystemT<AnimationSystem>, public Renderer {
 

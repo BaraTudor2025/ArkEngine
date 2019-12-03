@@ -7,7 +7,7 @@
 
 #include <fstream>
 
-struct Text : Component<Text>, sf::Text { 
+struct Text : ark::Component<Text>, sf::Text { 
 
 	Text(std::string fontName = "KeepCalm-Medium.ttf") : fileName(fontName) 
 	{
@@ -18,7 +18,7 @@ struct Text : Component<Text>, sf::Text {
 
 	void setFont(std::string fileName) {
 		this->fileName = fileName;
-		this->sf::Text::setFont(*Resources::load<sf::Font>(fileName));
+		this->sf::Text::setFont(*ark::Resources::load<sf::Font>(fileName));
 	}
 
 	std::string_view getFontFamily() {
@@ -35,7 +35,7 @@ private:
 	friend class TextSystem;
 };
 
-struct Button : Component<Button>, sf::RectangleShape {
+struct Button : ark::Component<Button>, sf::RectangleShape {
 
 	Button() = default;
 
@@ -71,7 +71,7 @@ struct Button : Component<Button>, sf::RectangleShape {
 	void setTexture(std::string fileName)
 	{
 		this->textureName = fileName;
-		this->sf::RectangleShape::setTexture(Resources::load<sf::Texture>(fileName));
+		this->sf::RectangleShape::setTexture(ark::Resources::load<sf::Texture>(fileName));
 	}
 
 	bool moveWithMouse = false;
@@ -84,7 +84,7 @@ private:
 };
 
 
-class ButtonSystem : public SystemT<ButtonSystem>, public Renderer {
+class ButtonSystem : public ark::SystemT<ButtonSystem>, public ark::Renderer {
 
 public:
 	void init() override
@@ -97,7 +97,7 @@ public:
 		for (auto entity : getEntities()) {
 			auto& b = entity.getComponent<Button>();
 			if (b.moveWithMouse && isLeftMouseButtonPressed) {
-				auto mouse = ArkEngine::mousePositon();
+				auto mouse = ark::Engine::mousePositon();
 				if (b.getGlobalBounds().contains(mouse)) {
 					b.setPosition(mouse);
 				}
@@ -148,7 +148,7 @@ private:
 
 };
 
-class TextSystem : public SystemT<TextSystem>, public Renderer {
+class TextSystem : public ark::SystemT<TextSystem>, public ark::Renderer {
 
 public:
 	void init() override
@@ -239,13 +239,13 @@ namespace GuiScripts {
 	// component T must have getGlobalBounds() defined
 	// momentan nefunctional
 	template <typename T>
-	class MoveWithMouse : public Script {
+	class MoveWithMouse : public ark::ScriptT<MoveWithMouse<T>> {
 		
-		static_assert(std::is_base_of_v<Component, T>);
+		static_assert(std::is_base_of_v<ark::Component, T>);
 		bool isLeftMouseButtonPressed = false;
 		bool isRightMouseButtonPressed = false;
 		sf::Mouse::Button mouseButton;
-		Transform* transform;
+		ark::Transform* transform;
 		T* component;
 
 	public:
@@ -254,8 +254,8 @@ namespace GuiScripts {
 	private:
 		void init() override
 		{
-			component = getComponent<T>();
-			transform = getComponent<Transform>();
+			component = this->getComponent<T>();
+			transform = this->getComponent<ark::Transform>();
 		}
 
 		void handleEvent(sf::Event event) override
@@ -300,7 +300,7 @@ namespace GuiScripts {
 	};
 
 	template<typename T>
-	class SaveGuiElementPosition : public Script {
+	class SaveGuiElementPosition : public ark::Script {
 
 	public:
 		SaveGuiElementPosition(std::string file, sf::Keyboard::Key key): file(file), key(key) { }

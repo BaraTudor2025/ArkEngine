@@ -17,7 +17,7 @@
 // future entity archetype manager to write
 // components of a single entity are stored in the same buffer, as oposed to storing them in pools
 
-namespace Ark {
+namespace ark {
 
 	class ComponentManager;
 	class Entity;

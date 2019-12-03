@@ -7,21 +7,21 @@
 #include "ResourceManager.hpp"
 #include "System.hpp"
 
-class FpsCounterSystem : public SystemT<FpsCounterSystem>, public Renderer {
+class FpsCounterSystem : public ark::SystemT<FpsCounterSystem>, public ark::Renderer {
 	sf::Time updateElapsed;
 	sf::Text text;
 	int updateFPS = 0;
 
 public:
 	FpsCounterSystem() {
-		text.setFont(*Resources::load<sf::Font>("KeepCalm-Medium.ttf"));
+		text.setFont(*ark::Resources::load<sf::Font>("KeepCalm-Medium.ttf"));
 		text.setCharacterSize(15);
 		text.setFillColor(sf::Color::White);
 	}
 
 private:
 	void update() override {
-		updateElapsed += ArkEngine::deltaTime();
+		updateElapsed += ark::Engine::deltaTime();
 		updateFPS += 1;
 		if (updateElapsed.asMilliseconds() >= 1000) {
 			updateElapsed -= sf::milliseconds(1000);

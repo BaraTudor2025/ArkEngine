@@ -18,6 +18,9 @@
 
 namespace ParticleScripts {
 
+	using ark::ScriptT;
+	using ark::Engine;
+
 	class EmittFromMouse : public ScriptT<EmittFromMouse> {
 		PointParticles* p;
 	public:
@@ -28,7 +31,7 @@ namespace ParticleScripts {
 		}
 		void update() override
 		{
-			p->emitter = ArkEngine::mousePositon();
+			p->emitter = Engine::mousePositon();
 		}
 	};
 
@@ -162,13 +165,13 @@ namespace ParticleScripts {
 
 		void update() override
 		{
-			t.rotate(angleSpeed * ArkEngine::deltaTime().asSeconds(), around);
+			t.rotate(angleSpeed * ark::Engine::deltaTime().asSeconds(), around);
 			p->emitter = t.transformPoint(around + distance);
 		}
 	};
 
 	class Rotate : public ScriptT<Rotate> {
-		Transform* t;
+		ark::Transform* t;
 		float angle;
 		sf::Vector2f around;
 
@@ -177,7 +180,7 @@ namespace ParticleScripts {
 		Rotate(float angle, sf::Vector2f around) : angle(angle), around(around) { }
 
 		void init() override {
-			t = getComponent<Transform>();
+			t = getComponent<ark::Transform>();
 			t->setPosition(around);
 			t->setOrigin(around);
 			
@@ -187,7 +190,7 @@ namespace ParticleScripts {
 		}
 
 		void update() override {
-			t->rotate(angle * ArkEngine::deltaTime().asSeconds());
+			t->rotate(angle * Engine::deltaTime().asSeconds());
 		}
 	};
 
@@ -253,7 +256,7 @@ namespace ParticleScripts {
 		void init() override
 		{
 			log_init();
-			if constexpr (std::is_base_of_v<Script, T>)
+			if constexpr (std::is_base_of_v<ark::Script, T>)
 				p = this->getScript<T>();
 			if constexpr (std::is_same_v<PointParticles, T>)
 				p = this->getComponent<T>();

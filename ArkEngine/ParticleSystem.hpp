@@ -17,7 +17,7 @@
 
 static inline constexpr auto PI = 3.14159f;
 
-struct PointParticles final : public Component<PointParticles> {
+struct PointParticles final : public ark::Component<PointParticles> {
 
 	PointParticles() : vertices(0), data(0) { }
 	COPYABLE(PointParticles)
@@ -121,7 +121,7 @@ namespace meta {
 	}
 }
 
-struct PixelParticles : public Component<PixelParticles> {
+struct PixelParticles : public ark::Component<PixelParticles> {
 
 	using Colors = std::pair<sf::Color, sf::Color>;
 
@@ -264,7 +264,7 @@ inline PointParticles getGreenParticles()
 	return greenParticles;
 }
 
-class PointParticleSystem : public SystemT<PointParticleSystem>, public Renderer {
+class PointParticleSystem : public ark::SystemT<PointParticleSystem>, public ark::Renderer {
 
 public:
 	void init() override
@@ -277,7 +277,7 @@ public:
 	static inline float gravityMagnitude = 20;
 	static inline bool hasUniversalGravity = true;
 
-	void onEntityAdded(Entity) override;
+	void onEntityAdded(ark::Entity) override;
 	void update() override;
 	void render(sf::RenderTarget&) override;
 
@@ -287,7 +287,7 @@ private:
 
 
 
-class PixelParticleSystem : public SystemT<PixelParticleSystem>, public Renderer {
+class PixelParticleSystem : public ark::SystemT<PixelParticleSystem>, public ark::Renderer {
 
 public:
 	void init() override
@@ -300,7 +300,7 @@ public:
 	static inline float gravityMagnitude = 20;
 	static inline bool hasUniversalGravity = true;
 
-	void onEntityAdded(Entity) override;
+	void onEntityAdded(ark::Entity) override;
 	void update() override;
 	void render(sf::RenderTarget&) override;
 

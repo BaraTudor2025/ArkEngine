@@ -7,252 +7,258 @@
 #include <SFML/Window/Event.hpp>
 #include <functional>
 
-class Entity;
+namespace ark {
 
-class ARK_ENGINE_API Script : public NonCopyable {
+	class Entity;
 
-public:
-	Script(std::type_index type) : type(type), name(Util::getNameOfType(type)) {}
-	virtual ~Script() = default;
+	class ARK_ENGINE_API Script : public NonCopyable {
 
-	//if a script is disabled in the same frame of construction then init will not be called
-	virtual void init() { }
-	virtual void update() { }
-	virtual void handleEvent(const sf::Event&) { }
+	public:
+		Script(std::type_index type) : type(type), name(Util::getNameOfType(type)) {}
+		virtual ~Script() = default;
 
-	template <typename T> T* getComponent() { return m_entity.tryGetComponent<T>(); }
-	template <typename T> T* getScript() { return m_entity.getScript<T>(); };
-	Entity entity() { return m_entity; }
-	void deactivate() { m_entity.setScriptActive(type, false); }
-	bool isActive() { return active; }
+		//if a script is disabled in the same frame of construction then init will not be called
+		virtual void init() {}
+		virtual void update() {}
+		virtual void handleEvent(const sf::Event&) {}
 
-	const std::string_view name;
+		template <typename T> T* getComponent() { return m_entity.tryGetComponent<T>(); }
+		template <typename T> T* getScript() { return m_entity.getScript<T>(); };
+		Entity entity() { return m_entity; }
+		void deactivate() { m_entity.setScriptActive(type, false); }
+		bool isActive() { return active; }
 
-private:
-	Entity m_entity;
-	bool active = true;
-	bool isInitialized = false;
-	std::type_index type;
+		const std::string_view name;
 
-	friend class EntityManager;
-	friend class ScriptManager;
-	friend class SceneInspector;
-};
+	private:
+		Entity m_entity;
+		bool active = true;
+		bool isInitialized = false;
+		std::type_index type;
 
-template <typename T>
-int registerScript();
-
-// helper class
-template <typename T>
-class ScriptT : public Script {
-	// calling this function at start up time
-	static inline const auto _ = registerScript<T>();
-public:
-	ScriptT() : Script(typeid(T))
-	{
-		static_assert(std::is_base_of_v<Script, T>);
-		static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
-	}
-};
-
-
-class ScriptManager final : public NonCopyable {
-
-public:
-	ScriptManager() = default;
-	~ScriptManager() = default;
-
-	template <typename T, typename... Args>
-	T* addScript(int16_t& indexOfPool, Args&&... args)
-	{
-		auto createScript = [&]() {
-			return std::make_unique<T>(std::forward<Args>(args)...);
-		};
-		auto script = addScriptImpl(indexOfPool, typeid(T), createScript);
-		return dynamic_cast<T*>(script);
-	}
-
-	Script* addScript(int16_t& indexOfPool, std::type_index type)
-	{
-		auto& ctor = metadata.at(type).construct;
-		return addScriptImpl(indexOfPool, type, ctor);
-	}	
-
-	Script* addScriptImpl(int16_t& indexOfPool, std::type_index type, std::function<std::unique_ptr<Script>()> factorie)
-	{
-		if (indexOfPool == ArkInvalidIndex) {
-			if (!freePools.empty()) {
-				indexOfPool = freePools.back();
-				freePools.pop_back();
-			} else {
-				indexOfPool = scriptPools.size();
-				scriptPools.emplace_back();
-			}
-		} else if (hasScript(indexOfPool, type)) {
-			return getScript(indexOfPool, type);
-		}
-
-		auto& scripts = scriptPools.at(indexOfPool);
-		auto& script = scripts.emplace_back(factorie());
-		pendingScripts.push_back(script.get());
-
-		return script.get();
-	}
-
-	bool hasScript(int indexOfPool, std::type_index type) {
-		return getScript(indexOfPool, type) != nullptr;
-	}
+		friend class EntityManager;
+		friend class ScriptManager;
+		friend class SceneInspector;
+	};
 
 	template <typename T>
-	T* getScript(int indexOfPool)
-	{
-		return dynamic_cast<T*>(getScript(indexOfPool, typeid(T)));
-	}
+	int registerScript();
 
-	Script* getScript(int indexOfPool, std::type_index type)
-	{
-		if (indexOfPool == ArkInvalidIndex)
+	// helper class
+	template <typename T>
+	class ScriptT : public Script {
+		// calling this function at start up time
+		static inline const auto _ = registerScript<T>();
+	public:
+		ScriptT() : Script(typeid(T))
+		{
+			static_assert(std::is_base_of_v<Script, T>);
+			static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
+		}
+	};
+
+
+	class ScriptManager final : public NonCopyable {
+
+	public:
+		ScriptManager() = default;
+		~ScriptManager() = default;
+
+		template <typename T, typename... Args>
+		T* addScript(int16_t& indexOfPool, Args&&... args)
+		{
+			auto createScript = [&]() {
+				return std::make_unique<T>(std::forward<Args>(args)...);
+			};
+			auto script = addScriptImpl(indexOfPool, typeid(T), createScript);
+			return dynamic_cast<T*>(script);
+		}
+
+		Script* addScript(int16_t& indexOfPool, std::type_index type)
+		{
+			auto& ctor = metadata.at(type).construct;
+			return addScriptImpl(indexOfPool, type, ctor);
+		}
+
+		Script* addScriptImpl(int16_t& indexOfPool, std::type_index type, std::function<std::unique_ptr<Script>()> factorie)
+		{
+			if (indexOfPool == ArkInvalidIndex) {
+				if (!freePools.empty()) {
+					indexOfPool = freePools.back();
+					freePools.pop_back();
+				} else {
+					indexOfPool = scriptPools.size();
+					scriptPools.emplace_back();
+				}
+			} else if (hasScript(indexOfPool, type)) {
+				return getScript(indexOfPool, type);
+			}
+
+			auto& scripts = scriptPools.at(indexOfPool);
+			auto& script = scripts.emplace_back(factorie());
+			pendingScripts.push_back(script.get());
+
+			return script.get();
+		}
+
+		bool hasScript(int indexOfPool, std::type_index type)
+		{
+			return getScript(indexOfPool, type) != nullptr;
+		}
+
+		template <typename T>
+		T* getScript(int indexOfPool)
+		{
+			return dynamic_cast<T*>(getScript(indexOfPool, typeid(T)));
+		}
+
+		Script* getScript(int indexOfPool, std::type_index type)
+		{
+			if (indexOfPool == ArkInvalidIndex)
+				return nullptr;
+
+			auto& scripts = scriptPools.at(indexOfPool);
+			for (auto& script : scripts)
+				if (script->type == type)
+					return script.get();
 			return nullptr;
-
-		auto& scripts = scriptPools.at(indexOfPool);
-		for (auto& script : scripts)
-			if (script->type == type)
-				return script.get();
-		return nullptr;
-	}
-
-	const std::vector<std::unique_ptr<Script>>& getScripts(int indexOfPool)
-	{
-		return scriptPools[indexOfPool];
-	}
-
-	void setActive(int indexOfPool, bool active, std::type_index type)
-	{
-		auto script = getScript(indexOfPool, type);
-		if (!script)
-			return;
-
-		if (script->active && !active) {
-			script->active = false;
-			pendingDeactivatedScripts.push_back(script);
-		} else if (!script->active && active) {
-			Util::erase(pendingDeactivatedScripts, script);
-			script->active = true;
-			auto isCurrentlyActive = Util::find(activeScripts, script);
-			auto isPending = Util::find(pendingScripts, script);
-			if (!isCurrentlyActive && !isPending)
-				pendingScripts.push_back(script);
 		}
-	}
 
-	void processPendingScripts()
-	{
-		for (auto& delScript : scriptsToBeDeleted) {
-			deleteScriptFromLists(delScript.first, delScript.second);
-			deleteScript(delScript.first, delScript.second);
+		const std::vector<std::unique_ptr<Script>>& getScripts(int indexOfPool)
+		{
+			return scriptPools[indexOfPool];
 		}
-		scriptsToBeDeleted.clear();
 
-		if (pendingScripts.empty() && pendingDeactivatedScripts.empty())
-			return;
+		void setActive(int indexOfPool, bool active, std::type_index type)
+		{
+			auto script = getScript(indexOfPool, type);
+			if (!script)
+				return;
 
-		for (auto script : pendingScripts) {
-			if (script->active) {
-				activeScripts.push_back(script);
-				if (!script->isInitialized) {
-					script->init();
-					script->isInitialized = true;
+			if (script->active && !active) {
+				script->active = false;
+				pendingDeactivatedScripts.push_back(script);
+			} else if (!script->active && active) {
+				Util::erase(pendingDeactivatedScripts, script);
+				script->active = true;
+				auto isCurrentlyActive = Util::find(activeScripts, script);
+				auto isPending = Util::find(pendingScripts, script);
+				if (!isCurrentlyActive && !isPending)
+					pendingScripts.push_back(script);
+			}
+		}
+
+		void processPendingScripts()
+		{
+			for (auto& delScript : scriptsToBeDeleted) {
+				deleteScriptFromLists(delScript.first, delScript.second);
+				deleteScript(delScript.first, delScript.second);
+			}
+			scriptsToBeDeleted.clear();
+
+			if (pendingScripts.empty() && pendingDeactivatedScripts.empty())
+				return;
+
+			for (auto script : pendingScripts) {
+				if (script->active) {
+					activeScripts.push_back(script);
+					if (!script->isInitialized) {
+						script->init();
+						script->isInitialized = true;
+					}
 				}
 			}
+			pendingScripts.clear();
+
+			for (auto script : pendingDeactivatedScripts)
+				if (!script->active)
+					Util::erase(activeScripts, script);
+			pendingDeactivatedScripts.clear();
 		}
-		pendingScripts.clear();
 
-		for (auto script : pendingDeactivatedScripts)
-			if(!script->active)
-				Util::erase(activeScripts, script);
-		pendingDeactivatedScripts.clear();
-	}
-
-	// used by Scene to call handleEvent, handleMessage, update
-	template <typename F>
-	void forEachScript(F f)
-	{
-		for (auto script : activeScripts)
-			f(script);
-	}
-
-	void removeScript(int indexOfPool, std::type_index type)
-	{
-		if (indexOfPool == ArkInvalidIndex)
-			return;
-
-		scriptsToBeDeleted.emplace_back(indexOfPool, type);
-	}
-
-	void removeScripts(int indexOfPool)
-	{
-		if (indexOfPool == ArkInvalidIndex)
-			return;
-
-		auto& scripts = scriptPools.at(indexOfPool);
-		for (auto& script : scripts) {
-			EngineLog(LogSource::ScriptM, LogLevel::Info, "deleting (%s)", script->name.data());
-			deleteScriptFromLists(indexOfPool, script->type);
-			Util::erase(scriptsToBeDeleted, std::pair{indexOfPool, script->type});
+		// used by Scene to call handleEvent, handleMessage, update
+		template <typename F>
+		void forEachScript(F f)
+		{
+			for (auto script : activeScripts)
+				f(script);
 		}
-			
-		scripts.clear();
-		freePools.push_back(indexOfPool);
-	}
 
-	void renderEditorOfScript(int* id, Script* script)
-	{
-		metadata.at(script->type).renderFields(id, script);
-	}
+		void removeScript(int indexOfPool, std::type_index type)
+		{
+			if (indexOfPool == ArkInvalidIndex)
+				return;
 
-private:
-	void deleteScriptFromLists(int indexOfPool, std::type_index type) {
-		auto script = getScript(indexOfPool, type);
-		Util::erase(activeScripts, script);
-		Util::erase(pendingScripts, script);
-		Util::erase(pendingDeactivatedScripts, script);
-	}
+			scriptsToBeDeleted.emplace_back(indexOfPool, type);
+		}
 
-	void deleteScript(int indexOfPool, std::type_index type) {
-		Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->type == type; });
-	}
+		void removeScripts(int indexOfPool)
+		{
+			if (indexOfPool == ArkInvalidIndex)
+				return;
 
-private:
-	std::vector<std::vector<std::unique_ptr<Script>>> scriptPools;
-	std::vector<int> freePools;
+			auto& scripts = scriptPools.at(indexOfPool);
+			for (auto& script : scripts) {
+				EngineLog(LogSource::ScriptM, LogLevel::Info, "deleting (%s)", script->name.data());
+				deleteScriptFromLists(indexOfPool, script->type);
+				Util::erase(scriptsToBeDeleted, std::pair{indexOfPool, script->type});
+			}
 
-	std::vector<Script*> activeScripts;
-	std::vector<Script*> pendingScripts; // set to active and/or initialize
-	std::vector<Script*> pendingDeactivatedScripts;
-	std::vector<std::pair<int, std::type_index>> scriptsToBeDeleted; // indexOfPool and type
+			scripts.clear();
+			freePools.push_back(indexOfPool);
+		}
 
-	friend class EntityManager;
-	friend class SceneInspector;
+		void renderEditorOfScript(int* id, Script* script)
+		{
+			metadata.at(script->type).renderFields(id, script);
+		}
 
-	struct ScriptMetadata {
-		std::function<std::unique_ptr<Script>()> construct;
-		std::function<void(int*, void*)> renderFields;
+	private:
+		void deleteScriptFromLists(int indexOfPool, std::type_index type)
+		{
+			auto script = getScript(indexOfPool, type);
+			Util::erase(activeScripts, script);
+			Util::erase(pendingScripts, script);
+			Util::erase(pendingDeactivatedScripts, script);
+		}
+
+		void deleteScript(int indexOfPool, std::type_index type)
+		{
+			Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->type == type; });
+		}
+
+	private:
+		std::vector<std::vector<std::unique_ptr<Script>>> scriptPools;
+		std::vector<int> freePools;
+
+		std::vector<Script*> activeScripts;
+		std::vector<Script*> pendingScripts; // set to active and/or initialize
+		std::vector<Script*> pendingDeactivatedScripts;
+		std::vector<std::pair<int, std::type_index>> scriptsToBeDeleted; // indexOfPool and type
+
+		friend class EntityManager;
+		friend class SceneInspector;
+
+		struct ScriptMetadata {
+			std::function<std::unique_ptr<Script>()> construct;
+			std::function<void(int*, void*)> renderFields;
+		};
+		static inline std::unordered_map<std::type_index, ScriptMetadata> metadata;
+
+		template <typename T>
+		friend int registerScript()
+		{
+			static_assert(std::is_base_of_v<Script, T>);
+			static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
+
+			auto& metadata = ScriptManager::metadata;
+			if (auto it = metadata.find(typeid(T)); it == metadata.end()) {
+				metadata[typeid(T)].renderFields = SceneInspector::renderFieldsOfType<T>;
+				metadata[typeid(T)].construct = []() -> std::unique_ptr<Script> {
+					return std::make_unique<T>();
+				};
+			}
+			return 0;
+		}
 	};
-	static inline std::unordered_map<std::type_index, ScriptMetadata> metadata;
-
-	template <typename T>
-	friend int registerScript()
-	{
-		static_assert(std::is_base_of_v<Script, T>);
-		static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
-
-		auto& metadata = ScriptManager::metadata;
-		if (auto it = metadata.find(typeid(T)); it == metadata.end()) {
-			metadata[typeid(T)].renderFields = SceneInspector::renderFieldsOfType<T>;
-			metadata[typeid(T)].construct = []() -> std::unique_ptr<Script> {
-				return std::make_unique<T>();
-			};
-		}
-		return 0;
-	}
-};
+}

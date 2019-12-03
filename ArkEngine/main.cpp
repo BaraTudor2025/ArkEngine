@@ -28,6 +28,7 @@
 //#include "ArchetypeManager.hpp"
 
 using namespace std::literals;
+using namespace ark;
 
 #if 0
 
@@ -43,7 +44,7 @@ class ColisionSystem : public System {
 
 #endif
 
-class MovePlayer : public ScriptT<MovePlayer> {
+class MovePlayer : public ark::ScriptT<MovePlayer> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
@@ -87,7 +88,7 @@ public:
 		runningParticles = getComponent<PixelParticles>();
 
 		transform->setOrigin(animation->frameSize() / 2.f);
-		transform->move(ArkEngine::center());
+		transform->move(Engine::center());
 
 		auto pp = runningParticles;
 		pp->particlesPerSecond = pp->getParticleNumber() / 2;
@@ -95,14 +96,14 @@ public:
 		pp->speed = this->speed;
 		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
 		pp->gravity = { 0, this->speed };
-		auto[w, h] = ArkEngine::windowSize();
-		pp->platform = { ArkEngine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
+		auto[w, h] = Engine::windowSize();
+		pp->platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 		this->setScale({0.1, 0.1});
 	}
 
 	void update() override {
 		bool moved = false;
-		auto dt = ArkEngine::deltaTime().asSeconds();
+		auto dt = Engine::deltaTime().asSeconds();
 		float dx = speed * dt;
 		float angle = Util::toRadians(transform->getRotation());
 
@@ -207,11 +208,11 @@ struct PodType {
 	int i;
 };
 
-class TestMessageSystem : public System {
+class TestMessageSystem : public ark::System {
 public:
-	TestMessageSystem() : System(typeid(TestMessageSystem)) {}
+	TestMessageSystem() : ark::System(typeid(TestMessageSystem)) {}
 
-	void handleMessage(const Message& message) override 
+	void handleMessage(const ark::Message& message) override 
 	{
 		if (message.id == MessageType::TestData) {
 			const auto& m = message.data<Mesajul>();
@@ -236,17 +237,17 @@ enum States {
 	TestingState
 };
 
-class BasicState : public State {
+class BasicState : public ark::State {
 
 protected:
-	Scene scene{getMessageBus()};
+	ark::Scene scene{getMessageBus()};
 	sf::Sprite screen;
 	sf::Texture screenImage;
 	bool takenSS = false;
 	bool pauseScene = false;
 
 public:
-	BasicState(MessageBus& bus) : State(bus) { }
+	BasicState(ark::MessageBus& bus) : ark::State(bus) { }
 
 	bool handleEvent(const sf::Event& event) override
 	{
@@ -262,7 +263,7 @@ public:
 		return false;
 	}
 
-	void handleMessage(const Message& message) override
+	void handleMessage(const ark::Message& message) override
 	{
 		if(!pauseScene)
 			scene.handleMessage(message);
@@ -284,7 +285,7 @@ public:
 		} else if(!takenSS){
 			scene.render(target);
 			takenSS = true;
-			auto& win = ArkEngine::getWindow();
+			auto& win = Engine::getWindow();
 			auto [x, y] = win.getSize();
 			screenImage.create(x, y);
 			screenImage.update(win);
@@ -299,7 +300,7 @@ public:
 };
 
 // one time use component, it is removed from its entity after thes action is performed
-struct DelayedAction : Component<DelayedAction> {
+struct DelayedAction : ark::Component<DelayedAction> {
 
 	DelayedAction() = default;
 	
@@ -321,7 +322,7 @@ private:
 	friend class DelayedActionSystem;
 };
 
-class DelayedActionSystem : public SystemT<DelayedActionSystem> {
+class DelayedActionSystem : public ark::SystemT<DelayedActionSystem> {
 public:
 	void init() override
 	{
@@ -332,7 +333,7 @@ public:
 	{
 		for (auto entity : getEntities()) {
 			auto& da = entity.getComponent<DelayedAction>();
-			da.time -= ArkEngine::deltaTime();
+			da.time -= Engine::deltaTime();
 			if (da.time <= sf::Time::Zero) {
 				if (da.action) {
 					auto action = std::move(da.action);
@@ -357,7 +358,7 @@ class TestingState : public BasicState {
 	SceneInspector inspector{scene};
 
 public:
-	TestingState(MessageBus& mb) : BasicState(mb) { }
+	TestingState(ark::MessageBus& mb) : BasicState(mb) { }
 
 private:
 
@@ -419,19 +420,19 @@ private:
 		rainbowPointParticles.addScript<SpawnOnRightClick>();
 		rainbowPointParticles.addScript(typeid(EmittFromMouse));
 
-		Entity rainbowClone = rainbowPointParticles.clone();
+		ark::Entity rainbowClone = rainbowPointParticles.clone();
 		rainbowClone.addScript<SpawnOnRightClick>();
 		rainbowClone.removeScript(typeid(SpawnOnRightClick));
 		//rainbowClone.addScript<SpawnOnLeftClick>()->deactivate();
 		rainbowClone.addScript<EmittFromMouse>();
-		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](Entity e) {
+		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](ark::Entity e) {
 			//e.setScriptActive<SpawnOnLeftClick>(true);
 		});
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		firePointParticles.addScript<SpawnOnLeftClick>();
 		firePointParticles.addScript<EmittFromMouse>();
-		firePointParticles.addComponent<DelayedAction>(sf::seconds(5), [this](Entity e) {
+		firePointParticles.addComponent<DelayedAction>(sf::seconds(5), [this](ark::Entity e) {
 			scene.destroyEntity(e);
 		});
 
@@ -444,10 +445,10 @@ private:
 		rotatingParticles.addComponent<Transform>();
 		auto& plimb = rotatingParticles.addComponent<PointParticles>(getRainbowParticles());
 		plimb.spawn = true;
-		//plimb->emitter = ArkEngine::center();
+		//plimb->emitter = Engine::center();
 		//plimb->emitter.x += 100;
-		//plimbarica.addScript<Rotate>(360/2, ArkEngine::center());
-		rotatingParticles.addScript<RotateEmitter>(180, ArkEngine::center(), 100);
+		//plimbarica.addScript<Rotate>(360/2, Engine::center());
+		rotatingParticles.addScript<RotateEmitter>(180, Engine::center(), 100);
 		rotatingParticles.addScript<TraillingEffect>();
 		//plimbarica.addScript<ReadColorFromConsole>();
 
@@ -464,7 +465,7 @@ private:
 
 		//std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
 		//for (auto& fw : fireWorksParticles) {
-		//	auto[width, height] = ArkEngine::windowSize();
+		//	auto[width, height] = Engine::windowSize();
 		//	float x = RandomNumber<int>(50, width - 50);
 		//	float y = RandomNumber<int>(50, height - 50);
 		//	fw.count = 1000;
@@ -484,12 +485,12 @@ private:
 		PointParticleSystem::hasUniversalGravity = true;
 		PointParticleSystem::gravityVector = { 0, 0 };
 		PointParticleSystem::gravityMagnitude = 100;
-		PointParticleSystem::gravityPoint = ArkEngine::center();
+		PointParticleSystem::gravityPoint = Engine::center();
 
 		PixelParticleSystem::hasUniversalGravity = true;
 		PixelParticleSystem::gravityVector = { 0, 0 };
 		PixelParticleSystem::gravityMagnitude = 100;
-		PixelParticleSystem::gravityPoint = ArkEngine::center();
+		PixelParticleSystem::gravityPoint = Engine::center();
 		
 		//registerEntity(fireWorks);
 		//registerEntity(particleFountains);
@@ -535,13 +536,13 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
-	ArkEngine::create(ArkEngine::resolutionFullHD, "Articifii!", sf::seconds(1/120.f), settings);
-	ArkEngine::backGroundColor = sf::Color(50, 50, 50);
-	ArkEngine::getWindow().setVerticalSyncEnabled(false);
-	ArkEngine::registerState<class TestingState>(States::TestingState);
-	ArkEngine::pushFirstState(States::TestingState);
+	Engine::create(Engine::resolutionFullHD, "Articifii!", sf::seconds(1/120.f), settings);
+	Engine::backGroundColor = sf::Color(50, 50, 50);
+	Engine::getWindow().setVerticalSyncEnabled(false);
+	Engine::registerState<class TestingState>(States::TestingState);
+	Engine::pushFirstState(States::TestingState);
 
-	ArkEngine::run();
+	Engine::run();
 	
 	return 0;
 }

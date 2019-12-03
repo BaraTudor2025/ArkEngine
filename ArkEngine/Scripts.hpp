@@ -6,7 +6,7 @@
 
 namespace GeneralScripts
 {
-	class RegisterMousePath : public ScriptT<RegisterMousePath> {
+	class RegisterMousePath : public ark::ScriptT<RegisterMousePath> {
 		std::vector<sf::Vector2f> path;
 		std::string file;
 	public:
@@ -17,7 +17,7 @@ namespace GeneralScripts
 		void update()
 		{
 			if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
-				path.push_back(ArkEngine::mousePositon());
+				path.push_back(ark::Engine::mousePositon());
 		}
 
 		~RegisterMousePath()

@@ -10,7 +10,7 @@
 //// POINT PARTICLE SYSTEM ////
 ///////////////////////////////
 
-void PointParticleSystem::onEntityAdded(Entity entity)
+void PointParticleSystem::onEntityAdded(ark::Entity entity)
 {
 	auto& p = entity.getComponent<PointParticles>();
 	if (p.spawn)
@@ -29,7 +29,7 @@ void PointParticleSystem::update()
 			p.deathTimer = sf::Time::Zero;
 		} else {
 			if (!p.areDead())
-				p.deathTimer += ArkEngine::deltaTime();
+				p.deathTimer += Engine::deltaTime();
 		}
 	}
 	*/
@@ -39,7 +39,7 @@ void PointParticleSystem::update()
 		//if (ps.areDead())
 			//return;
 
-		auto deltaTime = ArkEngine::deltaTime();
+		auto deltaTime = ark::Engine::deltaTime();
 		auto dt = deltaTime.asSeconds();
 
 		auto vert = ps.vertices.begin();
@@ -124,7 +124,7 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 //// PIXEL PARTICLE SYSTEM ////
 ///////////////////////////////
 
-void PixelParticleSystem::onEntityAdded(Entity entity)
+void PixelParticleSystem::onEntityAdded(ark::Entity entity)
 {
 	auto& p = entity.getComponent<PixelParticles>();
 	if (p.spawn)
@@ -140,10 +140,10 @@ void PixelParticleSystem::update()
 		auto& p = entity.getComponent<PixelParticles>();
 		if (p.spawn) {
 			p.deathTimer = sf::Time::Zero;
-			p.particlesToSpawn += p.particlesPerSecond * ArkEngine::deltaTime().asSeconds(); 
+			p.particlesToSpawn += p.particlesPerSecond * Engine::deltaTime().asSeconds(); 
 		} else {
 			if (!p.areDead())
-				p.deathTimer += ArkEngine::deltaTime();
+				p.deathTimer += Engine::deltaTime();
 		}
 	}
 	*/
@@ -151,7 +151,7 @@ void PixelParticleSystem::update()
 	for (auto entity : getEntities()) {
 		auto& p = entity.getComponent<PixelParticles>();
 		if (p.spawn) {
-			p.particlesToSpawn += p.particlesPerSecond * ArkEngine::deltaTime().asSeconds(); 
+			p.particlesToSpawn += p.particlesPerSecond * ark::Engine::deltaTime().asSeconds(); 
 		}
 	}
 
@@ -160,7 +160,7 @@ void PixelParticleSystem::update()
 		//if (ps.areDead())
 			//return;
 
-		auto deltaTime = ArkEngine::deltaTime();
+		auto deltaTime = ark::Engine::deltaTime();
 		auto dt = deltaTime.asSeconds();
 		int particleNum = std::floor(ps.particlesToSpawn);
 		if (particleNum >= 1)

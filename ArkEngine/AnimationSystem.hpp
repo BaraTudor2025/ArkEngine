@@ -10,7 +10,7 @@
 #include "ResourceManager.hpp"
 
 
-struct Mesh : public Component<Mesh> {
+struct Mesh : public ark::Component<Mesh> {
 
 	Mesh() = default;
 
@@ -34,7 +34,7 @@ struct Mesh : public Component<Mesh> {
 	void setTexture(std::string name)
 	{
 		fileName = name;
-		texture = Resources::load<sf::Texture>(name);
+		texture = ark::Resources::load<sf::Texture>(name);
 	}
 
 private:
@@ -49,7 +49,7 @@ private:
 	friend class MeshSystem;
 };
 
-struct Animation : public Component<Animation> {
+struct Animation : public ark::Component<Animation> {
 
 	Animation() = default;
 	// frameCount: number of frames of every row and number of rows; example: sf::Vector2u{6, 2} means 6 frames and 2 rows
@@ -86,7 +86,7 @@ struct Animation : public Component<Animation> {
 			[](sf::Vector2u frameCount) { return frameCount; }
 		}, frameCount);
 
-		texture = Resources::load<sf::Texture>(fileName);
+		texture = ark::Resources::load<sf::Texture>(fileName);
 		uvRect.width = texture->getSize().x / (float)fcX;
 		uvRect.height = texture->getSize().y / (float)fcY;
 	}
@@ -135,13 +135,13 @@ namespace meta {
 	}
 }
 
-class AnimationSystem : public SystemT<AnimationSystem>, public Renderer {
+class AnimationSystem : public ark::SystemT<AnimationSystem>, public ark::Renderer {
 
 public:
 
 	void init() override
 	{
-		requireComponent<Transform>();
+		requireComponent<ark::Transform>();
 		requireComponent<Animation>();
 	}
 
@@ -150,16 +150,16 @@ public:
 	void render(sf::RenderTarget& target) override;
 };
 
-class MeshSystem : public SystemT<MeshSystem>, public Renderer {
+class MeshSystem : public ark::SystemT<MeshSystem>, public ark::Renderer {
 public:
 
 	void init() override
 	{
-		requireComponent<Transform>();
+		requireComponent<ark::Transform>();
 		requireComponent<Mesh>();
 	}
 
-	void onEntityAdded(Entity) override;
+	void onEntityAdded(ark::Entity) override;
 
 	void render(sf::RenderTarget& target) override;
 };

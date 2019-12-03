@@ -38,7 +38,7 @@ void AnimationSystem::update()
 		}, frameCount);
 
 		currentFrame.y = row;
-		elapsedTime += ArkEngine::deltaTime();
+		elapsedTime += ark::Engine::deltaTime();
 		if (elapsedTime >= frameTime) {
 			elapsedTime -= frameTime;
 			currentFrame.x += 1;
@@ -70,7 +70,7 @@ void AnimationSystem::render(sf::RenderTarget& target)
 	sf::RenderStates rs;
 	for (auto entity : getEntities()) {
 		auto& animation = entity.getComponent<Animation>();
-		auto& transform = entity.getComponent<Transform>();
+		auto& transform = entity.getComponent<ark::Transform>();
 
 		animation.texture->setSmooth(animation.smoothTexture);
 		rs.texture = animation.texture;
@@ -80,12 +80,12 @@ void AnimationSystem::render(sf::RenderTarget& target)
 }
 
 
-void MeshSystem::onEntityAdded(Entity entity)
+void MeshSystem::onEntityAdded(ark::Entity entity)
 {
 	auto& mesh = entity.getComponent<Mesh>();
-	auto& tx = entity.getComponent<Transform>();
+	auto& tx = entity.getComponent<ark::Transform>();
 
-	mesh.texture = Resources::load<sf::Texture>(mesh.fileName);
+	mesh.texture = ark::Resources::load<sf::Texture>(mesh.fileName);
 	mesh.texture->setRepeated(mesh.repeatTexture);
 	mesh.texture->setSmooth(mesh.smoothTexture);
 	tx.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
@@ -118,7 +118,7 @@ void MeshSystem::render(sf::RenderTarget& target)
 	sf::RenderStates rs;
 	for (auto entity : getEntities()) {
 		auto& mesh = entity.getComponent<Mesh>();
-		const auto& transform = entity.getComponent<Transform>();
+		const auto& transform = entity.getComponent<ark::Transform>();
 		rs.texture = mesh.texture;
 		rs.transform = transform.getTransform();
 		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);

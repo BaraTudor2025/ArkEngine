@@ -188,6 +188,7 @@
     <ClInclude Include="Gui.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
     <ClInclude Include="Logger.hpp" />
+    <ClInclude Include="Meta.hpp" />
     <ClInclude Include="SceneInspector.hpp" />
     <ClInclude Include="Message.hpp" />
     <ClInclude Include="State.hpp" />

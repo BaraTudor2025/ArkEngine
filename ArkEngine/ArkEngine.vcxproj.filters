@@ -130,5 +130,8 @@
     <ClInclude Include="SceneInspector.hpp">
       <Filter>ArkEngine</Filter>
     </ClInclude>
+    <ClInclude Include="Meta.hpp">
+      <Filter>ArkEngine</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

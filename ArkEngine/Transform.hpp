@@ -6,7 +6,7 @@
 #include <SFML/Graphics/Transformable.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
 
-#include <libs/Meta.h>
+#include "Meta.hpp"
 
 namespace ark {
 
@@ -119,7 +119,7 @@ namespace ark {
 	};
 }
 
-namespace meta {
+namespace ark::meta {
 	template <> inline auto registerMembers<ark::Transform>()
 	{
 		using ark::Transform;

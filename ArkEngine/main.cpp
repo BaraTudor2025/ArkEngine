@@ -147,7 +147,7 @@ public:
 	}
 };
 
-namespace meta {
+namespace ark::meta {
 	template <> inline auto registerMembers<MovePlayer>()
 	{
 		return members(

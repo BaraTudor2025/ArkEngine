@@ -6,7 +6,7 @@
 #include <functional>
 #include <unordered_map>
 
-#include <libs/Meta.h>
+#include "Meta.hpp"
 
 namespace ark {
 
@@ -112,19 +112,14 @@ namespace ark {
 
 				if (member.canGetConstRef())
 					newValue = renderField(member.getName(), &member.get(valueToRender));
-				else /* if (member.hasGetter()) /**/ {
+				else {
 					MemberT local = member.getCopy(valueToRender);
 					newValue = renderField(member.getName(), &local);
 				}
 
 				if (newValue.has_value()) {
-					if (member.hasSetter()) {
-						member.set(valueToRender, std::any_cast<MemberT>(newValue));
-						modified = true;
-					} else if (member.canGetRef()) {
-						member.getRef(valueToRender) = std::any_cast<MemberT>(newValue);
-						modified = true;
-					}
+					member.set(valueToRender, std::any_cast<MemberT>(newValue));
+					modified = true;
 				}
 				newValue.reset();
 			}

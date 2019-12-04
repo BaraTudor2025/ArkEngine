@@ -125,7 +125,7 @@ private:
 	template <std::size_t N> decltype(auto) get();
 };
 
-namespace meta {
+namespace ark::meta {
 	template <> inline auto registerMembers<Animation>()
 	{
 		return members(

@@ -4,8 +4,7 @@
 #include "Util.hpp"
 #include "SceneInspector.hpp"
 
-#include <libs/static_any.hpp>
-#include <libs/Meta.h>
+#include "Meta.hpp"
 
 #include <bitset>
 #include <unordered_map>

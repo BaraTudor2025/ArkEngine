@@ -13,7 +13,7 @@ struct Distribution {
 template<typename T> Distribution(T, T)->Distribution<T>;
 template<typename T> Distribution(T, T, DistributionType)->Distribution<T>;
 
-namespace meta {
+namespace ark::meta {
 
 	template <> inline auto registerMembers<Distribution<float>>()
 	{
@@ -26,7 +26,7 @@ namespace meta {
 
 	template <> inline auto registerEnum<DistributionType>()
 	{
-		return enumValues<DistributionType>(
+		return enumValues(
 			enumValue("uniform", DistributionType::uniform),
 			enumValue("normal", DistributionType::normal)
 		);

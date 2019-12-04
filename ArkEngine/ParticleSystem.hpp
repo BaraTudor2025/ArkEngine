@@ -13,7 +13,7 @@
 #include <SFML/System/Time.hpp>
 #include <SFML/Graphics.hpp>
 
-#include <libs/Meta.h>
+#include "Meta.hpp"
 
 static inline constexpr auto PI = 3.14159f;
 
@@ -106,17 +106,19 @@ private:
 	friend class PointParticleSystem;
 };
 
-namespace meta {
-	template <> inline auto registerMembers<PointParticles>()
+namespace ark::meta {
+
+	REGISTER_MEMBERS(PointParticles)
 	{
+		using PP = PointParticles;
 		return members(
-			member("particleNumber", &PointParticles::getParticleNumber, &PointParticles::setParticleNumber),
-			member("lifeTime", &PointParticles::getLifeTime, &PointParticles::setLifeTime),
-			member("spawn", &PointParticles::spawn),
-			member("fireworks", &PointParticles::fireworks),
-			member("emitter", &PointParticles::emitter),
-			member("speedDistribution", &PointParticles::speedDistribution),
-			member("angleDistribution", &PointParticles::angleDistribution)
+			member("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
+			member("lifeTime", &PP::getLifeTime, &PP::setLifeTime),
+			member("spawn", &PP::spawn),
+			member("fireworks", &PP::fireworks),
+			member("emitter", &PP::emitter),
+			member("speedDistribution", &PP::speedDistribution),
+			member("angleDistribution", &PP::angleDistribution)
 		);
 	}
 }
@@ -184,7 +186,7 @@ private:
 	friend class PixelParticleSystem;
 };
 
-namespace meta {
+namespace ark::meta {
 	template <> inline auto registerMembers<PixelParticles::Colors>()
 	{
 		return members(

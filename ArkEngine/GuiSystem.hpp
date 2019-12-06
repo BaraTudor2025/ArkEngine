@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Engine.hpp"
-#include "Component.hpp"
-#include "System.hpp"
-#include "ResourceManager.hpp"
+#include <ark/core/Engine.hpp>
+#include <ark/ecs/Component.hpp>
+#include <ark/ecs/System.hpp>
+#include <ark/util/ResourceManager.hpp>
 
 #include <fstream>
 

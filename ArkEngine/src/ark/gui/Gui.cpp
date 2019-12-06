@@ -1,6 +1,6 @@
-#include "Gui.hpp"
-#include "Logger.hpp"
-#include "ResourceManager.hpp"
+#include "ark/gui/Gui.hpp"
+#include "ark/core/Logger.hpp"
+#include "ark/util/ResourceManager.hpp"
 
 namespace ark {
 

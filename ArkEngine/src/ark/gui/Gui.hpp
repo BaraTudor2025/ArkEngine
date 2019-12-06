@@ -1,13 +1,13 @@
 #pragma once
 
-#include <imgui.h>
-#include <imgui-SFML.h>
-
 #include <vector>
 #include <functional>
 #include <string>
 
-#include "Util.hpp"
+#include <imgui.h>
+#include <imgui-SFML.h>
+
+#include "ark/util/Util.hpp"
 
 namespace ark {
 

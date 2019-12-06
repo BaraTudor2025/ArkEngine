@@ -1,12 +1,11 @@
 #pragma once
 
-#include "Core.hpp"
-#include "Component.hpp"
-
 #include <SFML/Graphics/Transformable.hpp>
 #include <SFML/Graphics/RenderStates.hpp>
 
-#include "Meta.hpp"
+#include "ark/core/Core.hpp"
+#include "ark/ecs/Meta.hpp"
+#include "ark/ecs/Component.hpp"
 
 namespace ark {
 

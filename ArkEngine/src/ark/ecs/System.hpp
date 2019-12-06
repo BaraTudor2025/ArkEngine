@@ -1,14 +1,15 @@
 #pragma once
 
-#include "Entity.hpp"
-#include "Component.hpp"
-#include "Message.hpp"
-#include "MessageBus.hpp"
+#include <vector>
 
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics/RenderTarget.hpp>
 
-#include <vector>
+#include "ark/ecs/Entity.hpp"
+#include "ark/ecs/Component.hpp"
+#include "ark/core/Message.hpp"
+#include "ark/core/MessageBus.hpp"
+
 
 namespace ark {
 

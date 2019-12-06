@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Core.hpp"
-#include "Component.hpp"
+#include "ark/core/Core.hpp"
+#include "ark/ecs/Component.hpp"
 
 namespace ark {
 

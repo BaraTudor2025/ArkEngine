@@ -1,11 +1,5 @@
 #pragma once
 
-#include "Component.hpp"
-#include "System.hpp"
-#include "RandomNumbers.hpp"
-#include "Quad.hpp"
-#include "Util.hpp"
-
 #include <functional>
 #include <optional>
 #include <vector>
@@ -13,7 +7,13 @@
 #include <SFML/System/Time.hpp>
 #include <SFML/Graphics.hpp>
 
-#include "Meta.hpp"
+#include <ark/ecs/Component.hpp>
+#include <ark/ecs/System.hpp>
+#include <ark/ecs/Meta.hpp>
+#include <ark/util/RandomNumbers.hpp>
+#include <ark/util/Util.hpp>
+
+#include "Quad.hpp"
 
 static inline constexpr auto PI = 3.14159f;
 

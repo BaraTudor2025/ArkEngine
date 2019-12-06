@@ -1,13 +1,13 @@
-#include "Engine.hpp"
-#include "Scene.hpp"
-#include "Entity.hpp"
-#include "MessageBus.hpp"
-#include "State.hpp"
-#include "ResourceManager.hpp"
-#include "Gui.hpp"
-
 #include <imgui.h>
 #include <imgui-SFML.h>
+
+#include "ark/core/Engine.hpp"
+#include "ark/core/State.hpp"
+#include "ark/core/MessageBus.hpp"
+#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/Entity.hpp"
+#include "ark/gui/Gui.hpp"
+#include "ark/util/ResourceManager.hpp"
 
 namespace ark {
 

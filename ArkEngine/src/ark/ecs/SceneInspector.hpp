@@ -6,7 +6,7 @@
 #include <functional>
 #include <unordered_map>
 
-#include "Meta.hpp"
+#include "ark/ecs/Meta.hpp"
 
 namespace ark {
 

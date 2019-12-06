@@ -106,7 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)src;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
@@ -149,7 +149,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;SFML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)src;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
@@ -166,45 +166,45 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AnimationSystem.cpp" />
-    <ClCompile Include="Engine.cpp" />
     <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp" />
-    <ClCompile Include="Gui.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="SceneInspector.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
+    <ClCompile Include="src\ark\core\Engine.cpp" />
+    <ClCompile Include="src\ark\ecs\SceneInspector.cpp" />
+    <ClCompile Include="src\ark\gui\Gui.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AnimationSystem.hpp" />
     <ClInclude Include="ArchetypeManager.hpp" />
     <ClInclude Include="CommandSystem.hpp" />
-    <ClInclude Include="Component.hpp" />
     <ClInclude Include="const_string.hpp" />
-    <ClInclude Include="Core.hpp" />
     <ClInclude Include="FpsCounterSystem.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
-    <ClInclude Include="Engine.hpp" />
-    <ClInclude Include="Entity.hpp" />
-    <ClInclude Include="EntityManager.hpp" />
-    <ClInclude Include="Gui.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
-    <ClInclude Include="Logger.hpp" />
-    <ClInclude Include="Meta.hpp" />
-    <ClInclude Include="SceneInspector.hpp" />
-    <ClInclude Include="Message.hpp" />
-    <ClInclude Include="State.hpp" />
-    <ClInclude Include="MessageBus.hpp" />
+    <ClInclude Include="Scripts.hpp" />
+    <ClInclude Include="src\ark\core\Core.hpp" />
+    <ClInclude Include="src\ark\core\Engine.hpp" />
     <ClInclude Include="Quad.hpp" />
-    <ClInclude Include="Scene.hpp" />
-    <ClInclude Include="Script.hpp" />
     <ClInclude Include="SOAvector.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />
     <ClInclude Include="ParticleScripts.hpp" />
-    <ClInclude Include="RandomNumbers.hpp" />
-    <ClInclude Include="ResourceManager.hpp" />
-    <ClInclude Include="Scripts.hpp" />
-    <ClInclude Include="System.hpp" />
-    <ClInclude Include="Transform.hpp" />
-    <ClInclude Include="Util.hpp" />
+    <ClInclude Include="src\ark\core\Logger.hpp" />
+    <ClInclude Include="src\ark\core\Message.hpp" />
+    <ClInclude Include="src\ark\core\MessageBus.hpp" />
+    <ClInclude Include="src\ark\core\State.hpp" />
+    <ClInclude Include="src\ark\ecs\Component.hpp" />
+    <ClInclude Include="src\ark\ecs\components\Transform.hpp" />
+    <ClInclude Include="src\ark\ecs\Entity.hpp" />
+    <ClInclude Include="src\ark\ecs\EntityManager.hpp" />
+    <ClInclude Include="src\ark\ecs\Meta.hpp" />
+    <ClInclude Include="src\ark\ecs\Scene.hpp" />
+    <ClInclude Include="src\ark\ecs\SceneInspector.hpp" />
+    <ClInclude Include="src\ark\ecs\Script.hpp" />
+    <ClInclude Include="src\ark\ecs\System.hpp" />
+    <ClInclude Include="src\ark\gui\Gui.hpp" />
+    <ClInclude Include="src\ark\util\RandomNumbers.hpp" />
+    <ClInclude Include="src\ark\util\ResourceManager.hpp" />
+    <ClInclude Include="src\ark\util\Util.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

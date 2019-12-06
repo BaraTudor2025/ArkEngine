@@ -1,14 +1,14 @@
 #pragma once
 
-#include "ParticleSystem.hpp"
-#include "Engine.hpp"
-#include "Transform.hpp"
-#include "Script.hpp"
-
 #include <fstream>
 #include <thread>
 #include <chrono>
 
+#include <ark/core/Engine.hpp>
+#include <ark/ecs/components/Transform.hpp>
+#include <ark/ecs/Script.hpp>
+
+#include "ParticleSystem.hpp"
 
 #if 0
 #define log_init() log("")

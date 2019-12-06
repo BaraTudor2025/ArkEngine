@@ -1,6 +1,8 @@
 #pragma once
 
-#include "Core.hpp"
+#include "ark/core/Core.hpp"
+#include "ark/core/Logger.hpp"
+#include "ark/util/Util.hpp"
 
 #include <iostream>
 

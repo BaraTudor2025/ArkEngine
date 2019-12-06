@@ -1,11 +1,12 @@
 #pragma once
 
-#include "Core.hpp"
-#include "Util.hpp"
-#include "Entity.hpp"
+#include <functional>
 
 #include <SFML/Window/Event.hpp>
-#include <functional>
+
+#include "ark/core/Core.hpp"
+#include "ark/ecs/Entity.hpp"
+#include "ark/util/Util.hpp"
 
 namespace ark {
 

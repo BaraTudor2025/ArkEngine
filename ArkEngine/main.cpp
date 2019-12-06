@@ -177,7 +177,6 @@ namespace ark::meta {
 /* TODO (general): Shaders */
 /* TODO (general): ParticleEmmiter with settings*/
 /* TODO (general): add a archetype component manager*/
-/* TODO (entity cloning): add to the ComponentManager std::map<std::type_index, std::funciton<int(void)>> factories; return:int is the index in the pool */
 
 /* TODO: 
 	* small vector

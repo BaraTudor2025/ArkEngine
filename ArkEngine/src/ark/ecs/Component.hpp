@@ -1,10 +1,5 @@
 #pragma once
 
-#include "Core.hpp"
-#include "Util.hpp"
-#include "SceneInspector.hpp"
-
-#include "Meta.hpp"
 
 #include <bitset>
 #include <unordered_map>
@@ -12,6 +7,12 @@
 #include <type_traits>
 #include <functional>
 #include <any>
+
+#include "ark/core/Core.hpp"
+#include "ark/core/Logger.hpp"
+#include "ark/ecs/Meta.hpp"
+#include "ark/ecs/SceneInspector.hpp"
+#include "ark/util/Util.hpp"
 
 namespace ark {
 

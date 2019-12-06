@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Core.hpp"
-#include "Scene.hpp"
-#include "State.hpp"
-#include "ResourceManager.hpp"
-
 #include <SFML/Graphics.hpp>
+
+#include "ark/core/Core.hpp"
+#include "ark/core/State.hpp"
+#include "ark/ecs/Scene.hpp"
+#include "ark/util/ResourceManager.hpp"
 
 //#define USE_DELTA_TIME
 

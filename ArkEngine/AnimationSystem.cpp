@@ -1,7 +1,5 @@
 #include "AnimationSystem.hpp"
-#include "ResourceManager.hpp"
-#include "Engine.hpp"
-#include "Util.hpp"
+#include <ark/core/Engine.hpp>
 
 namespace std{
 

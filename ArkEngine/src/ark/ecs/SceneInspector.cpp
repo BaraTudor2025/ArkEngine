@@ -1,15 +1,12 @@
-
-#include "System.hpp"
-#include "Entity.hpp"
-#include "EntityManager.hpp"
-#include "Transform.hpp"
-#include "RandomNumbers.hpp"
-#include "Scene.hpp"
-
-#include "SceneInspector.hpp"
-
 #include <imgui.h>
 #include <libs/tinyformat.hpp>
+
+#include "ark/ecs/System.hpp"
+#include "ark/ecs/Entity.hpp"
+#include "ark/ecs/EntityManager.hpp"
+#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/SceneInspector.hpp"
+#include "ark/ecs/components/Transform.hpp"
 
 #if 0
 template <typename T, typename F, typename F2>

@@ -2,10 +2,10 @@
 
 #include <thread>
 
-#include "Engine.hpp"
-#include "Util.hpp"
-#include "ResourceManager.hpp"
-#include "System.hpp"
+#include <ark/core/Engine.hpp>
+#include <ark/util/Util.hpp>
+#include <ark/util/ResourceManager.hpp>
+#include <ark/ecs/System.hpp>
 
 class FpsCounterSystem : public ark::SystemT<FpsCounterSystem>, public ark::Renderer {
 	sf::Time updateElapsed;

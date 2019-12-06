@@ -1,8 +1,5 @@
 #pragma once
 
-#include "Message.hpp"
-#include "Util.hpp"
-
 #include <vector>
 #include <memory>
 #include <functional>
@@ -12,6 +9,9 @@
 #include <SFML/Graphics/Drawable.hpp>
 #include <SFML/Window/Event.hpp>
 
+#include "ark/core/Message.hpp"
+#include "ark/core/Logger.hpp"
+#include "ark/util/Util.hpp"
 
 namespace ark {
 

@@ -12,7 +12,25 @@
     <Filter Include="Header Files\experimental">
       <UniqueIdentifier>{ed5af11b-7566-4053-9482-9b73baec421a}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ArkEngine">
+    <Filter Include="ark">
+      <UniqueIdentifier>{5a056613-60df-45b2-b9bb-99e0250b7247}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ark\core">
+      <UniqueIdentifier>{82d64fb8-7c11-4a4c-a151-702d3da48f1e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ark\ecs">
+      <UniqueIdentifier>{4688f672-aab4-40b6-ad01-aa84a9cc7250}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ark\util">
+      <UniqueIdentifier>{95fe3273-85fd-4b61-95f4-33a5712bbadf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ark\gui">
+      <UniqueIdentifier>{a35a2e3f-44c9-4e10-aa32-74674e2d92b8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ark\ecs\components">
+      <UniqueIdentifier>{3e04493c-bf6a-4afb-92fc-95b5f960dfaa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Systems">
       <UniqueIdentifier>{4a789863-c6c7-4419-a777-59129fe091b4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -26,36 +44,21 @@
     <ClCompile Include="AnimationSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Engine.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Gui.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\ark\core\Engine.cpp">
+      <Filter>ark\core</Filter>
     </ClCompile>
-    <ClCompile Include="SceneInspector.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="src\ark\ecs\SceneInspector.cpp">
+      <Filter>ark\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ark\gui\Gui.cpp">
+      <Filter>ark\gui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ElipseShape.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ParticleScripts.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="RandomNumbers.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Scripts.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ParticleSystem.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="AnimationSystem.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SOAvector.hpp">
@@ -67,71 +70,86 @@
     <ClInclude Include="Quad.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GuiSystem.hpp">
+    <ClInclude Include="CommandSystem.hpp">
+      <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ark\core\Engine.hpp">
+      <Filter>ark\core</Filter>
+    </ClInclude>
+    <ClInclude Include="Scripts.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="System.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\core\Core.hpp">
+      <Filter>ark\core</Filter>
     </ClInclude>
-    <ClInclude Include="Entity.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\core\Logger.hpp">
+      <Filter>ark\core</Filter>
     </ClInclude>
-    <ClInclude Include="Component.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\core\Message.hpp">
+      <Filter>ark\core</Filter>
     </ClInclude>
-    <ClInclude Include="Scene.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\core\MessageBus.hpp">
+      <Filter>ark\core</Filter>
     </ClInclude>
-    <ClInclude Include="Script.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\core\State.hpp">
+      <Filter>ark\core</Filter>
     </ClInclude>
-    <ClInclude Include="Core.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\Component.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="MessageBus.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\Entity.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="Transform.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\EntityManager.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="Engine.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\Meta.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="State.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\Scene.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="EntityManager.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\SceneInspector.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="Message.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\Script.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="ArchetypeManager.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\System.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="ResourceManager.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\ecs\components\Transform.hpp">
+      <Filter>ark\ecs\components</Filter>
     </ClInclude>
-    <ClInclude Include="CommandSystem.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\gui\Gui.hpp">
+      <Filter>ark\gui</Filter>
     </ClInclude>
-    <ClInclude Include="Gui.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\util\ResourceManager.hpp">
+      <Filter>ark\util</Filter>
     </ClInclude>
-    <ClInclude Include="Logger.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\util\Util.hpp">
+      <Filter>ark\util</Filter>
     </ClInclude>
-    <ClInclude Include="Util.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="src\ark\util\RandomNumbers.hpp">
+      <Filter>ark\util</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimationSystem.hpp">
+      <Filter>Systems</Filter>
     </ClInclude>
     <ClInclude Include="FpsCounterSystem.hpp">
+      <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="GuiSystem.hpp">
+      <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="ArchetypeManager.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SceneInspector.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="ParticleScripts.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Meta.hpp">
-      <Filter>ArkEngine</Filter>
+    <ClInclude Include="ParticleSystem.hpp">
+      <Filter>Systems</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

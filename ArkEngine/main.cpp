@@ -1,7 +1,3 @@
-
-#include <SFML/Graphics.hpp>
-#include <SFML/System/String.hpp>
-
 #include <functional>
 #include <iostream>
 #include <fstream>
@@ -12,20 +8,23 @@
 #include <cmath>
 #include <thread>
 
-#include "Engine.hpp"
-#include "State.hpp"
-#include "Scene.hpp"
+#include <SFML/Graphics.hpp>
+#include <SFML/System/String.hpp>
+
+#include <ark/core/Engine.hpp>
+#include <ark/core/State.hpp>
+#include <ark/ecs/Scene.hpp>
+#include <ark/ecs/SceneInspector.hpp>
+#include <ark/util/Util.hpp>
+#include <ark/util/RandomNumbers.hpp>
+#include <ark/gui/Gui.hpp>
+
+#include "Scripts.hpp"
 #include "ParticleSystem.hpp"
 #include "ParticleScripts.hpp"
-#include "RandomNumbers.hpp"
-#include "Util.hpp"
-#include "Scripts.hpp"
 #include "AnimationSystem.hpp"
 #include "FpsCounterSystem.hpp"
 #include "GuiSystem.hpp"
-#include "Gui.hpp"
-#include "SceneInspector.hpp"
-//#include "ArchetypeManager.hpp"
 
 using namespace std::literals;
 using namespace ark;

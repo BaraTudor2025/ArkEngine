@@ -2,13 +2,13 @@
 
 #include <variant>
 
-#include "Component.hpp"
-#include "System.hpp"
-#include "Transform.hpp"
-#include "Quad.hpp"
-#include "Util.hpp"
-#include "ResourceManager.hpp"
+#include <ark/ecs/Component.hpp>
+#include <ark/ecs/System.hpp>
+#include <ark/ecs/components/Transform.hpp>
+#include <ark/util/ResourceManager.hpp>
+#include <ark/util/Util.hpp>
 
+#include "Quad.hpp"
 
 struct Mesh : public ark::Component<Mesh> {
 

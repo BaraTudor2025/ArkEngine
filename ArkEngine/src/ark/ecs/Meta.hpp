@@ -108,7 +108,7 @@ namespace ark::meta
 	/* Enum stuff */
 
 	template <typename T>
-	struct EnumValue {
+	struct EnumValueHolder {
 		using enum_type = T;
 		const char* name;
 		T value;
@@ -117,17 +117,17 @@ namespace ark::meta
 	template <typename T>
 	auto enumValue(const char* name, T value)
 	{
-		return EnumValue<T>{name, value};
+		return EnumValueHolder<T>{name, value};
 	}
 
 	template <typename... Ts>
 	auto enumValues(Ts&&... args)
 	{
-		using EnumValueStruct = detail::getFirstArg<Ts...>;
-		using EnumT = typename EnumValueStruct::enum_type;
-		return std::array<EnumValue<EnumT>, sizeof...(Ts)> { std::forward<Ts>(args)... };
+		using EnumValueH = detail::getFirstArg<Ts...>;
+		using EnumT = typename EnumValueH::enum_type;
+		return std::array<EnumValueHolder<EnumT>, sizeof...(Ts)> { std::forward<Ts>(args)... };
 	}
-
+	
 	template <typename T> inline auto registerEnum()
 	{
 		static_assert(false, "T wasn't registered");
@@ -137,6 +137,17 @@ namespace ark::meta
 	template <typename T> inline const auto& getEnumValues() /* -> array<T,N> */ { 
 		static auto enumVals = registerEnum<T>(); 
 		return enumVals;
+	}
+
+	template <typename EnumT>
+	const char* getNameOfEnumValue(const EnumT& value)
+	{
+		const auto& fields = getEnumValues<EnumT>();
+		const char* fieldName = nullptr;
+		for (const auto& field : fields)
+			if (field.value == value)
+				fieldName = field.name;
+		return fieldName;
 	}
 
 

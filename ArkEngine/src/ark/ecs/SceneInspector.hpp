@@ -73,25 +73,21 @@ namespace ark {
 		bool modified = false; // used in recursive call to check if the member was modified
 
 		meta::doForAllMembers<T>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
-			using MemberT = meta::get_member_type<decltype(member)>;
+			using MemberType = meta::get_member_type<decltype(member)>;
 			ImGui::PushID(*widgetId);
 
-			if constexpr (meta::isRegistered<MemberT>()) {
+			if constexpr (meta::isRegistered<MemberType>()) {
 				// recursively render members that are registered
 				auto memberValue = member.getCopy(valueToRender);
 				ImGui::Text("%s:", member.getName());
-				if (renderFieldsOfType<MemberT>(widgetId, &memberValue)) {
+				if (renderFieldsOfType<MemberType>(widgetId, &memberValue)) {
 					member.set(valueToRender, memberValue);
 					modified = true;
 				}
-			} else if constexpr (std::is_enum_v<MemberT>) {
-				// get name of current enum value
+			} else if constexpr (std::is_enum_v<MemberType> /* && is registered*/) {
 				auto memberValue = member.getCopy(valueToRender);
-				const auto& fields = meta::getEnumValues<MemberT>();
-				const char* fieldName = nullptr;
-				for (const auto& field : fields)
-					if (field.value == memberValue)
-						fieldName = field.name;
+				const auto& fields = meta::getEnumValues<MemberType>();
+				const char* fieldName = meta::getNameOfEnumValue<MemberType>(memberValue);
 
 				// render enum values in a list
 				ArkSetFieldName(member.getName());
@@ -108,17 +104,17 @@ namespace ark {
 				}
 			} else {
 				// render field using predefined table
-				auto& renderField = table.at(typeid(MemberT));
+				auto& renderField = table.at(typeid(MemberType));
 
 				if (member.canGetConstRef())
 					newValue = renderField(member.getName(), &member.get(valueToRender));
 				else {
-					MemberT local = member.getCopy(valueToRender);
+					MemberType local = member.getCopy(valueToRender);
 					newValue = renderField(member.getName(), &local);
 				}
 
 				if (newValue.has_value()) {
-					member.set(valueToRender, std::any_cast<MemberT>(newValue));
+					member.set(valueToRender, std::any_cast<MemberType>(newValue));
 					modified = true;
 				}
 				newValue.reset();

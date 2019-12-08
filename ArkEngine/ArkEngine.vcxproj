@@ -106,7 +106,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)src;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)src;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
@@ -149,7 +149,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;SFML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)src;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\ImGui\include;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)src;$(ProjectDir)extlibs\include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>

@@ -1,17 +1,18 @@
 #pragma once
 
-#include "Component.hpp"
-#include "Script.hpp"
-#include "Entity.hpp"
-
-#include <libs/static_any.hpp>
-
 #include <unordered_map>
+#include <fstream>
 #include <typeindex>
 #include <optional>
 #include <bitset>
 #include <tuple>
 #include <set>
+
+#include "ark/ecs/Component.hpp"
+#include "ark/ecs/Script.hpp"
+#include "ark/ecs/Entity.hpp"
+#include "ark/util/ResourceManager.hpp"
+
 
 namespace ark {
 
@@ -94,6 +95,23 @@ namespace ark {
 			}
 			EngineLog(LogSource::EntityM, LogLevel::Warning, "getByName(): didn't find entity (%s)", name.c_str());
 			return {};
+		}
+
+		void serializeEntity(Entity e)
+		{
+			auto& entity = getEntity(e);
+			json jsonEntity;
+
+			auto& jsonComps = jsonEntity["components"];
+			for (auto compData : entity.components) {
+				auto compName = componentManager.getComponentName(compData.id);
+				jsonComps[compName.data()] = componentManager.serializeComponent(compData.id, compData.component);
+			}
+
+			jsonEntity["scripts"] = scriptManager.serializeScripts(entity.scriptsIndex);
+
+			std::ofstream of(getEntityFilePath(e));
+			of << jsonEntity.dump(4, ' ', true);
 		}
 
 		void destroyEntity(Entity e)
@@ -332,6 +350,14 @@ namespace ark {
 	private:
 
 		void addToScene(Entity e);
+
+		static inline const std::string entityFolder = Resources::resourceFolder + "entities/";
+
+		std::string getEntityFilePath(Entity e)
+		{
+			auto& entity = getEntity(e);
+			return entityFolder + entity.name + ".json";
+		}
 
 		struct InternalEntityData {
 			struct ComponentData {

@@ -12,6 +12,7 @@
 #include "ark/core/Logger.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/SceneInspector.hpp"
+#include "ark/ecs/Serialize.hpp"
 #include "ark/util/Util.hpp"
 
 namespace ark {
@@ -50,6 +51,11 @@ namespace ark {
 		std::type_index getTypeFromId(int id)
 		{
 			return componentIndexes.at(id);
+		}
+
+		std::string_view getComponentName(int id)
+		{
+			return pools[id].metadata.name;
 		}
 
 		template <typename T>
@@ -107,6 +113,11 @@ namespace ark {
 			return this->componentIndexes;
 		}
 
+		json serializeComponent(int compId, void* pComp)
+		{
+			return pools[compId].metadata.serialize(pComp);
+		}
+
 
 	private:
 
@@ -115,7 +126,7 @@ namespace ark {
 			int size;
 			bool isCopyable = false;
 			std::function<void(int*, void*)> renderFields; // render in editor
-			//std::function<json(void*)> serialize;
+			std::function<json(const void*)> serialize;
 			//std::function<void(void*, const json*)> deserialize;
 
 			Metadata() = default;
@@ -162,6 +173,7 @@ namespace ark {
 					destructor = Util::reinterpretCast<destructor_t>(destructorInstance<T>);
 
 				renderFields = SceneInspector::renderFieldsOfType<T>;
+				serialize = serialize_value<T>;
 			}
 
 		private:

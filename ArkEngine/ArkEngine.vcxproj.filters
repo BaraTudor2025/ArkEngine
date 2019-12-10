@@ -56,6 +56,9 @@
     <ClCompile Include="src\ark\gui\Gui.cpp">
       <Filter>ark\gui</Filter>
     </ClCompile>
+    <ClCompile Include="src\ark\ecs\Serialize.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ElipseShape.hpp">
@@ -150,6 +153,9 @@
     </ClInclude>
     <ClInclude Include="ParticleSystem.hpp">
       <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ark\ecs\Serialize.hpp">
+      <Filter>ark\ecs</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

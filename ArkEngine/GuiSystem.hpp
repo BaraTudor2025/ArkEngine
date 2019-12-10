@@ -285,7 +285,7 @@ namespace GuiScripts {
 		void update() override
 		{
 			auto procces = [&]() {
-				auto mouse = ArkEngine::mousePositon();
+				auto mouse = ark::Engine::mousePositon();
 				// daca componenta mosteneste de la sf::Transformable atunci asta nu prea merge
 				// TODO? : tre' sa transform rect-ul de la globalBounds cu componenta transform
 				if (component->getGlobalBounds().contains(mouse))

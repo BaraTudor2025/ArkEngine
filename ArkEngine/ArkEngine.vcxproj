@@ -171,6 +171,7 @@
     <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="src\ark\core\Engine.cpp" />
     <ClCompile Include="src\ark\ecs\SceneInspector.cpp" />
+    <ClCompile Include="src\ark\ecs\Serialize.cpp" />
     <ClCompile Include="src\ark\gui\Gui.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -200,6 +201,7 @@
     <ClInclude Include="src\ark\ecs\Scene.hpp" />
     <ClInclude Include="src\ark\ecs\SceneInspector.hpp" />
     <ClInclude Include="src\ark\ecs\Script.hpp" />
+    <ClInclude Include="src\ark\ecs\Serialize.hpp" />
     <ClInclude Include="src\ark\ecs\System.hpp" />
     <ClInclude Include="src\ark\gui\Gui.hpp" />
     <ClInclude Include="src\ark\util\RandomNumbers.hpp" />

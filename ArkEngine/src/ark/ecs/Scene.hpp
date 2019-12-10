@@ -38,10 +38,16 @@ namespace ark {
 				entities.push_back(createEntity());
 		}
 
+		void serializeEntity(Entity e)
+		{
+			entityManager.serializeEntity(e);
+		}
+
 		void destroyEntity(Entity entity)
 		{
 			destroyedEntities.push_back(entity);
 		}
+
 
 		Entity getEntityByName(std::string name)
 		{

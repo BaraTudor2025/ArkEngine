@@ -6,6 +6,7 @@
 
 #include "ark/core/Core.hpp"
 #include "ark/ecs/Entity.hpp"
+#include "ark/ecs/Serialize.hpp"
 #include "ark/util/Util.hpp"
 
 namespace ark {
@@ -45,7 +46,8 @@ namespace ark {
 	template <typename T>
 	int registerScript();
 
-	// helper class
+
+	/* helper class */
 	template <typename T>
 	class ScriptT : public Script {
 		// calling this function at start up time
@@ -128,6 +130,17 @@ namespace ark {
 		const std::vector<std::unique_ptr<Script>>& getScripts(int indexOfPool)
 		{
 			return scriptPools[indexOfPool];
+		}
+
+		json serializeScripts(int indexOfPool)
+		{
+			if (indexOfPool == ArkInvalidIndex)
+				return {};
+			auto& scripts = scriptPools[indexOfPool];
+			json jsonScripts;
+			for (const auto& script : scripts)
+				jsonScripts[script->name.data()] = metadata.at(script->type).serialize(script.get());
+			return jsonScripts;
 		}
 
 		void setActive(int indexOfPool, bool active, std::type_index type)
@@ -243,6 +256,7 @@ namespace ark {
 		struct ScriptMetadata {
 			std::function<std::unique_ptr<Script>()> construct;
 			std::function<void(int*, void*)> renderFields;
+			std::function<json(const void*)> serialize;
 		};
 		static inline std::unordered_map<std::type_index, ScriptMetadata> metadata;
 
@@ -252,13 +266,12 @@ namespace ark {
 			static_assert(std::is_base_of_v<Script, T>);
 			static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
 
-			auto& metadata = ScriptManager::metadata;
-			if (auto it = metadata.find(typeid(T)); it == metadata.end()) {
-				metadata[typeid(T)].renderFields = SceneInspector::renderFieldsOfType<T>;
-				metadata[typeid(T)].construct = []() -> std::unique_ptr<Script> {
-					return std::make_unique<T>();
-				};
-			}
+			auto& metadata = ScriptManager::metadata[typeid(T)];
+			metadata.renderFields = SceneInspector::renderFieldsOfType<T>;
+			metadata.serialize = serialize_value<T>;
+			metadata.construct = []() -> std::unique_ptr<Script> {
+				return std::make_unique<T>();
+			};
 			return 0;
 		}
 	};

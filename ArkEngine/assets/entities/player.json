@@ -1,0 +1,66 @@
+{
+    "components": {
+        "Animation": {
+            "frameTime": 0.125,
+            "texture": "chestie.png"
+        },
+        "PixelParticles": {
+            "angle_dist": {
+                "lower": 0.0,
+                "type": "normal",
+                "upper": 6.283180236816406
+            },
+            "colors": {
+                "dominant": {
+                    "a": 255,
+                    "b": 0,
+                    "g": 255,
+                    "r": 255
+                },
+                "subdominant": {
+                    "a": 255,
+                    "b": 0,
+                    "g": 0,
+                    "r": 255
+                }
+            },
+            "emitter": {
+                "x": 1010.0,
+                "y": 580.0
+            },
+            "gravity": {
+                "x": 0.0,
+                "y": 400.0
+            },
+            "life_time": 7.0,
+            "particle_number": 100,
+            "particles_per_second": 50.0,
+            "size": {
+                "x": 6.0,
+                "y": 3.0
+            },
+            "spawn": false,
+            "speed": 400.0
+        },
+        "ark::Transform": {
+            "position": {
+                "x": 960.0,
+                "y": 540.0
+            },
+            "roatation": 0.0,
+            "scale": {
+                "x": 0.10000000149011612,
+                "y": 0.10000000149011612
+            }
+        }
+    },
+    "scripts": {
+        "MovePlayer": {
+            "scale": {
+                "x": 0.10000000149011612,
+                "y": 0.10000000149011612
+            },
+            "speed": 400.0
+        }
+    }
+}

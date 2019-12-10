@@ -181,8 +181,8 @@ namespace ark::meta {
 	* small vector
 	* optional ref
 	* refactor Util::find
-	* optimize rng
-	* add 'ark' namespace
+	* - optimize rng
+	* - add 'ark' namespace
 	* add serialization(nlohmann json)
 	* add more options to gui editor
 	* add scripting with lua(sol3) and/or chaiscript
@@ -392,6 +392,8 @@ private:
 		player.addScript<MovePlayer>(400, 180);
 		player.addComponent<PointParticles>();
 		player.removeComponent<PointParticles>();
+		player.addComponent<DelayedAction>(sf::seconds(2), [this](Entity e) { scene.serializeEntity(e); });
+		//scene.serializeEntity(player, "./player.json");
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
 		button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});

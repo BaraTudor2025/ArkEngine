@@ -33,6 +33,12 @@
     <Filter Include="Systems">
       <UniqueIdentifier>{4a789863-c6c7-4419-a777-59129fe091b4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ark\extlibs">
+      <UniqueIdentifier>{12b88d0d-26fb-4df9-ac9f-6c9204e287f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ark\extlibs\imgui">
+      <UniqueIdentifier>{104d672a-b971-4e70-8e68-e5f780d53c11}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -44,9 +50,6 @@
     <ClCompile Include="AnimationSystem.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="extlibs\ImGui\include\_demo\imgui_demo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\ark\core\Engine.cpp">
       <Filter>ark\core</Filter>
     </ClCompile>
@@ -55,6 +58,21 @@
     </ClCompile>
     <ClCompile Include="src\ark\gui\Gui.cpp">
       <Filter>ark\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="extlibs\imgui\imgui_demo.cpp">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="extlibs\imgui\imgui_draw.cpp">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="extlibs\imgui\imgui_widgets.cpp">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="extlibs\imgui\imgui.cpp">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="extlibs\imgui-sfml\imgui-SFML.cpp">
+      <Filter>ark\extlibs\imgui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -150,6 +168,36 @@
     </ClInclude>
     <ClInclude Include="ParticleSystem.hpp">
       <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ark\gui\ImGui.hpp">
+      <Filter>ark\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui\imgui_internal.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui\imstb_rectpack.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui\imstb_textedit.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui\imstb_truetype.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui\imgui.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui-sfml\imgui-SFML.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui-sfml\imgui-SFML_export.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui-sfml\imconfig-SFML.h">
+      <Filter>ark\extlibs\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="extlibs\imgui\imconfig.h">
+      <Filter>ark\extlibs\imgui</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -176,7 +176,7 @@ namespace ark {
 		void removeSystem()
 		{
 			if (auto system = getSystem<T>(); system) {
-				Util::remove_if(systems, [system](auto& sys) {
+				Util::erase_if(systems, [system](auto& sys) {
 					return sys.get() == system;
 				});
 			}

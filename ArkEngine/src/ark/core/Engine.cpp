@@ -1,6 +1,3 @@
-#include <imgui.h>
-#include <imgui-SFML.h>
-
 #include "ark/core/Engine.hpp"
 #include "ark/core/State.hpp"
 #include "ark/core/MessageBus.hpp"

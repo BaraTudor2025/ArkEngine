@@ -4,8 +4,7 @@
 #include <functional>
 #include <string>
 
-#include <imgui.h>
-#include <imgui-SFML.h>
+#include "ark/gui/ImGui.hpp"
 
 #include "ark/util/Util.hpp"
 

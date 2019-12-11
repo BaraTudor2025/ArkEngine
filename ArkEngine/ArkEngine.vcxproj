@@ -171,7 +171,6 @@
     <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="src\ark\core\Engine.cpp" />
     <ClCompile Include="src\ark\ecs\SceneInspector.cpp" />
-    <ClCompile Include="src\ark\ecs\Serialize.cpp" />
     <ClCompile Include="src\ark\gui\Gui.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -56,9 +56,6 @@
     <ClCompile Include="src\ark\gui\Gui.cpp">
       <Filter>ark\gui</Filter>
     </ClCompile>
-    <ClCompile Include="src\ark\ecs\Serialize.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ElipseShape.hpp">

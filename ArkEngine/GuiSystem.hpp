@@ -49,13 +49,13 @@ struct Button : ark::Component<Button>, sf::RectangleShape {
 	std::function<void()> onClick = []() {};
 
 	void savePosition(std::string file) { 
-		std::ofstream fout("./res/gui_data/" + file);
+		std::ofstream fout(ark::Resources::resourceFolder + "gui_data/" + file);
 		auto[x, y] = this->getPosition();
 		fout << x << ' ' << y;
 	}
 
 	void loadPosition(std::string file) {
-		std::ifstream fin("./res/gui_data/" + file);
+		std::ifstream fin(ark::Resources::resourceFolder + "gui_data/" + file);
 		float x, y;
 		fin >> x >> y;
 		this->setPosition(x, y);

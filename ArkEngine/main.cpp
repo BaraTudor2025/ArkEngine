@@ -375,7 +375,6 @@ private:
 		//scene.addSystem<TestMessageSystem>();
 
 		button = scene.createEntity("button");
-		player = scene.createEntity("player");
 		mouseTrail = scene.createEntity("mouse_trail");
 		rainbowPointParticles = scene.createEntity("rainbow_ps");
 		greenPointParticles = scene.createEntity("green_ps");
@@ -385,15 +384,19 @@ private:
 		//fireWorks.resize(0);
 		//createEntity(fireWorks);
 
+		/*
+		player = scene.createEntity("player");
 		player.addComponent<Transform>();
 		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
 		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		player.addScript<MovePlayer>(400, 180);
+		//player.addScript<MovePlayer>(400, 180);
 		player.addComponent<PointParticles>();
 		player.removeComponent<PointParticles>();
-		player.addComponent<DelayedAction>(sf::seconds(2), [this](Entity e) { scene.serializeEntity(e); });
-		//scene.serializeEntity(player, "./player.json");
+		//player.addComponent<DelayedAction>(sf::seconds(2), [this](Entity e) { scene.serializeEntity(e); });
+		scene.serializeEntity(player);
+		/**/
+		player = scene.loadEntity("player");
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
 		button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
@@ -460,8 +463,8 @@ private:
 		mouseParticles.speedDistribution = {0.f, 2.f};
 		mouseParticles.angleDistribution = {0.f, 0.f};
 		mouseTrail.addScript<EmittFromMouse>();
-		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 		mouseTrail.addScript<TraillingEffect>();
+		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 
 		//std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
 		//for (auto& fw : fireWorksParticles) {

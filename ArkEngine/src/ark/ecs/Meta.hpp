@@ -150,6 +150,15 @@ namespace ark::meta
 		return fieldName;
 	}
 
+	template <typename EnumT>
+	EnumT getValueOfEnumName(const char* name)
+	{
+		const auto& fields = getEnumValues<EnumT>();
+		for (const auto& field : fields)
+			if (std::strcmp(name, field.name) == 0)
+				return field.value;
+		return {};
+	}
 
 	/* class members stuff */
 

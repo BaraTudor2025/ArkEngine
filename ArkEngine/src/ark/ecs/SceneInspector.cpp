@@ -355,6 +355,19 @@ namespace ark {
 			return std::any{};
 		} },
 
+		{ typeid(sf::Vector2u), [](std::string_view name, const void* pField) {
+			sf::Vector2u vec = *static_cast<const sf::Vector2u*>(pField);
+			ArkSetFieldName(name);
+			int v[2] = {vec.x, vec.y};
+			if (ImGui::InputInt2("", v, ImGuiInputTextFlags_EnterReturnsTrue)) {
+				ArkFocusHere();
+				vec.x = v[0];
+				vec.y = v[1];
+				return std::any{vec};
+			}
+			return std::any{};
+		} },
+
 		{ typeid(sf::Color), [](std::string_view name, const void* pField) {
 			sf::Color color = *static_cast<const sf::Color*>(pField);
 			ArkSetFieldName(name);

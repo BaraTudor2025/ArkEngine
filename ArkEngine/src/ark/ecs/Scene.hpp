@@ -32,6 +32,13 @@ namespace ark {
 			return createdEntities.back();
 		}
 
+		Entity loadEntity(std::string name)
+		{
+			Entity e = createEntity(name);
+			entityManager.deserializeEntity(e);
+			return e;
+		}
+
 		void createEntities(std::vector<Entity>& entities, int n)
 		{
 			for (int i = 0; i < n; i++)

@@ -106,11 +106,21 @@ struct Animation : public ark::Component<Animation> {
 		    sf::Vector2i{ std::abs(uvRect.width), std::abs(uvRect.height) }); 
 	}
 
+	void setFrameCount(sf::Vector2u vec)
+	{
+		frameCount = vec;
+	}
+
+	sf::Vector2u getFrameCount() const
+	{
+		return std::get<0>(frameCount);
+	}
+
 private:
 
 	bool smoothTexture = true;
 	std::string fileName;
-	std::variant<const sf::Vector2u, 
+	std::variant<sf::Vector2u, 
 		std::pair<uint32_t, std::vector<uint32_t>>> frameCount;
 	sf::Vector2u currentFrame;
 	sf::Time elapsedTime;
@@ -130,7 +140,10 @@ namespace ark::meta {
 	{
 		return members(
 			member("texture", &Animation::getTexture, &Animation::setTexture),
-			member("frameTime", &Animation::frameTime)
+			member("frame_time", &Animation::frameTime),
+			member("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
+			member("row", &Animation::row)
+			//member("frame_size", &Animation::frameSize)
 		);
 	}
 }

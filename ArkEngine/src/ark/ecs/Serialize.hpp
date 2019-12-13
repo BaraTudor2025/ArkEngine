@@ -13,9 +13,17 @@
 
 namespace sf {
 
-	static void to_json(nlohmann::json& jsonObj, const Vector2f& vec)
+	template <typename T>
+	static void to_json(nlohmann::json& jsonObj, const Vector2<T>& vec)
 	{
 		jsonObj = nlohmann::json{{"x", vec.x,}, {"y", vec.y}};
+	}
+
+	template <typename T>
+	static void from_json(const nlohmann::json& jsonObj, Vector2<T>& vec)
+	{
+		vec.x = jsonObj.at("x").get<T>();
+		vec.y = jsonObj.at("y").get<T>();
 	}
 
 	static void to_json(nlohmann::json& jsonObj, const Time& time)
@@ -23,9 +31,22 @@ namespace sf {
 		jsonObj = nlohmann::json(time.asSeconds());
 	}
 
+	static void from_json(const nlohmann::json& jsonObj, Time& time)
+	{
+		time = sf::seconds(jsonObj.get<float>());
+	}
+
 	static void to_json(nlohmann::json& jsonObj, const Color& color)
 	{
 		jsonObj = nlohmann::json{{"r", color.r}, {"g", color.g}, {"b", color.b}, {"a", color.a}};
+	}
+
+	static void from_json(const nlohmann::json& jsonObj, Color& color)
+	{
+		color.r = jsonObj.at("r").get<Uint8>();
+		color.g = jsonObj.at("g").get<Uint8>();
+		color.b = jsonObj.at("b").get<Uint8>();
+		color.a = jsonObj.at("a").get<Uint8>();
 	}
 }
 
@@ -50,11 +71,35 @@ namespace ark {
 				const auto& fields = meta::getEnumValues<MemberType>();
 				const char* fieldName = meta::getNameOfEnumValue<MemberType>(memberValue);
 				jsonObj[member.getName()] = fieldName;
-			} else /* normal value */ {
+			} else /* normal(convertible) value */ {
 				jsonObj[member.getName()] = member.getCopy(value);
 			}
 		});
 		return jsonObj;
+	}
+
+	template <typename Type>
+	static void deserialize_value(const json& jsonObj, void* pValue)
+	{
+		Type& value = *static_cast<Type*>(pValue);
+		meta::doForAllMembers<Type>([&value, &jsonObj](auto& member) {
+			using MemberType = meta::get_member_type<decltype(member)>;
+
+			if constexpr (meta::isRegistered<MemberType>()) {
+				//const json& jsonMember = jsonObj.at(member.getName());
+				MemberType memberValue;
+				deserialize_value<MemberType>(jsonObj.at(member.getName()), &memberValue);
+				member.set(value, memberValue);
+			} else if constexpr (std::is_enum_v<MemberType>) {
+				auto enumValueName = jsonObj.at(member.getName()).get<std::string>();
+				auto memberValue = meta::getValueOfEnumName<MemberType>(enumValueName.c_str());
+				member.set(value, memberValue);
+			} else /* normal(convertible) value*/ {
+				auto&& memberValue = jsonObj.at(member.getName()).get<MemberType>();
+				member.set(value, memberValue);
+			}
+
+		});
 	}
 }
 

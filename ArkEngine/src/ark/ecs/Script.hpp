@@ -132,6 +132,15 @@ namespace ark {
 			return scriptPools[indexOfPool];
 		}
 
+		std::type_index getTypeFromName(std::string_view name)
+		{
+			for (const auto& [type, _] : metadata) {
+				if (name == Util::getNameOfType(type))
+					return type;
+			}
+			EngineLog(LogSource::ScriptM, LogLevel::Error, "getTypeFromName() didn't find (%s)", name.data());
+		}
+
 		json serializeScripts(int indexOfPool)
 		{
 			if (indexOfPool == ArkInvalidIndex)
@@ -141,6 +150,17 @@ namespace ark {
 			for (const auto& script : scripts)
 				jsonScripts[script->name.data()] = metadata.at(script->type).serialize(script.get());
 			return jsonScripts;
+		}
+
+		void deserializeScripts(int indexOfPool, const json& jsonObj)
+		{
+			if (indexOfPool == ArkInvalidIndex)
+				return;
+			auto& scripts = scriptPools[indexOfPool];
+			for (const auto& script : scripts) {
+				const json& jsonScript = jsonObj.at(script->name.data());
+				metadata.at(script->type).deserialize(jsonScript, script.get());
+			}
 		}
 
 		void setActive(int indexOfPool, bool active, std::type_index type)
@@ -257,6 +277,7 @@ namespace ark {
 			std::function<std::unique_ptr<Script>()> construct;
 			std::function<void(int*, void*)> renderFields;
 			std::function<json(const void*)> serialize;
+			std::function<void(const json&, void*)> deserialize;
 		};
 		static inline std::unordered_map<std::type_index, ScriptMetadata> metadata;
 
@@ -269,6 +290,7 @@ namespace ark {
 			auto& metadata = ScriptManager::metadata[typeid(T)];
 			metadata.renderFields = SceneInspector::renderFieldsOfType<T>;
 			metadata.serialize = serialize_value<T>;
+			metadata.deserialize = deserialize_value<T>;
 			metadata.construct = []() -> std::unique_ptr<Script> {
 				return std::make_unique<T>();
 			};

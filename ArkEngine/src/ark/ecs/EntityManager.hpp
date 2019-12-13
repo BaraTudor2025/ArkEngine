@@ -114,6 +114,34 @@ namespace ark {
 			of << jsonEntity.dump(4, ' ', true);
 		}
 
+		void deserializeEntity(Entity e)
+		{
+			auto& entity = getEntity(e);
+			json jsonEntity;
+			std::ifstream fin(getEntityFilePath(e));
+			fin >> jsonEntity;
+
+			auto& jsonComps = jsonEntity.at("components");
+			for (const auto& [key, _] : jsonComps.items()) {
+				auto type = componentManager.getTypeFromName(key);
+				e.addComponent(type);
+			}
+			for (auto compData : entity.components) {
+				auto compName = componentManager.getComponentName(compData.id);
+				componentManager.deserializeComponent(compData.id, compData.component, jsonComps.at(compName.data()));
+			}
+
+			if (!jsonEntity.contains("scripts"))
+				return;
+			const auto& jsonScripts = jsonEntity.at("scripts");
+			for (const auto& [key, _] : jsonScripts.items()) {
+				auto type = scriptManager.getTypeFromName(key);
+				if (e.getScript(type) == nullptr)
+					e.addScript(type);
+			}
+			scriptManager.deserializeScripts(entity.scriptsIndex, jsonScripts);
+		}
+
 		void destroyEntity(Entity e)
 		{
 			freeEntities.push_back(e.id);
@@ -199,6 +227,8 @@ namespace ark {
 			auto& entity = getEntity(e);
 			auto script = scriptManager.addScript<T>(entity.scriptsIndex, std::forward<Args>(args)...);
 			script->m_entity = e;
+			script->init();
+			script->isInitialized = true;
 			return script;
 		}
 
@@ -207,6 +237,8 @@ namespace ark {
 			auto& entity = getEntity(e);
 			auto script = scriptManager.addScript(entity.scriptsIndex, type);
 			script->m_entity = e;
+			script->init();
+			script->isInitialized = true;
 			return script;
 		}
 

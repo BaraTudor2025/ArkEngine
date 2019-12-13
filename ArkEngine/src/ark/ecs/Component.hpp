@@ -53,6 +53,15 @@ namespace ark {
 			return componentIndexes.at(id);
 		}
 
+		std::type_index getTypeFromName(std::string_view name)
+		{
+			for (const auto& type : componentIndexes) {
+				if (name == Util::getNameOfType(type))
+					return type;
+			}
+			EngineLog(LogSource::ComponentM, LogLevel::Error, "getTypeFromName() didn't find (%s)", name.data());
+		}
+
 		std::string_view getComponentName(int id)
 		{
 			return pools[id].metadata.name;
@@ -63,6 +72,7 @@ namespace ark {
 		{
 			return getComponentId(typeid(T));
 		}
+
 
 		auto addComponent(int compId) -> std::pair<byte*, int>
 		{
@@ -118,6 +128,10 @@ namespace ark {
 			return pools[compId].metadata.serialize(pComp);
 		}
 
+		void deserializeComponent(int compId, void* pComp, const json& jsonObj)
+		{
+			pools[compId].metadata.deserialize(jsonObj, pComp);
+		}
 
 	private:
 
@@ -127,7 +141,7 @@ namespace ark {
 			bool isCopyable = false;
 			std::function<void(int*, void*)> renderFields; // render in editor
 			std::function<json(const void*)> serialize;
-			//std::function<void(void*, const json*)> deserialize;
+			std::function<void(const json&, void*)> deserialize;
 
 			Metadata() = default;
 
@@ -174,6 +188,7 @@ namespace ark {
 
 				renderFields = SceneInspector::renderFieldsOfType<T>;
 				serialize = serialize_value<T>;
+				deserialize = deserialize_value<T>;
 			}
 
 		private:

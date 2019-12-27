@@ -118,14 +118,12 @@ namespace ark {
 	};
 }
 
-namespace ark::meta {
-	template <> inline auto registerMembers<ark::Transform>()
-	{
-		using ark::Transform;
-		return members(
-			member("position", &Transform::getPosition, &Transform::setPosition),
-			member("scale", &Transform::getScale, &Transform::setScale),
-			member("roatation", &Transform::getRotation, &Transform::setRotation)
-		);
-	}
+template <> inline auto ::ark::meta::registerMembers<ark::Transform>()
+{
+	return members(
+		member("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
+		member("scale", &ark::Transform::getScale, &ark::Transform::setScale),
+		member("roatation", &ark::Transform::getRotation, &ark::Transform::setRotation),
+		member("origin", &ark::Transform::getOrigin, &ark::Transform::setOrigin)
+	);
 }

@@ -21,7 +21,7 @@ namespace ark {
 	class EntityManager final : public NonCopyable, public NonMovable {
 
 	public:
-		EntityManager(Scene& s, ComponentManager& cm, ScriptManager& sm) : scene(s), componentManager(cm), scriptManager(sm) {}
+		EntityManager(ComponentManager& cm, ScriptManager& sm) : componentManager(cm), scriptManager(sm) {}
 
 	public:
 
@@ -51,13 +51,13 @@ namespace ark {
 
 		Entity cloneEntity(Entity e, std::string name)
 		{
-			auto& entity = getEntity(e);
 			Entity hClone = createEntity(name);
+			auto& entity = getEntity(e);
 			auto& clone = getEntity(hClone);
 			if (name.empty()) {
 				clone.name.append("_cloneof_");
 				clone.name.append(entity.name);
-			}
+			} 
 
 			for (auto compData : entity.components) {
 				auto [component, index] = componentManager.copyComponent(compData.id, compData.index);
@@ -67,7 +67,6 @@ namespace ark {
 				cloneCompData.id = compData.id;
 				cloneCompData.index = index;
 			}
-			addToScene(hClone);
 			return hClone;
 		}
 
@@ -434,17 +433,11 @@ namespace ark {
 		std::vector<InternalEntityData> entities;
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;
-		Scene& scene;
 		ComponentManager& componentManager;
 		ScriptManager& scriptManager;
 		friend class SceneInspector;
 		//std::vector<std::vector<Entity>> childrenTree;
 	};
-
-	inline Entity Entity::clone(std::string name)
-	{
-		return manager->cloneEntity(*this, name);
-	}
 
 	template<typename T, typename ...Args>
 	inline T& Entity::addComponent(Args&& ...args)

@@ -20,7 +20,7 @@ namespace ark {
 		Scene(MessageBus& bus)
 			: componentManager(),
 			scriptManager(),
-			entityManager(*this, componentManager, scriptManager),
+			entityManager(componentManager, scriptManager),
 			systemManager(bus, *this, componentManager)
 		{}
 
@@ -43,6 +43,12 @@ namespace ark {
 		{
 			for (int i = 0; i < n; i++)
 				entities.push_back(createEntity());
+		}
+
+		Entity cloneEntity(Entity e, std::string name = "")
+		{
+			createdEntities.push_back(entityManager.cloneEntity(e, name));
+			return createdEntities.back();
 		}
 
 		void serializeEntity(Entity e)

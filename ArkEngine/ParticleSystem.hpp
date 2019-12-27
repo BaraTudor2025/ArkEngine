@@ -187,6 +187,17 @@ private:
 };
 
 namespace ark::meta {
+
+	REGISTER_MEMBERS(sf::FloatRect)
+	{
+		return members(
+			member("top", &sf::FloatRect::top),
+			member("left", &sf::FloatRect::left),
+			member("height", &sf::FloatRect::height),
+			member("width", &sf::FloatRect::width)
+		);
+	}
+
 	template <> inline auto registerMembers<PixelParticles::Colors>()
 	{
 		return members(
@@ -207,6 +218,7 @@ namespace ark::meta {
 			member("size", &PixelParticles::size),
 			member("life_time", &PixelParticles::lifeTime),
 			member("angle_dist", &PixelParticles::angleDistribution),
+			member("platform", &PixelParticles::platform),
 			member("colors", &PixelParticles::getColors, &PixelParticles::setColors)
 		);
 	}

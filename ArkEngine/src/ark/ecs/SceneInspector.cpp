@@ -315,9 +315,10 @@ namespace ark {
 		{ typeid(float), [](std::string_view name, const void* pField) {
 			float field = *static_cast<const float*>(pField);
 			ArkSetFieldName(name);
-			if (ImGui::InputFloat("", &field, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue))
+			if (ImGui::InputFloat("", &field, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
 				ArkFocusHere();
 				return std::any{field};
+			}
 			return std::any{};
 		} },
 
@@ -336,9 +337,10 @@ namespace ark {
 			field.copy(buff, field.size());
 			buff[field.size()] = '\0';
 			ArkSetFieldName(name);
-			if (ImGui::InputText("", buff, field.size() + 1, ImGuiInputTextFlags_EnterReturnsTrue))
+			if (ImGui::InputText("", buff, field.size() + 1, ImGuiInputTextFlags_EnterReturnsTrue)) {
 				ArkFocusHere();
 				return std::any{std::string(buff, field.size())};
+			}
 			return std::any{};
 		} },
 
@@ -393,10 +395,10 @@ namespace ark {
 			std::string label = std::string(name) + " (as seconds)";
 			ArkSetFieldName(label);
 			float sec = time.asSeconds();
-			if (ImGui::InputFloat("", &sec, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue))
+			if (ImGui::InputFloat("", &sec, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
 				ArkFocusHere();
 				return std::any{sf::seconds(sec)};
-
+			}
 			return std::any{};
 		} }
 	};

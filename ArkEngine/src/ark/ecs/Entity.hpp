@@ -9,17 +9,14 @@ namespace ark {
 	class Script;
 
 	// this is more of a handle
-	// func definitions are at the bottom of EntityManager.hpp
+	// member function definitions are at the bottom of EntityManager.hpp
 	class Entity final {
 
 	public:
 		Entity() = default;
 		~Entity() = default;
 
-		Entity clone(std::string name = "");
-
 		//TODO: Entity cloneWithScripts(std::string name = "");
-
 
 		template <typename T, typename...Args>
 		T& addComponent(Args&& ... args);

@@ -85,19 +85,6 @@ public:
 		transform = getComponent<Transform>();
 		animation = getComponent<Animation>();
 		runningParticles = getComponent<PixelParticles>();
-
-		transform->setOrigin(animation->frameSize() / 2.f);
-		transform->move(Engine::center());
-
-		auto pp = runningParticles;
-		pp->particlesPerSecond = pp->getParticleNumber() / 2;
-		pp->size = { 60, 30 };
-		pp->speed = this->speed;
-		pp->emitter = transform->getPosition() + sf::Vector2f{ 50, 40 };
-		pp->gravity = { 0, this->speed };
-		auto[w, h] = Engine::windowSize();
-		pp->platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
-		this->setScale({0.1, 0.1});
 	}
 
 	void update() override {
@@ -384,19 +371,33 @@ private:
 		//fireWorks.resize(0);
 		//createEntity(fireWorks);
 
-		/*
-		player = scene.createEntity("player");
-		player.addComponent<Transform>();
-		player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		//player.addScript<MovePlayer>(400, 180);
-		player.addComponent<PointParticles>();
-		player.removeComponent<PointParticles>();
-		//player.addComponent<DelayedAction>(sf::seconds(2), [this](Entity e) { scene.serializeEntity(e); });
-		scene.serializeEntity(player);
-		/**/
 		player = scene.loadEntity("player");
+		/*
+		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
+		player = scene.createEntity("player");
+		auto& transform = player.addComponent<Transform>();
+		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
+		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+		auto moveScript = player.addScript<MovePlayer>(400, 180);
+
+		transform.move(Engine::center());
+		transform.setOrigin(animation.frameSize() / 2.f);
+
+		pp.particlesPerSecond = pp.getParticleNumber() / 2;
+		pp.size = { 60, 30 };
+		pp.speed = moveScript->speed;
+		pp.emitter = transform.getPosition() + sf::Vector2f{ 50, 40 };
+		pp.gravity = { 0, moveScript->speed };
+		auto[w, h] = Engine::windowSize();
+		pp.platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
+
+		moveScript->setScale({0.1, 0.1});
+
+		player.addComponent<DelayedAction>(sf::seconds(4), [this](Entity e) { 
+			GameLog("just serialized entity %s", e.getName());
+			scene.serializeEntity(e); 
+		});
+		/**/
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
 		button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
@@ -423,13 +424,13 @@ private:
 		rainbowPointParticles.addScript<SpawnOnRightClick>();
 		rainbowPointParticles.addScript(typeid(EmittFromMouse));
 
-		ark::Entity rainbowClone = rainbowPointParticles.clone();
+		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
 		rainbowClone.addScript<SpawnOnRightClick>();
 		rainbowClone.removeScript(typeid(SpawnOnRightClick));
 		//rainbowClone.addScript<SpawnOnLeftClick>()->deactivate();
-		rainbowClone.addScript<EmittFromMouse>();
+		//rainbowClone.addScript<EmittFromMouse>();
 		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](ark::Entity e) {
-			//e.setScriptActive<SpawnOnLeftClick>(true);
+			e.setScriptActive<SpawnOnLeftClick>(true);
 		});
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));

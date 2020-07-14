@@ -45,7 +45,8 @@ namespace ark {
 				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", Util::getNameOfType(type));
 				return ArkInvalidIndex;
 			}
-			return pos - std::begin(this->componentIndexes);
+			else 
+				return pos - std::begin(this->componentIndexes);
 		}
 
 		std::type_index typeFromId(int id)
@@ -73,25 +74,34 @@ namespace ark {
 			return idFromType(typeid(T));
 		}
 
-
 		auto addComponent(int compId, bool defaultConstruct) -> std::pair<byte*, int>
 		{
 			auto& pool = pools.at(compId);
-			auto [component, index] = pool.getFreeSlot();
-			pool.metadata.default_constructor(component);
-			return { component, index };
+			auto [newComponent, newIndex] = pool.getFreeSlot();
+			if(defaultConstruct)
+				pool.metadata.default_constructor(newComponent);
+			return { newComponent, newIndex };
 		}
 
 		auto copyComponent(int compId, int index) -> std::pair<byte*, int>
 		{
 			auto& pool = pools.at(compId);
-			return pool.copyComponent(index);
+			auto [newComponent, newIndex] = pool.getFreeSlot();
+			if (pool.metadata.copy_constructor) {
+				byte* copiedComponent = pool.componentAt(index);
+				pool.metadata.copy_constructor(newComponent, copiedComponent);
+			}
+			else
+				pool.metadata.default_constructor(newComponent);
+			return { newComponent, newIndex };
 		}
 
 		void removeComponent(int compId, int index)
 		{
 			auto& pool = pools.at(compId);
-			pool.removeComponent(index);
+			byte* component = pool.componentAt(index);
+			pool.metadata.destructor(component);
+			pool.freeComponents.push_back(index);
 		}
 
 		template <typename T>
@@ -108,8 +118,7 @@ namespace ark {
 				std::abort();
 			}
 			componentIndexes.push_back(type);
-			pools.emplace_back();
-			pools.back().constructPoolFrom<T>();
+			pools.emplace_back().constructPoolFrom<T>();
 		}
 
 		void renderEditorOfComponent(int* widgetId, int compId, void* component)
@@ -139,15 +148,16 @@ namespace ark {
 
 			struct Metadata {
 				std::string_view name;
-				std::align_val_t alignment;
 				int size;
+				std::align_val_t alignment;
+				void(*default_constructor)(void*) = nullptr;
+				void(*copy_constructor)(void*, const void*) = nullptr;
+				void(*destructor)(void*) = nullptr;
+
 				std::function<void(int*, void*)> renderFields; // render in editor
 				std::function<json(const void*)> serialize;
 				std::function<void(const json&, void*)> deserialize;
 
-				void(*default_constructor)(void*) = nullptr;
-				void(*copy_constructor)(void*, const void*) = nullptr;
-				void(*destructor)(void*) = nullptr;
 				//void(*move_constructor)(void*, void*) = nullptr;
 				//void(*relocate)(void*, void*) = nullptr; /*move + dtor?*/
 			};
@@ -155,18 +165,19 @@ namespace ark {
 			struct Chunk {
 				Chunk(int bytes_num, std::align_val_t alignment, const std::function<void(void*)>& delete_buffer)
 					: numberOfComponents(0),
-					buffer((std::byte*)::operator new[](bytes_num, alignment), delete_buffer) { }
-				std::unique_ptr<byte[], std::function<void(void*)>> buffer;
+					buffer((std::byte*)::operator new[](bytes_num, alignment), delete_buffer) 
+				{ }
+				std::unique_ptr<byte[], const std::function<void(void*)>&> buffer;
 				int numberOfComponents;
 			};
 
 		private:
 			int numberOfComponentsPerChunk;
 			int chunk_size;
-			std::vector<Chunk> chunks;
-			std::vector<int> freeComponents;
 			std::function<void(void*)> custom_delete_buffer; // for chunk buffer
+			std::vector<Chunk> chunks;
 		public:
+			std::vector<int> freeComponents;
 			Metadata metadata;
 
 			template <typename T>
@@ -196,39 +207,14 @@ namespace ark {
 				EngineLog(LogSource::ComponentM, LogLevel::Info, "for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d) ", Util::getNameOfType<T>(), chunk_size, numberOfComponentsPerChunk, metadata.size);
 			}
 
-			auto copyComponent(int index) -> std::pair<byte*, int>
-			{
-				auto [newComponent, newIndex] = getFreeSlot();
-				byte* component = getComponent(index);
-				if (metadata.copy_constructor)
-					metadata.copy_constructor(newComponent, component);
-				else
-					metadata.default_constructor(newComponent);
-				return { newComponent, newIndex };
-			}
-
-			void removeComponent(int index)
-			{
-				byte* component = getComponent(index);
-				metadata.destructor(component);
-				freeComponents.push_back(index);
-			}
-
-			std::pair<int, int> getNums(int index)
+			byte* componentAt(int index)
 			{
 				int chunkNum = index / numberOfComponentsPerChunk;
 				int componentNum = index % numberOfComponentsPerChunk;
-				return { chunkNum, componentNum };
+				return &chunks.at(chunkNum).buffer[componentNum * metadata.size];
 			}
 
-			byte* getComponent(int index)
-			{
-				auto [chunkNum, componentNum] = getNums(index);
-				auto& chunk = chunks.at(chunkNum);
-				byte* component = &chunk.buffer[componentNum * metadata.size];
-				return component;
-			}
-
+			// allocates a new chunk if enough space is not available
 			auto getFreeSlot() -> std::pair<byte*, int>
 			{
 				if (freeComponents.empty()) {
@@ -236,14 +222,14 @@ namespace ark {
 						chunks.emplace_back(chunk_size, metadata.alignment, custom_delete_buffer);
 					auto& chunk = chunks.back();
 					int index = numberOfComponentsPerChunk * (chunks.size() - 1) + chunk.numberOfComponents;
-					byte* component = getComponent(index);
 					chunk.numberOfComponents += 1;
+					byte* component = componentAt(index);
 					return { component, index };
 				}
 				else {
 					int index = freeComponents.back();
 					freeComponents.pop_back();
-					return { getComponent(index), index };
+					return { componentAt(index), index };
 				}
 			}
 		};

@@ -212,7 +212,7 @@ namespace ark {
 
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
-					auto& types = *static_cast<std::vector<std::type_index>*> (data);
+					const auto& types = *static_cast<const std::vector<std::type_index>*> (data);
 					*out_text = Util::getNameOfType(types.at(index));
 					return true;
 				};

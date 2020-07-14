@@ -78,8 +78,8 @@ namespace ark {
 		{
 			auto& pool = pools.at(compId);
 			auto [component, index] = pool.getFreeSlot();
-			pool.metadata.default_construct(component);
-			return {component, index};
+			pool.metadata.default_constructor(component);
+			return { component, index };
 		}
 
 		auto copyComponent(int compId, int index) -> std::pair<byte*, int>
@@ -138,82 +138,39 @@ namespace ark {
 		struct Metadata {
 			std::string_view name;
 			int size;
-			bool isCopyable = false;
 			std::function<void(int*, void*)> renderFields; // render in editor
 			std::function<json(const void*)> serialize;
 			std::function<void(const json&, void*)> deserialize;
 
-			Metadata() = default;
-
-			void default_construct(void* p)
-			{
-				default_constructor(p);
-			}
-
-			void copy_construct(void* This, const void* That)
-			{
-				if (copy_constructor)
-					copy_constructor(This, That);
-			}
-
-			void destruct(void* p)
-			{
-				if (destructor)
-					destructor(p);
-			}
-
-			template <typename T>
-			void constructMetadataFrom()
-			{
-				name = Util::getNameOfType<T>();
-
-				constexpr int nBytes = 16;
-				size = sizeof(T);
-				// align to nBytes
-				if (size < nBytes)
-					size = nBytes;
-				else if (size % nBytes != 0)
-					size = size + nBytes - (size % nBytes);
-				// else size is already aligned
-
-				default_constructor = Util::reinterpretCast<constructor_t>(defaultConstructorInstace<T>);
-
-				if constexpr (std::is_copy_constructible_v<T>) {
-					copy_constructor = Util::reinterpretCast<copy_constructor_t>(copyConstructorInstace<T>);
-					isCopyable = true;
-				}
-
-				if constexpr (!std::is_trivially_destructible_v<T>)
-					destructor = Util::reinterpretCast<destructor_t>(destructorInstance<T>);
-
-				renderFields = SceneInspector::renderFieldsOfType<T>;
-				serialize = serialize_value<T>;
-				deserialize = deserialize_value<T>;
-			}
-
-		private:
-			template <typename T> static void defaultConstructorInstace(T* This) { new (This)T(); }
-			template <typename T> static void copyConstructorInstace(T* This, const T* That) { new (This)T(*That); }
-			template <typename T> static void destructorInstance(T* This) { This->~T(); }
-
-			using constructor_t = void (*)(void*);
-			using copy_constructor_t = void (*)(void*, const void*);
-			using destructor_t = void (*)(void*);
-
-			constructor_t default_constructor = nullptr;
-			copy_constructor_t copy_constructor = nullptr;
-			destructor_t destructor = nullptr;
+			void(*default_constructor)(void*) = nullptr;
+			void(*copy_constructor)(void*, const void*) = nullptr;
+			void(*destructor)(void*) = nullptr;
+			//void(*move_constructor)(void*, void*) = nullptr; /*for relocation*/
+			//void(*relocate)(void*, void*) = nullptr; /*move + dtor?*/
 		};
 
 
-		class ComponentPool {
-
-		public:
+		struct ComponentPool {
 
 			template <typename T>
 			void constructPoolFrom()
 			{
-				metadata.constructMetadataFrom<T>();
+				metadata.name = Util::getNameOfType<T>();
+				metadata.size = sizeof(T);
+				metadata.renderFields = SceneInspector::renderFieldsOfType<T>;
+				metadata.serialize = serialize_value<T>;
+				metadata.deserialize = deserialize_value<T>;
+
+				metadata.default_constructor = [](void* This) { new(This)T(); }; //Metadata::defaultConstructorInstace<T>;
+
+				if constexpr (std::is_copy_constructible_v<T>)
+					metadata.copy_constructor = [](void* This, const void* That) { new (This)T(*static_cast<const T*>(That)); };
+
+				if constexpr (!std::is_trivially_destructible_v<T>)
+					metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
+				else
+					metadata.destructor = [](void*) {};
+
 				int kiloByte = 2 * 1024;
 				numberOfComponentsPerChunk = kiloByte / metadata.size;
 				chunk_size = metadata.size * numberOfComponentsPerChunk;
@@ -224,17 +181,17 @@ namespace ark {
 			{
 				auto [newComponent, newIndex] = getFreeSlot();
 				byte* component = getComponent(index);
-				if (metadata.isCopyable)
-					metadata.copy_construct(newComponent, component);
+				if (metadata.copy_constructor)
+					metadata.copy_constructor(newComponent, component);
 				else
-					metadata.default_construct(newComponent);
-				return {newComponent, newIndex};
+					metadata.default_constructor(newComponent);
+				return { newComponent, newIndex };
 			}
 
 			void removeComponent(int index)
 			{
 				byte* component = getComponent(index);
-				metadata.destruct(component);
+				metadata.destructor(component);
 				freeComponents.push_back(index);
 			}
 
@@ -242,7 +199,7 @@ namespace ark {
 			{
 				int chunkNum = index / numberOfComponentsPerChunk;
 				int componentNum = index % numberOfComponentsPerChunk;
-				return {chunkNum, componentNum};
+				return { chunkNum, componentNum };
 			}
 
 			byte* getComponent(int index)
@@ -265,21 +222,22 @@ namespace ark {
 					int index = numberOfComponentsPerChunk * (chunks.size() - 1) + chunk.numberOfComponents;
 					byte* component = getComponent(index);
 					chunk.numberOfComponents += 1;
-					return {component, index};
-				} else {
+					return { component, index };
+				}
+				else {
 					int index = freeComponents.back();
 					freeComponents.pop_back();
-					return {getComponent(index), index};
+					return { getComponent(index), index };
 				}
 			}
 
 			struct Chunk {
 				Chunk(int CHUNK_SIZE) : buffer(CHUNK_SIZE), numberOfComponents(0) {}
 				int numberOfComponents;
+				//std::unique_ptr<byte[]> buffer;
 				std::vector<byte> buffer;
 			};
 
-		public:
 			Metadata metadata;
 		private:
 			int numberOfComponentsPerChunk;

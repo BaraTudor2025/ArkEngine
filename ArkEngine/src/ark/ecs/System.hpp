@@ -85,7 +85,7 @@ namespace ark {
 				componentNames.push_back(Util::getNameOfType(type));
 
 			for (auto type : componentTypes)
-				componentMask.set(cm.getComponentId(type));
+				componentMask.set(cm.idFromType(type));
 			componentTypes.clear();
 		}
 

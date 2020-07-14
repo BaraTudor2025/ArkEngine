@@ -128,7 +128,7 @@ namespace ark {
 
 					ImGui::TextUnformatted("Components:");
 					for (auto& compData : entity.components) {
-						auto type = componentManager.getTypeFromId(compData.id);
+						auto type = componentManager.typeFromId(compData.id);
 						ImGui::BulletText(Util::getNameOfType(type));
 					}
 
@@ -190,7 +190,7 @@ namespace ark {
 				ImGui::TextUnformatted("Components:");
 				int widgetId = 0;
 				for (auto& compData : entity.components) {
-					auto compType = componentManager.getTypeFromId(compData.id);
+					auto compType = componentManager.typeFromId(compData.id);
 					ImGui::BulletText(Util::getNameOfType(compType));
 					// remove component button
 					auto typeNameSize = ImGui::GetItemRectSize();

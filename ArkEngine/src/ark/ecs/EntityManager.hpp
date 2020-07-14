@@ -103,7 +103,7 @@ namespace ark {
 
 			auto& jsonComps = jsonEntity["components"];
 			for (auto compData : entity.components) {
-				auto compName = componentManager.getComponentName(compData.id);
+				auto compName = componentManager.nameFromId(compData.id);
 				jsonComps[compName.data()] = componentManager.serializeComponent(compData.id, compData.component);
 			}
 
@@ -122,11 +122,11 @@ namespace ark {
 
 			auto& jsonComps = jsonEntity.at("components");
 			for (const auto& [key, _] : jsonComps.items()) {
-				auto type = componentManager.getTypeFromName(key);
+				auto type = componentManager.typeFromName(key);
 				e.addComponent(type);
 			}
 			for (auto compData : entity.components) {
-				auto compName = componentManager.getComponentName(compData.id);
+				auto compName = componentManager.nameFromId(compData.id);
 				componentManager.deserializeComponent(compData.id, compData.component, jsonComps.at(compName.data()));
 			}
 
@@ -176,7 +176,7 @@ namespace ark {
 
 		void* implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct)
 		{
-			int compId = componentManager.getComponentId(type);
+			int compId = componentManager.idFromType(type);
 			auto& entity = getEntity(e);
 			if (entity.mask.test(compId))
 				return getComponentOfEntity(e, type);
@@ -194,7 +194,7 @@ namespace ark {
 		void* getComponentOfEntity(Entity e, std::type_index type)
 		{
 			auto& entity = getEntity(e);
-			int compId = componentManager.getComponentId(type);
+			int compId = componentManager.idFromType(type);
 			if (!entity.mask.test(compId)) {
 				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType(type));
 				return nullptr;
@@ -211,7 +211,7 @@ namespace ark {
 		void removeComponentOfEntity(Entity e, std::type_index type)
 		{
 			auto& entity = getEntity(e);
-			auto compId = componentManager.getComponentId(type);
+			auto compId = componentManager.idFromType(type);
 			if (entity.mask.test(compId)) {
 				markAsModified(e);
 				componentManager.removeComponent(compId, entity.getComponentIndex(compId));

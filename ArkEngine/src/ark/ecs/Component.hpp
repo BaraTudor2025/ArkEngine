@@ -38,7 +38,7 @@ namespace ark {
 			return pos != std::end(this->componentIndexes);
 		}
 
-		int getComponentId(std::type_index type)
+		int idFromType(std::type_index type)
 		{
 			auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
 			if (pos == std::end(this->componentIndexes)) {
@@ -48,12 +48,12 @@ namespace ark {
 			return pos - std::begin(this->componentIndexes);
 		}
 
-		std::type_index getTypeFromId(int id)
+		std::type_index typeFromId(int id)
 		{
 			return componentIndexes.at(id);
 		}
 
-		std::type_index getTypeFromName(std::string_view name)
+		std::type_index typeFromName(std::string_view name)
 		{
 			for (const auto& type : componentIndexes) {
 				if (name == Util::getNameOfType(type))
@@ -62,15 +62,15 @@ namespace ark {
 			EngineLog(LogSource::ComponentM, LogLevel::Error, "getTypeFromName() didn't find (%s)", name.data());
 		}
 
-		std::string_view getComponentName(int id)
+		std::string_view nameFromId(int id)
 		{
 			return pools[id].metadata.name;
 		}
 
 		template <typename T>
-		int getComponentId()
+		int idFromType()
 		{
-			return getComponentId(typeid(T));
+			return idFromType(typeid(T));
 		}
 
 

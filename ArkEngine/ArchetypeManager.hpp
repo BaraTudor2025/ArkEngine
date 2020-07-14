@@ -161,7 +161,7 @@ namespace ark {
 		}
 
 
-		int getComponentId(std::type_index type)
+		int idFromType(std::type_index type)
 		{
 			auto pos = std::find_if(std::begin(metadataPool), std::end(metadataPool), [type](auto& m) {return m.type == type; });
 			if (pos == std::end(metadataPool)) {
@@ -173,9 +173,9 @@ namespace ark {
 
 
 		template <typename T>
-		int getComponentId()
+		int idFromType()
 		{
-			return getComponentId(typeid(T));
+			return idFromType(typeid(T));
 		}
 
 
@@ -208,7 +208,7 @@ namespace ark {
 			// construct mask
 			EntityData entityData;
 			for (const auto& type : archetype.types)
-				entityData.mask.set(getComponentId(type));
+				entityData.mask.set(idFromType(type));
 
 			auto storage = getStorageAndConstructIfNotExistent(entityData.mask);
 			auto [chunkNum, entityNum] = getAvailableSlot(storage, entityData.mask);

@@ -135,22 +135,39 @@ namespace ark {
 
 	private:
 
-		struct Metadata {
-			std::string_view name;
-			int size;
-			std::function<void(int*, void*)> renderFields; // render in editor
-			std::function<json(const void*)> serialize;
-			std::function<void(const json&, void*)> deserialize;
-
-			void(*default_constructor)(void*) = nullptr;
-			void(*copy_constructor)(void*, const void*) = nullptr;
-			void(*destructor)(void*) = nullptr;
-			//void(*move_constructor)(void*, void*) = nullptr; /*for relocation*/
-			//void(*relocate)(void*, void*) = nullptr; /*move + dtor?*/
-		};
-
-
 		struct ComponentPool {
+
+			struct Metadata {
+				std::string_view name;
+				std::align_val_t alignment;
+				int size;
+				std::function<void(int*, void*)> renderFields; // render in editor
+				std::function<json(const void*)> serialize;
+				std::function<void(const json&, void*)> deserialize;
+
+				void(*default_constructor)(void*) = nullptr;
+				void(*copy_constructor)(void*, const void*) = nullptr;
+				void(*destructor)(void*) = nullptr;
+				//void(*move_constructor)(void*, void*) = nullptr;
+				//void(*relocate)(void*, void*) = nullptr; /*move + dtor?*/
+			};
+
+			struct Chunk {
+				Chunk(int bytes_num, std::align_val_t alignment, const std::function<void(void*)>& delete_buffer)
+					: numberOfComponents(0),
+					buffer((std::byte*)::operator new[](bytes_num, alignment), delete_buffer) { }
+				std::unique_ptr<byte[], std::function<void(void*)>> buffer;
+				int numberOfComponents;
+			};
+
+		private:
+			int numberOfComponentsPerChunk;
+			int chunk_size;
+			std::vector<Chunk> chunks;
+			std::vector<int> freeComponents;
+			std::function<void(void*)> custom_delete_buffer; // for chunk buffer
+		public:
+			Metadata metadata;
 
 			template <typename T>
 			void constructPoolFrom()
@@ -160,8 +177,10 @@ namespace ark {
 				metadata.renderFields = SceneInspector::renderFieldsOfType<T>;
 				metadata.serialize = serialize_value<T>;
 				metadata.deserialize = deserialize_value<T>;
+				metadata.alignment = std::align_val_t{ alignof(T) };
+				custom_delete_buffer = [alignment = metadata.alignment](void* ptr) { ::operator delete[](ptr, alignment); };
 
-				metadata.default_constructor = [](void* This) { new(This)T(); }; //Metadata::defaultConstructorInstace<T>;
+				metadata.default_constructor = [](void* This) { new(This)T(); };
 
 				if constexpr (std::is_copy_constructible_v<T>)
 					metadata.copy_constructor = [](void* This, const void* That) { new (This)T(*static_cast<const T*>(That)); };
@@ -206,18 +225,15 @@ namespace ark {
 			{
 				auto [chunkNum, componentNum] = getNums(index);
 				auto& chunk = chunks.at(chunkNum);
-				byte* component = &chunk.buffer.at(componentNum * metadata.size);
+				byte* component = &chunk.buffer[componentNum * metadata.size];
 				return component;
 			}
 
 			auto getFreeSlot() -> std::pair<byte*, int>
 			{
 				if (freeComponents.empty()) {
-					if (chunks.empty())
-						chunks.emplace_back(chunk_size);
-					if (chunks.back().numberOfComponents == numberOfComponentsPerChunk) {
-						chunks.emplace_back(chunk_size);
-					}
+					if (chunks.empty() || chunks.back().numberOfComponents == numberOfComponentsPerChunk)
+						chunks.emplace_back(chunk_size, metadata.alignment, custom_delete_buffer);
 					auto& chunk = chunks.back();
 					int index = numberOfComponentsPerChunk * (chunks.size() - 1) + chunk.numberOfComponents;
 					byte* component = getComponent(index);
@@ -230,20 +246,6 @@ namespace ark {
 					return { getComponent(index), index };
 				}
 			}
-
-			struct Chunk {
-				Chunk(int CHUNK_SIZE) : buffer(CHUNK_SIZE), numberOfComponents(0) {}
-				int numberOfComponents;
-				//std::unique_ptr<byte[]> buffer;
-				std::vector<byte> buffer;
-			};
-
-			Metadata metadata;
-		private:
-			int numberOfComponentsPerChunk;
-			int chunk_size;
-			std::vector<Chunk> chunks;
-			std::vector<int> freeComponents;
 		};
 
 		friend class System;

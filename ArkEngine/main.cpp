@@ -170,7 +170,7 @@ namespace ark::meta {
 	* refactor Util::find
 	* - optimize rng
 	* - add 'ark' namespace
-	* add serialization(nlohmann json)
+	* - add serialization(nlohmann json)
 	* add more options to gui editor
 	* add scripting with lua(sol3) and/or chaiscript
 	* custom allocator for lua/scripts/systems

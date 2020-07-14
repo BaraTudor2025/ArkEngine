@@ -74,7 +74,7 @@ namespace ark {
 		}
 
 
-		auto addComponent(int compId) -> std::pair<byte*, int>
+		auto addComponent(int compId, bool defaultConstruct) -> std::pair<byte*, int>
 		{
 			auto& pool = pools.at(compId);
 			auto [component, index] = pool.getFreeSlot();

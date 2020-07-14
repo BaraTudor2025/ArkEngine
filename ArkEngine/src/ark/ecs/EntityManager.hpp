@@ -162,19 +162,19 @@ namespace ark {
 
 		// if component already exists, then the existing component is returned
 		template <typename T, typename... Args>
-		T& addComponentOnEntity(Entity e, Args&&... args)
-		{
-			int compId = componentManager.getComponentId<T>();
-			auto& entity = getEntity(e);
-			if (entity.mask.test(compId))
-				return *getComponentOfEntity<T>(e);
-
-			auto component = addComponentOnEntity(e, typeid(T));
-			Util::construct_in_place<T>(component, std::forward<Args>(args)...);
-			return *reinterpret_cast<T*>(component);
+		T& addComponentOnEntity(Entity e, Args&&... args) {
+			bool def = sizeof...(args) == 0 ? true : false;
+			void* comp = implAddComponentOnEntity(e, typeid(T), def);
+			if(not def)
+				Util::construct_in_place<T>(comp, std::forward<Args>(args)...);
+			return *static_cast<T*>(comp);
 		}
 
-		void* addComponentOnEntity(Entity e, std::type_index type)
+		void* addComponentOnEntity(Entity e, std::type_index type) {
+			return implAddComponentOnEntity(e, type, true);
+		}
+
+		void* implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct)
 		{
 			int compId = componentManager.getComponentId(type);
 			auto& entity = getEntity(e);
@@ -183,7 +183,7 @@ namespace ark {
 			markAsModified(e);
 			entity.mask.set(compId);
 
-			auto [comp, compIndex] = componentManager.addComponent(compId);
+			auto [comp, compIndex] = componentManager.addComponent(compId, defaultConstruct);
 			auto& compData = entity.components.emplace_back();
 			compData.component = comp;
 			compData.id = compId;
@@ -379,8 +379,6 @@ namespace ark {
 		}
 
 	private:
-
-		void addToScene(Entity e);
 
 		static inline const std::string entityFolder = Resources::resourceFolder + "entities/";
 

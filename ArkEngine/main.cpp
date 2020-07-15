@@ -337,10 +337,9 @@ public:
 	}
 };
 
-class EmittFromMouseTest : public ScriptClass {
+class EmittFromMouseTest : public ScriptClassT<EmittFromMouseTest> {
 	PointParticles* p;
 public:
-	EmittFromMouseTest() : ScriptClass(typeid(EmittFromMouseTest)) { }
 	void bind() noexcept override
 	{
 		p = getComponent<PointParticles>();

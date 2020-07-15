@@ -27,6 +27,12 @@ private:
 	friend struct ScriptingComponent;
 };
 
+template <typename T>
+class ScriptClassT : public ScriptClass {
+public:
+	ScriptClassT() : ScriptClass(typeid(T)) { }
+};
+
 struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingComponent> {
 
 	ScriptingComponent() = default;
@@ -41,7 +47,6 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		auto& script = mScripts.emplace_back(std::move(p));
 		if (mEntity.isValid())
 			script->bind();
-		//script->mType = typeid(T);
 		return pScript;
 	}
 

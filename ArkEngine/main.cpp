@@ -25,6 +25,7 @@
 #include "AnimationSystem.hpp"
 #include "FpsCounterSystem.hpp"
 #include "GuiSystem.hpp"
+#include "ScriptingSystem.hpp"
 
 using namespace std::literals;
 using namespace ark;
@@ -55,7 +56,7 @@ class MovePlayer : public ark::ScriptT<MovePlayer> {
 	{
 		particleEmitterOffsetLeft = { -165, 285 };
 		{
-			auto[x, y] = particleEmitterOffsetLeft;
+			auto [x, y] = particleEmitterOffsetLeft;
 			particleEmitterOffsetRight = { -x, y };
 		}
 	}
@@ -64,7 +65,7 @@ public:
 	float speed = 400;
 
 	MovePlayer() = default;
-	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) { }
+	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) {}
 
 	void setScale(sf::Vector2f scale)
 	{
@@ -72,7 +73,7 @@ public:
 		resetOffset();
 		particleEmitterOffsetLeft = particleEmitterOffsetLeft * transform->getScale();
 		particleEmitterOffsetRight = particleEmitterOffsetRight * transform->getScale();
-		runningParticles->size = {60, 30};
+		runningParticles->size = { 60, 30 };
 		runningParticles->size = runningParticles->size * transform->getScale();
 	}
 
@@ -81,13 +82,15 @@ public:
 		return transform->getScale();
 	}
 
-	void init() override {
+	void init() override
+	{
 		transform = getComponent<Transform>();
 		animation = getComponent<Animation>();
 		runningParticles = getComponent<PixelParticles>();
 	}
 
-	void update() override {
+	void update() override
+	{
 		bool moved = false;
 		auto dt = Engine::deltaTime().asSeconds();
 		float dx = speed * dt;
@@ -95,14 +98,14 @@ public:
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
 			transform->move(dx * std::cos(angle), dx * std::sin(angle));
-			runningParticles->angleDistribution = { PI + PI/4, PI / 10, DistributionType::normal };
+			runningParticles->angleDistribution = { PI + PI / 4, PI / 10, DistributionType::normal };
 			runningParticles->emitter = transform->getPosition() + particleEmitterOffsetLeft;
 			moved = true;
 			animation->flipX = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
 			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
-			runningParticles->angleDistribution = { -PI/4, PI / 10, DistributionType::normal };
+			runningParticles->angleDistribution = { -PI / 4, PI / 10, DistributionType::normal };
 			runningParticles->emitter = transform->getPosition() + particleEmitterOffsetRight;
 			moved = true;
 			animation->flipX = true;
@@ -125,7 +128,8 @@ public:
 			animation->row = 0;
 			animation->frameTime = sf::milliseconds(75);
 			runningParticles->spawn = true;
-		} else {
+		}
+		else {
 			animation->frameTime = sf::milliseconds(125);
 			animation->row = 1;
 			runningParticles->spawn = false;
@@ -133,7 +137,8 @@ public:
 	}
 };
 
-namespace ark::meta {
+namespace ark::meta
+{
 	template <> inline auto registerMembers<MovePlayer>()
 	{
 		return members(
@@ -164,7 +169,7 @@ namespace ark::meta {
 /* TODO (general): ParticleEmmiter with settings*/
 /* TODO (general): add a archetype component manager*/
 
-/* TODO: 
+/* TODO:
 	* small vector
 	* optional ref
 	* refactor Util::find
@@ -197,7 +202,7 @@ class TestMessageSystem : public ark::System {
 public:
 	TestMessageSystem() : ark::System(typeid(TestMessageSystem)) {}
 
-	void handleMessage(const ark::Message& message) override 
+	void handleMessage(const ark::Message& message) override
 	{
 		if (message.id == MessageType::TestData) {
 			const auto& m = message.data<Mesajul>();
@@ -225,18 +230,18 @@ enum States {
 class BasicState : public ark::State {
 
 protected:
-	ark::Scene scene{getMessageBus()};
+	ark::Scene scene{ getMessageBus() };
 	sf::Sprite screen;
 	sf::Texture screenImage;
 	bool takenSS = false;
 	bool pauseScene = false;
 
 public:
-	BasicState(ark::MessageBus& bus) : ark::State(bus) { }
+	BasicState(ark::MessageBus& bus) : ark::State(bus) {}
 
 	bool handleEvent(const sf::Event& event) override
 	{
-		if(!pauseScene)
+		if (!pauseScene)
 			scene.handleEvent(event);
 
 		if (event.type == sf::Event::KeyPressed)
@@ -250,7 +255,7 @@ public:
 
 	void handleMessage(const ark::Message& message) override
 	{
-		if(!pauseScene)
+		if (!pauseScene)
 			scene.handleMessage(message);
 	}
 
@@ -267,7 +272,8 @@ public:
 	{
 		if (!pauseScene) {
 			scene.render(target);
-		} else if(!takenSS){
+		}
+		else if (!takenSS) {
 			scene.render(target);
 			takenSS = true;
 			auto& win = Engine::getWindow();
@@ -276,7 +282,8 @@ public:
 			screenImage.update(win);
 			screen.setTexture(screenImage);
 			target.draw(screen);
-		} else if (takenSS) {
+		}
+		else if (takenSS) {
 			target.draw(screen);
 		}
 
@@ -288,7 +295,7 @@ public:
 struct DelayedAction : ark::Component<DelayedAction> {
 
 	DelayedAction() = default;
-	
+
 	DelayedAction(sf::Time time, std::function<void(Entity)> fun)
 	{
 		setAction(time, fun);
@@ -330,6 +337,20 @@ public:
 	}
 };
 
+class EmittFromMouseTest : public ScriptClass {
+	PointParticles* p;
+public:
+	EmittFromMouseTest() : ScriptClass(typeid(EmittFromMouseTest)) { }
+	void bind() noexcept override
+	{
+		p = getComponent<PointParticles>();
+	}
+	void update() noexcept override
+	{
+		p->emitter = Engine::mousePositon();
+	}
+};
+
 class TestingState : public BasicState {
 	Entity player;
 	Entity button;
@@ -340,10 +361,10 @@ class TestingState : public BasicState {
 	Entity rotatingParticles;
 	std::vector<Entity> fireWorks;
 	std::vector<Entity> particleFountains;
-	SceneInspector inspector{scene};
+	SceneInspector inspector{ scene };
 
 public:
-	TestingState(ark::MessageBus& mb) : BasicState(mb) { }
+	TestingState(ark::MessageBus& mb) : BasicState(mb) {}
 
 private:
 
@@ -358,6 +379,7 @@ private:
 		scene.addSystem<TextSystem>();
 		scene.addSystem<AnimationSystem>();
 		scene.addSystem<DelayedActionSystem>();
+		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
 		addTab("scene inspector", [&]() { inspector.render(); });
 		//scene.addSystem<TestMessageSystem>();
 
@@ -393,14 +415,14 @@ private:
 
 		moveScript->setScale({0.1, 0.1});
 
-		player.addComponent<DelayedAction>(sf::seconds(4), [this](Entity e) { 
+		player.addComponent<DelayedAction>(sf::seconds(4), [this](Entity e) {
 			GameLog("just serialized entity %s", e.getName());
-			scene.serializeEntity(e); 
+			scene.serializeEntity(e);
 		});
 		/**/
 
 		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
-		button.addComponent<Button>(sf::FloatRect{100, 100, 200, 100});
+		button.addComponent<Button>(sf::FloatRect{ 100, 100, 200, 100 });
 		auto& b = button.getComponent<Button>();
 		b.setFillColor(sf::Color(240, 240, 240));
 		b.setOutlineColor(sf::Color::Black);
@@ -431,6 +453,7 @@ private:
 		//rainbowClone.addScript<EmittFromMouse>();
 		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](ark::Entity e) {
 			e.setScriptActive<SpawnOnLeftClick>(true);
+			//e.getComponent<ScriptingComponent>().getScript<SpawnOnLeftClick>().setActive(true);
 		});
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
@@ -461,9 +484,11 @@ private:
 		auto& mouseParticles = mouseTrail.getComponent<PointParticles>();
 		mouseParticles.setParticleNumber(1000);
 		mouseParticles.setLifeTime(sf::seconds(5), DistributionType::normal);
-		mouseParticles.speedDistribution = {0.f, 2.f};
-		mouseParticles.angleDistribution = {0.f, 0.f};
-		mouseTrail.addScript<EmittFromMouse>();
+		mouseParticles.speedDistribution = { 0.f, 2.f };
+		mouseParticles.angleDistribution = { 0.f, 0.f };
+		//mouseTrail.addScript<EmittFromMouse>();
+		auto& scriptComp = mouseTrail.addComponent<ScriptingComponent>();
+		scriptComp.addScript<EmittFromMouseTest>();
 		mouseTrail.addScript<TraillingEffect>();
 		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 
@@ -495,7 +520,7 @@ private:
 		PixelParticleSystem::gravityVector = { 0, 0 };
 		PixelParticleSystem::gravityMagnitude = 100;
 		PixelParticleSystem::gravityPoint = Engine::center();
-		
+
 		//registerEntity(fireWorks);
 		//registerEntity(particleFountains);
 	}
@@ -507,7 +532,7 @@ class ChildTestScene : public TemplateScene {
 	void init()
 	{
 		this->setup();
-		createEntities({parent, child1, child2, grandson});
+		createEntities({ parent, child1, child2, grandson });
 
 		parent.addChild(child1);
 		parent.addChild(child2);
@@ -540,13 +565,13 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 
-	Engine::create(Engine::resolutionFullHD, "Articifii!", sf::seconds(1/120.f), settings);
+	Engine::create(Engine::resolutionFullHD, "Articifii!", sf::seconds(1 / 120.f), settings);
 	Engine::backGroundColor = sf::Color(50, 50, 50);
 	Engine::getWindow().setVerticalSyncEnabled(false);
 	Engine::registerState<class TestingState>(States::TestingState);
 	Engine::pushFirstState(States::TestingState);
 
 	Engine::run();
-	
+
 	return 0;
 }

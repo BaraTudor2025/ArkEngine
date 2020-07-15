@@ -202,5 +202,8 @@
     <ClInclude Include="src\ark\ecs\Serialize.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
+    <ClInclude Include="ScriptingSystem.hpp">
+      <Filter>Systems</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

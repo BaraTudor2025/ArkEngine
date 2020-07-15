@@ -194,6 +194,7 @@
     <ClInclude Include="FpsCounterSystem.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
+    <ClInclude Include="ScriptingSystem.hpp" />
     <ClInclude Include="Scripts.hpp" />
     <ClInclude Include="src\ark\core\Core.hpp" />
     <ClInclude Include="src\ark\core\Engine.hpp" />

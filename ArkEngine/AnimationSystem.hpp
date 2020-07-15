@@ -81,7 +81,7 @@ struct Animation : public ark::Component<Animation> {
 		auto visitor = [](const std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) {
 			return sf::Vector2u{ frameCounts.first, (uint32_t)frameCounts.second.size() }; // size means the number of columns
 		}; 
-		auto[fcX, fcY] = std::visit(overloaded{
+		auto[fcX, fcY] = std::visit(Util::overloaded{
 			visitor,
 			[](sf::Vector2u frameCount) { return frameCount; }
 		}, frameCount);

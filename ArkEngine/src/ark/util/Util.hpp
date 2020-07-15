@@ -44,13 +44,6 @@ struct NonMovable {
 	NonMovable& operator=(NonMovable&&) = delete;
 };
 
-template <typename...Ts>
-struct overloaded : Ts... {
-	using Ts::operator()...;
-};
-
-template <typename...Ts> overloaded(Ts...)->overloaded<Ts...>;
-
 template <typename T, typename U>
 sf::Vector2<T> operator*(sf::Vector2<T> v1, sf::Vector2<U> v2)
 {
@@ -63,7 +56,15 @@ sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
 	return { v1.x / v2.x, v1.y / v2.y };
 }
 
-namespace Util {
+namespace Util
+{
+
+	template <typename...Ts>
+	struct overloaded : Ts... {
+		using Ts::operator()...;
+	};
+
+	template <typename...Ts> overloaded(Ts...)->overloaded<Ts...>;
 
 
 	template <typename T, typename P>
@@ -85,7 +86,7 @@ namespace Util {
 		union {
 			T in;
 			R ret;
-		}u{in};
+		}u{ in };
 		return u.ret;
 	}
 
@@ -120,7 +121,7 @@ namespace Util {
 	template <typename T>
 	sf::Vector2f centerOfRect(sf::Rect<T> rect)
 	{
-		return {rect.left + rect.width / 2.f, rect.top + rect.height / 2.f};
+		return { rect.left + rect.width / 2.f, rect.top + rect.height / 2.f };
 	}
 
 	inline std::vector<std::string> splitOnSpace(std::string string)
@@ -163,7 +164,7 @@ namespace Util {
 		else {
 			if constexpr (std::is_pointer_v<U>)
 				return std::optional<U>(*it);
-			else 
+			else
 				return std::optional<U&>(*it);
 		}
 	}
@@ -224,7 +225,7 @@ namespace Util {
 		auto [x, y] = vec;
 		auto magnitude = std::sqrt(x * x + y * y);
 		auto angle = std::atan2(y, x);
-		return {magnitude, angle};
+		return { magnitude, angle };
 	}
 
 	inline sf::Vector2f toCartesian(PolarVector vec)
@@ -232,7 +233,7 @@ namespace Util {
 		auto [r, fi] = vec;
 		auto x = r * std::cos(fi);
 		auto y = r * std::sin(fi);
-		return {x, y};
+		return { x, y };
 	}
 
 #if 0
@@ -336,7 +337,8 @@ std::function<R(Args...)> memo(R(*fn)(Args...))
 			auto result = fn(args...);
 			table[argt] = result;
 			return result;
-		} else {
+}
+		else {
 			return memoized->second;
 		}
 	};

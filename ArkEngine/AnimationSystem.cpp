@@ -30,7 +30,7 @@ void AnimationSystem::update()
 		auto&[row, frameCount, frameTime, currentFrame, elapsedTime, uvRect] = animation;
 
 		auto visitor = [row = row](std::pair<uint32_t, std::vector<uint32_t>>& frameCounts) { return frameCounts.second[row]; };
-		uint32_t frameCountX = std::visit(overloaded{
+		uint32_t frameCountX = std::visit(Util::overloaded{
 			visitor,
 			[](sf::Vector2u frameCount) { return frameCount.x; }
 		}, frameCount);

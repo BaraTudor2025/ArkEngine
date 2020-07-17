@@ -106,21 +106,18 @@ private:
 	friend class PointParticleSystem;
 };
 
-namespace ark::meta {
-
-	REGISTER_MEMBERS(PointParticles)
-	{
-		using PP = PointParticles;
-		return members(
-			member("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
-			member("lifeTime", &PP::getLifeTime, &PP::setLifeTime),
-			member("spawn", &PP::spawn),
-			member("fireworks", &PP::fireworks),
-			member("emitter", &PP::emitter),
-			member("speedDistribution", &PP::speedDistribution),
-			member("angleDistribution", &PP::angleDistribution)
-		);
-	}
+REGISTER_MEMBERS(PointParticles, "PointParticles", ARK_SERVICE_INSPECTOR)
+{
+	using PP = PointParticles;
+	return members(
+		member("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
+		member("lifeTime", &PP::getLifeTime, &PP::setLifeTime),
+		member("spawn", &PP::spawn),
+		member("fireworks", &PP::fireworks),
+		member("emitter", &PP::emitter),
+		member("speedDistribution", &PP::speedDistribution),
+		member("angleDistribution", &PP::angleDistribution)
+	);
 }
 
 struct PixelParticles : public ark::Component<PixelParticles> {
@@ -186,45 +183,41 @@ private:
 	friend class PixelParticleSystem;
 };
 
-namespace ark::meta {
-
-	REGISTER_MEMBERS(sf::FloatRect)
-	{
-		return members(
-			member("top", &sf::FloatRect::top),
-			member("left", &sf::FloatRect::left),
-			member("height", &sf::FloatRect::height),
-			member("width", &sf::FloatRect::width)
-		);
-	}
-
-	template <> inline auto registerMembers<PixelParticles::Colors>()
-	{
-		return members(
-			member("dominant", &PixelParticles::Colors::first),
-			member("subdominant", &PixelParticles::Colors::second)
-		);
-	}
-
-	template <> inline auto registerMembers<PixelParticles>()
-	{
-		return members(
-			member("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),
-			member("particles_per_second", &PixelParticles::particlesPerSecond),
-			member("spawn", &PixelParticles::spawn),
-			member("speed", &PixelParticles::speed),
-			member("gravity", &PixelParticles::gravity),
-			member("emitter", &PixelParticles::emitter),
-			member("size", &PixelParticles::size),
-			member("life_time", &PixelParticles::lifeTime),
-			member("angle_dist", &PixelParticles::angleDistribution),
-			member("platform", &PixelParticles::platform),
-			member("colors", &PixelParticles::getColors, &PixelParticles::setColors)
-		);
-	}
+REGISTER_MEMBERS(sf::FloatRect, "FloatRect", ARK_SERVICE_INSPECTOR)
+{
+	return members(
+		member("top", &sf::FloatRect::top),
+		member("left", &sf::FloatRect::left),
+		member("height", &sf::FloatRect::height),
+		member("width", &sf::FloatRect::width)
+	);
 }
 
-// templates
+REGISTER_MEMBERS(PixelParticles::Colors, "ColorPair", ARK_SERVICE_INSPECTOR)
+{
+	return members(
+		member("dominant", &PixelParticles::Colors::first),
+		member("subdominant", &PixelParticles::Colors::second)
+	);
+}
+
+REGISTER_MEMBERS(PixelParticles, "PixelParticles", ARK_SERVICE_INSPECTOR)
+{
+	return members(
+		member("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),
+		member("particles_per_second", &PixelParticles::particlesPerSecond),
+		member("spawn", &PixelParticles::spawn),
+		member("speed", &PixelParticles::speed),
+		member("gravity", &PixelParticles::gravity),
+		member("emitter", &PixelParticles::emitter),
+		member("size", &PixelParticles::size),
+		member("life_time", &PixelParticles::lifeTime),
+		member("angle_dist", &PixelParticles::angleDistribution),
+		member("platform", &PixelParticles::platform),
+		member("colors", &PixelParticles::getColors, &PixelParticles::setColors)
+	);
+}
+
 
 static auto makeRed = []() {
 	auto green = RandomNumber<uint32_t>(0, 200);

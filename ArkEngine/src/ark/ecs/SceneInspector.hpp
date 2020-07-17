@@ -8,6 +8,8 @@
 
 #include "ark/ecs/Meta.hpp"
 
+#define ARK_SERVICE_INSPECTOR service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderFieldsOfType<Type>)
+
 namespace ark {
 
 	class EntityManager;
@@ -35,6 +37,8 @@ namespace ark {
 
 		template <typename T>
 		static bool renderFieldsOfType(int* widgetId, void* pValue);
+
+		static inline constexpr std::string_view serviceName = "INSPECTOR";
 
 	private:
 		EntityManager& entityManager;

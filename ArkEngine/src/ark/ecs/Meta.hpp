@@ -1,3 +1,4 @@
+/* initial code taken from Elias Daler https://github.com/eliasdaler/MetaStuff/tree/cpp17 licensed under the MIT licence*/
 /* -----------------------------------------------------------------------------------------------
 
 meta::registerMembers<T> is used for class registration and it has the following form when specialized:
@@ -39,37 +40,77 @@ auto registerMembers<YourClass>()
 #include <tuple>
 #include <utility>
 #include <array>
+#include <typeindex>
 
 /* for example usage see the registration of ark::Transform for members and for enum see RandomNumbers.hpp */
 
-#define REGISTER_MEMBERS(type) template <> inline auto registerMembers<type>()
-#define REGISTER_ENUM(type) template <> inline auto registerEnum<type>()
+#define CONCAT_IMPL( x, y ) x##y
+#define MACRO_CONCAT( x, y ) CONCAT_IMPL( x, y )
+#define UNIQUE_NAME(x) MACRO_CONCAT(x, __COUNTER__)
+#define RUN_CODE(...) \
+	inline auto UNIQUE_NAME(_ark_gfunc) = []() {__VA_ARGS__ return 0;} ()
+
+#define REGISTER_SERVICES(TYPE, NAME, ...) \
+	namespace ark::meta { \
+		RUN_CODE(using Type = TYPE; constructMetadataFrom<TYPE>(NAME); services<TYPE>(__VA_ARGS__);); \
+	}
+
+#define REGISTER_MEMBERS(TYPE, NAME, ...) \
+	REGISTER_SERVICES(TYPE, NAME, __VA_ARGS__) \
+	template <> inline auto ::ark::meta::registerMembers<TYPE>()
+
+#define REGISTER_ENUM(TYPE) \
+	template <> inline auto ::ark::meta::registerEnum<TYPE>()
 
 namespace ark::meta
 {
 	template <typename Class>
 	inline auto registerMembers();
 
-	template <typename Class>
-	constexpr auto registerName();
+	struct Metadata {
+	private:
+		Metadata(std::type_index type, std::size_t size, std::size_t align, std::string_view name)
+			: type(type), size(size), align(align), name(name) { }
+	public:
+		std::type_index type;
+		std::size_t size;
+		std::size_t align;
+		std::string_view name;
+
+		void(*default_constructor)(void*) = nullptr;
+		void(*destructor)(void*) = nullptr;
+
+		// add trivial and noexcept ctor??
+		void(*copy_constructor)(void*, const void*) = nullptr;
+		void(*copy_assing)(void*, const void*) = nullptr;
+
+		void(*move_constructor)(void*, void*) = nullptr;
+		void(*move_assign)(void*, void*) = nullptr;
+
+		// exp: services["EDITOR"] = SceneInspector::renderFieldsOfType<T>;
+		// exp: services["SERIALIZE-JSON"] = serialize_value<T>;
+		// exp: services["NEW-UNIQUE"] = lambdaToPtr([]()->unique_ptr<TBase> { return make_unique<T>();});
+		std::unordered_map<std::string_view, void*> services;
+
+		template <typename T>
+		friend void constructMetadataFrom(std::string_view name);
+	};
+
 
 	namespace detail
 	{
-		/* MetaHolder holds all Member objects constructed via meta::registerMembers<T> call.
-		 * If the class is not registered, members is std::tuple<> */
+		/* sMembers holds all Member objects constructed via meta::registerMembers<T> call.
+		 * If the class is not registered, sMembers is std::tuple<> */
 
-		template <typename T, typename TupleType>
-		struct MetaHolder {
-			static TupleType members;
-			static const char* name() 
-			{
-				return registerName<T>();
-			}
+		template <typename T>
+		static inline const auto sMembers = registerMembers<T>();
+
+		// bagamiaspulanmicrosoft ca aparent initializeaza mai intai variabilele statice inline din clasa si dupa pe cele globale statice
+		// asa ca tre sa pun sTypeTable intr un struct ca sa ma asigur ca e construit inainte de varialbilele anonime din macroul REGISTER_SERVICES
+		//struct bagamiaspula {
+		struct guard {
+			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
 		};
-
-		template <typename T, typename TupleType>
-		TupleType MetaHolder<T, TupleType>::members = registerMembers<T>();
-
 
 		/* helper functions */
 
@@ -89,21 +130,131 @@ namespace ark::meta
 		void for_tuple(F&& /* f */, const std::tuple<>& /* tuple */)
 		{ /* do nothing */ }
 
+
+		template <typename T>
+		constexpr bool areTheSameType() { return true; }
+
+		template <typename T, typename U, typename... Ts>
+		constexpr bool areTheSameType() { return std::is_same_v<T, U> && areTheSameType<U, Ts...>(); }
+
+
+		template <typename F>
+		struct make_func_ptr : make_func_ptr<decltype(&F::operator())> {};
+
+		template <typename Ret, typename... Args>
+		struct make_func_ptr<Ret(*)(Args...)> {
+			using type = Ret(*)(Args...);
+		};
+
+		template <typename Ret, typename... Args>
+		struct make_func_ptr<Ret(Args...)> {
+			using type = Ret(*)(Args...);
+		};
+
+		template <typename Cls, typename Ret, typename... Args>
+		struct make_func_ptr<Ret(Cls::*)(Args...) const> {
+			using type = Ret(*)(Args...);
+		};
+
+		template <typename T>
+		using make_func_ptr_t = typename make_func_ptr<T>::type;
+
+		template <typename L>
+		void* lambdaToPtr(L&& lambda)
+		{
+			return static_cast<detail::make_func_ptr_t<L>>(lambda);
+		}
+
+
 		template <typename T, typename...> 
 		using getFirstArg = T;
 
+		template <typename... Args>
+		struct type_list
+		{
+			template <std::size_t N>
+			using type = std::tuple_element_t<N, std::tuple<Args...>>;
+			using indices = std::index_sequence_for<Args...>;
+			static const size_t size = sizeof...(Args);
+		};
+
 	} // end of namespace detail
 
+	template <typename T>
+	static inline auto dummy = 0;
 
-	// type_list is array of types
-	template <typename... Args>
-	struct type_list
+	template <typename T>
+	void constructMetadataFrom(std::string_view name)
 	{
-		template <std::size_t N>
-		using type = std::tuple_element_t<N, std::tuple<Args...>>;
-		using indices = std::index_sequence_for<Args...>;
-		static const size_t size = sizeof...(Args);
-	};
+		Metadata metadata{ typeid(T), sizeof(T), alignof(T), name };
+
+		if constexpr (std::is_default_constructible_v<T>)
+			metadata.default_constructor = [](void* This) { new(This)T{}; };
+
+		if constexpr (std::is_copy_constructible_v<T>)
+			metadata.copy_constructor = [](void* This, const void* That) { new (This)T(*static_cast<const T*>(That)); };
+
+		if constexpr (std::is_copy_assignable_v<T>)
+			metadata.copy_assing = [](void* This, const void* That) { *static_cast<T*>(This) = *static_cast<const T*>(That);/* *(T*)This = *(const T*)That; */ };
+
+		if constexpr (std::is_move_constructible_v<T>)
+			metadata.move_constructor = [](void* This, void* That) { new(This)T(std::move(*static_cast<T*>(That))); };
+
+		if constexpr (std::is_move_assignable_v<T>)
+			metadata.move_assign = [](void* This, void* That) { *static_cast<T*>(This) = std::move(*static_cast<T*>(That)); };
+
+		if constexpr (not std::is_trivially_destructible_v<T> && std::is_destructible_v<T>)
+			metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
+		
+		detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
+		//std::cout << "ctor: " << typeid(T).name() << '\n' ;
+	}
+
+	inline const Metadata* getMetadata(std::type_index type)
+	{
+		if (detail::guard::sTypeTable.count(type))
+			return &detail::guard::sTypeTable.at(type);
+		else
+			return nullptr;
+	}
+
+	template <typename T, typename... Args>
+	inline void services(Args&&... args)
+	{
+		if constexpr (sizeof...(Args) > 0) {
+			Metadata& m = detail::guard::sTypeTable.at(typeid(T));
+			((m.services[args.first] = args.second), ...);
+		}
+	}
+
+	template <typename F>
+	auto service(std::string_view name, F fun) -> std::pair<std::string_view, void*>
+	{
+		static_assert(std::is_function_v<std::remove_pointer_t<F>> || std::is_class_v<F>, "fun must be function or non-capturing lambda");
+
+		if constexpr (std::is_object_v<F>) // is lambda
+			return { name, static_cast<detail::make_func_ptr_t<F>>(fun) };
+		else
+			return { name, fun };
+	}
+
+	template <typename F>
+	auto getService(const Metadata& m, std::string_view serviceName) -> detail::make_func_ptr_t<F>
+	{
+		using FP = detail::make_func_ptr_t<F>;
+		return reinterpret_cast<FP>(m.services.at(serviceName));
+	}
+
+	template <typename T, typename F>
+	auto getService(std::string_view serviceName) -> detail::make_func_ptr_t<F>
+	{
+		using FP = detail::make_func_ptr_t<F>;
+		if(auto m = getMetadata(typeid(T)); m)
+			return reinterpret_cast<FP>(m->services(serviceName));
+		else
+			return nullptr;
+	}
+
 
 	/* Enum stuff */
 
@@ -117,12 +268,14 @@ namespace ark::meta
 	template <typename T>
 	auto enumValue(const char* name, T value)
 	{
+		static_assert(std::is_enum_v<T>, "tre sa fie valoare de enum");
 		return EnumValueHolder<T>{name, value};
 	}
 
 	template <typename... Ts>
 	auto enumValues(Ts&&... args)
 	{
+		static_assert(detail::areTheSameType<Ts...>(), "de ce plm sunt doua enum-uri diferite???");
 		using EnumValueH = detail::getFirstArg<Ts...>;
 		using EnumT = typename EnumValueH::enum_type;
 		return std::array<EnumValueHolder<EnumT>, sizeof...(Ts)> { std::forward<Ts>(args)... };
@@ -160,6 +313,7 @@ namespace ark::meta
 		return {};
 	}
 
+
 	/* class members stuff */
 
 	template <typename... Args>
@@ -175,20 +329,6 @@ namespace ark::meta
 		return std::make_tuple();
 	}
 
-	// function used for registration of class name by user
-	template <typename Class>
-	constexpr auto registerName()
-	{
-		return "";
-	}
-
-	// returns set name for class
-	template <typename Class>
-	constexpr auto getName()
-	{
-		return detail::MetaHolder<Class, decltype(registerMembers<Class>())>::name();
-	}
-
 	// returns the number of registered members of the class
 	template <typename Class>
 	constexpr std::size_t getMemberCount()
@@ -196,12 +336,6 @@ namespace ark::meta
 		return std::tuple_size<decltype(registerMembers<Class>())>::value;
 	}
 
-	// returns std::tuple of Members
-	template <typename Class>
-	const auto& getMembers()
-	{
-		return detail::MetaHolder<Class, decltype(registerMembers<Class>())>::members;
-	}
 
 	// Check if class has registerMembers<T> specialization (has been registered)
 	template <typename Class>
@@ -210,27 +344,10 @@ namespace ark::meta
 		return !std::is_same<std::tuple<>, decltype(registerMembers<Class>())>::value;
 	}
 
-
-	template <typename T>
-	struct constructor_args {
-		using types = type_list<>;
-	};
-
-	template <typename T>
-	using constructor_arguments = typename constructor_args<T>::types;
-
-
-	// Check if Class has non-default ctor registered
-	template <typename Class>
-	constexpr bool ctorRegistered()
-	{
-		return !std::is_same<type_list<>, constructor_arguments<Class>>::value;
-	}
-
 	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>
 	void doForAllMembers(F&& f) noexcept
 	{
-		detail::for_tuple(std::forward<F>(f), getMembers<Class>());
+		detail::for_tuple(std::forward<F>(f), detail::sMembers<Class>);
 	}
 
 	// version for non-registered classes (to generate less template stuff)
@@ -239,6 +356,7 @@ namespace ark::meta
 		typename = void>
 	void doForAllMembers(F&& /*f*/) noexcept
 	{
+		//static_assert(false, "nu i type-ul inregistrat!");
 		// do nothing! Nothing gets generated
 	}
 
@@ -263,7 +381,7 @@ namespace ark::meta
 		);
 	}
 
-	// Check if class T has member
+	// Check if class T has member named 'name'
 	template <typename Class>
 	bool hasMember(const char* name)
 	{
@@ -358,14 +476,11 @@ namespace ark::meta
 		auto getRefFuncPtrs() { return std::pair{refGetterPtr, refSetterPtr}; }
 		auto getValFuncPtrs() { return std::pair{valGetterPtr, valSetterPtr}; }
 
-		// get sets methods can be used to add support
-		// for getters/setters for members instead of
-		// direct access to them
 		const T& get(const Class& obj) const noexcept
 		{
 			if (refGetterPtr) {
 				return (obj.*refGetterPtr)();
-			} else /* if (ptr) */ {
+			} else  {
 				return obj.*ptr;
 			}
 		}
@@ -376,7 +491,7 @@ namespace ark::meta
 				return (obj.*refGetterPtr)();
 			} else if (valGetterPtr) {
 				return (obj.*valGetterPtr)();
-			} else /* if (ptr) */ {
+			} else {
 				return obj.*ptr;
 			}
 		}
@@ -396,23 +511,35 @@ namespace ark::meta
 
 	private:
 		const char* name;
-		member_ptr_t<Class, T> ptr = nullptr;
 
+		member_ptr_t<Class, T> ptr = nullptr;
 		ref_getter_func_ptr_t<Class, T> refGetterPtr = nullptr;
 		ref_setter_func_ptr_t<Class, T> refSetterPtr = nullptr;
-
 		val_getter_func_ptr_t<Class, T> valGetterPtr = nullptr;
 		val_setter_func_ptr_t<Class, T> valSetterPtr = nullptr;
+
+		//union {
+		//	member_ptr_t<Class, T> ptr;
+		//	struct {
+		//		ref_getter_func_ptr_t<Class, T> refGetterPtr;
+		//		ref_setter_func_ptr_t<Class, T> refSetterPtr;
+		//	};
+		//	struct {
+		//		val_getter_func_ptr_t<Class, T> valGetterPtr;
+		//		val_setter_func_ptr_t<Class, T> valSetterPtr;
+		//	};
+		//	nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr;
+		//} members;
+		//enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef};
+		//Tag tag = Tag::ptr;
+		//std::uint8_t tag;
+
 
 		// T& getRef(Class& obj) const;
 		//Member& addNonConstGetter(nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr);
 		//bool canGetRef() const { return ptr || nonConstRefGetterPtr; }
 		//nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr = nullptr;
 	};
-
-	// useful function similar to make_pair which is used so you don't have to write this:
-	// Member<SomeClass, int>("someName", &SomeClass::someInt); and can just to this:
-	// member("someName", &SomeClass::someInt);
 
 	template <typename Class, typename T>
 	Member<Class, T> member(const char* name, T Class::* ptr) noexcept

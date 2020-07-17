@@ -157,7 +157,7 @@ namespace ark {
 
 		if (ImGui::Begin("Entity editor", &_open)) {
 
-			// entity list
+			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			int entityId = 0;
 			ImGui::BeginChild("left_pane", ImVec2(150, 0), true);
@@ -206,7 +206,16 @@ namespace ark {
 					}
 					ImGui::PopID();
 
-					componentManager.renderEditorOfComponent(&widgetId, compData.id, compData.component);
+					const ark::meta::Metadata* mdata = ark::meta::getMetadata(compType);
+					if (mdata) {
+						std::cout << mdata->name << '\n';
+						auto render = ark::meta::getService<void(int*, void*)>(*mdata, serviceName);
+						render(&widgetId, compData.component);
+					}
+					else {
+						//std::cout << compType.name() << '\n';
+						componentManager.renderEditorOfComponent(&widgetId, compData.id, compData.component);
+					}
 					ImGui::Separator();
 				}
 

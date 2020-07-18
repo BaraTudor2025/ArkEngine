@@ -5,6 +5,7 @@
 #include "System.hpp"
 #include "Entity.hpp"
 #include "EntityManager.hpp"
+#include "Director.hpp"
 
 #include <SFML/Graphics/Drawable.hpp>
 
@@ -21,7 +22,8 @@ namespace ark {
 			: componentManager(),
 			scriptManager(),
 			entityManager(componentManager, scriptManager),
-			systemManager(bus, *this, componentManager)
+			systemManager(bus, *this, componentManager),
+			mMessageBus(bus)
 		{}
 
 		~Scene() = default;
@@ -84,6 +86,30 @@ namespace ark {
 			return systemManager.getSystem<T>();
 		}
 
+		template <typename T, typename...Args>
+		T* addDirector(Args&&... args)
+		{
+			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
+			Director* director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+			director->mScene = this;
+			director->mType = typeid(T);
+			director->mMessageBus = &mMessageBus;
+			director->init();
+			if constexpr (std::is_base_of_v<Renderer, T>)
+				renderers.push_back(director);
+			return director.get();
+		}
+
+		template <typename T>
+		T* getDirector()
+		{
+			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
+			for (auto& dir : mDirectors)
+				if (dir->mType == typeid(T))
+					return dir.get();
+			return nullptr;
+		}
+
 		template <typename T>
 		void setSystemActive(bool active)
 		{
@@ -119,6 +145,8 @@ namespace ark {
 			scriptManager.forEachScript([&event](Script* script) {
 				script->handleEvent(event);
 			});
+			for (auto& dir : mDirectors)
+				dir->handleEvent(event);
 		}
 
 		void handleMessage(const Message& message)
@@ -126,6 +154,8 @@ namespace ark {
 			systemManager.forEachSystem([&message](System* system) {
 				system->handleMessage(message);
 			});
+			for (auto& dir : mDirectors)
+				dir->handleMessage(message);
 		}
 
 		void update()
@@ -137,12 +167,14 @@ namespace ark {
 			scriptManager.forEachScript([](Script* script) {
 				script->update();
 			});
+			for (auto& dir : mDirectors)
+				dir->update();
 		}
 
 		void render(sf::RenderTarget& target)
 		{
-			for (auto system : renderers)
-				system->render(target);
+			for (auto renderer : renderers)
+				renderer->render(target);
 		}
 
 		void processPendingData()
@@ -173,13 +205,24 @@ namespace ark {
 	private:
 		friend class EntityManager;
 		friend class SceneInspector;
+		friend class Director;
 		ComponentManager componentManager;
 		ScriptManager scriptManager;
 		EntityManager entityManager;
 		SystemManager systemManager;
+		MessageBus& mMessageBus;
 
+		std::vector<std::unique_ptr<Director>> mDirectors;
 		std::vector<Entity> createdEntities;
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
 	};
+
+	template <typename F>
+	void Director::forEachEntity(F&& f)
+	{
+		for (auto& entityData : mScene->entityManager.entities) {
+			f(entityData);
+		}
+	}
 }

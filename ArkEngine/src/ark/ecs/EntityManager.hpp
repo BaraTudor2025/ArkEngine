@@ -434,6 +434,7 @@ namespace ark {
 		ComponentManager& componentManager;
 		ScriptManager& scriptManager;
 		friend class SceneInspector;
+		friend class Director;
 		//std::vector<std::vector<Entity>> childrenTree;
 	};
 

@@ -555,38 +555,38 @@ namespace ark::meta
 		using member_type_ptr = Ret(*)(Args...);
 
 		constexpr MemberFunction(const char* name, function_ptr_t<Class, Ret, Args...> fun) noexcept
-			: tag(Tag::fun), name(name), functionPtr(fun) { }
+			: mTag(Tag::fun), mName(name), mFunctionPtr(fun) { }
 
 		constexpr MemberFunction(const char* name, const_function_ptr_t<Class, Ret, Args...> fun) noexcept
-			: tag(Tag::constFun), name(name), constFunctionPtr(fun) { }
+			: mTag(Tag::constFun), mName(name), mConstFunctionPtr(fun) { }
 
 		static constexpr bool isProperty = false;
 		static constexpr bool isFunction = true;
 
-		const char* getName() const noexcept { return name; }
-		bool isConst() const noexcept { return Tag::constFun == tag; }
-		auto getConstFunPtr() const noexcept { return constFunctionPtr; }
-		auto getFunPtr() const noexcept { return functionPtr; }
+		const char* getName() const noexcept { return mName; }
+		bool isConst() const noexcept { return Tag::constFun == mTag; }
+		auto getConstFunPtr() const noexcept { return mConstFunctionPtr; }
+		auto getFunPtr() const noexcept { return mFunctionPtr; }
 
 		Ret call(Class& obj, Args&&... args) const noexcept { 
-			if (Tag::fun == tag) {
-				return (obj.*functionPtr)(std::forward<Args>(args));
+			if (Tag::fun == mTag) {
+				return (obj.*mFunctionPtr)(std::forward<Args>(args));
 			}
 			else {
-				return (obj.*constFunctionPtr)(std::forward<Args>(args));
+				return (obj.*mConstFunctionPtr)(std::forward<Args>(args));
 			}
 		}
 
 	private:
-		const char* const name;
+		const char* const mName;
 
 		union {
-			function_ptr_t<Class, Ret, Args...> functionPtr;
-			const_function_ptr_t<Class, Ret, Args...> constFunctionPtr;
+			function_ptr_t<Class, Ret, Args...> mFunctionPtr;
+			const_function_ptr_t<Class, Ret, Args...> mConstFunctionPtr;
 		};
 
 		enum class Tag : std::uint8_t { fun, constFun};
-		const Tag tag;
+		const Tag mTag;
 	};
 
 
@@ -597,45 +597,45 @@ namespace ark::meta
 		using member_type = T;
 
 		constexpr Property(const char* name, member_ptr_t<Class, T> ptr) noexcept
-			: tag(Tag::ptr), name(name), ptr(ptr) {}
+			: mTag(Tag::ptr), mName(name), mPtr(ptr) {}
 
 		constexpr Property(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
-			: tag(Tag::ref), name(name), refGetterPtr(getterPtr), refSetterPtr(setterPtr) {}
+			: mTag(Tag::ref), mName(name), mRefGetter(getterPtr), mRefSetter(setterPtr) {}
 
 		constexpr Property(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
-			: tag(Tag::val), name(name), valGetterPtr(getterPtr), valSetterPtr(setterPtr) {}
+			: mTag(Tag::val), mName(name), mValGetter(getterPtr), mValSetter(setterPtr) {}
 
 		static constexpr bool isProperty = true;
 		static constexpr bool isFunction = false;
 
-		bool hasPtr() const noexcept { return Tag::ptr == tag; }
-		bool hasRefFuncPtrs() const noexcept { return Tag::ref == tag; }
-		bool hasValFuncPtrs() const noexcept { return Tag::val == tag; }
-		bool canGetConstRef() const noexcept { return Tag::ptr == tag || Tag::ref == tag; }
+		bool hasPtr() const noexcept { return Tag::ptr == mTag; }
+		bool hasRefFuncPtrs() const noexcept { return Tag::ref == mTag; }
+		bool hasValFuncPtrs() const noexcept { return Tag::val == mTag; }
+		bool canGetConstRef() const noexcept { return Tag::ptr == mTag || Tag::ref == mTag; }
 
-		const char* getName() const noexcept { return name; }
-		auto getPtr() const noexcept { return ptr; }
-		auto getRefFuncPtrs() const noexcept { return std::pair{refGetterPtr, refSetterPtr}; }
-		auto getValFuncPtrs() const noexcept { return std::pair{valGetterPtr, valSetterPtr}; }
+		const char* getName() const noexcept { return mName; }
+		auto getPtr() const noexcept { return mPtr; }
+		auto getRefFuncPtrs() const noexcept { return std::pair{mRefGetter, mRefSetter}; }
+		auto getValFuncPtrs() const noexcept { return std::pair{mValGetter, mValSetter}; }
 		//auto getFunctionPtr() { }
 
 		const T& get(const Class& obj) const noexcept
 		{
-			if (Tag::ref == tag) {
-				return (obj.*refGetterPtr)();
+			if (Tag::ref == mTag) {
+				return (obj.*mRefGetter)();
 			} else {
-				return obj.*ptr;
+				return obj.*mPtr;
 			}
 		}
 
 		T getCopy(const Class& obj) const noexcept
 		{
-			if (Tag::ref == tag) {
-				return (obj.*refGetterPtr)();
-			} else if (Tag::val == tag) {
-				return (obj.*valGetterPtr)();
+			if (Tag::ref == mTag) {
+				return (obj.*mRefGetter)();
+			} else if (Tag::val == mTag) {
+				return (obj.*mValGetter)();
 			} else {
-				return obj.*ptr;
+				return obj.*mPtr;
 			}
 		}
 
@@ -643,33 +643,32 @@ namespace ark::meta
 		void set(Class& obj, U&& value) const noexcept
 		{
 			static_assert(std::is_constructible_v<T, U>);
-			if (Tag::ref == tag) {
-				(obj.*refSetterPtr)(value);
-			} else if (Tag::val == tag) {
-				(obj.*valSetterPtr)(std::forward<U>(value));
+			if (Tag::ref == mTag) {
+				(obj.*mRefSetter)(value);
+			} else if (Tag::val == mTag) {
+				(obj.*mValSetter)(std::forward<U>(value));
 			} else {
-				obj.*ptr = std::forward<U>(value);
+				obj.*mPtr = std::forward<U>(value);
 			} 
 		}
 
 	private:
-		const char* const name;
+		const char* const mName;
 
 		enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef};
-		const Tag tag;
+		const Tag mTag;
 
-		// add simple member function?
 		union {
-			member_ptr_t<Class, T> ptr;
+			member_ptr_t<Class, T> mPtr;
 			struct {
-				ref_getter_func_ptr_t<Class, T> refGetterPtr;
-				ref_setter_func_ptr_t<Class, T> refSetterPtr;
+				ref_getter_func_ptr_t<Class, T> mRefGetter;
+				ref_setter_func_ptr_t<Class, T> mRefSetter;
 			};
 			struct {
-				val_getter_func_ptr_t<Class, T> valGetterPtr;
-				val_setter_func_ptr_t<Class, T> valSetterPtr;
+				val_getter_func_ptr_t<Class, T> mValGetter;
+				val_setter_func_ptr_t<Class, T> mValSetter;
 			};
-			nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr;
+			nonconst_ref_getter_func_ptr_t<Class, T> mNonConstRefGetterPtr;
 		};
 
 		// T& getRef(Class& obj) const;

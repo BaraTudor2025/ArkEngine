@@ -12,6 +12,11 @@
 #include <typeindex>
 
 
+#define CONCAT_IMPL( x, y ) x##y
+#define MACRO_CONCAT( x, y ) CONCAT_IMPL( x, y )
+#define UNIQUE_NAME(x) MACRO_CONCAT(x, __COUNTER__)
+
+
 #define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
 //#define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
 

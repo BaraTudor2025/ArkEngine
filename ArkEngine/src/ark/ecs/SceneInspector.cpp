@@ -214,7 +214,7 @@ namespace ark {
 					}
 					else {
 						//std::cout << compType.name() << '\n';
-						componentManager.renderEditorOfComponent(&widgetId, compData.id, compData.component);
+						//componentManager.renderEditorOfComponent(&widgetId, compData.id, compData.component);
 					}
 					ImGui::Separator();
 				}

@@ -41,23 +41,41 @@ auto registerMembers<YourClass>()
 #include <utility>
 #include <array>
 #include <typeindex>
+#include <unordered_map>
+#include <map>
+
 
 /* for example usage see the registration of ark::Transform for members and for enum see RandomNumbers.hpp */
 
-#define CONCAT_IMPL( x, y ) x##y
-#define MACRO_CONCAT( x, y ) CONCAT_IMPL( x, y )
-#define UNIQUE_NAME(x) MACRO_CONCAT(x, __COUNTER__)
-#define RUN_CODE(...) \
-	inline auto UNIQUE_NAME(_ark_gfunc) = []() {__VA_ARGS__ return 0;} ()
-
-#define REGISTER_SERVICES(TYPE, NAME, ...) \
+#define RUN_CODE_NAMESPACE(TYPE, GUARD, ...) \
 	namespace ark::meta { \
-		RUN_CODE(using Type = TYPE; constructMetadataFrom<TYPE>(NAME); services<TYPE>(__VA_ARGS__);); \
+		template <> inline auto dummy<TYPE, GUARD> = []() {__VA_ARGS__ return 0;} (); \
 	}
 
+#define RUN_CODE_QUALIFIED(TYPE, GUARD, ...) \
+	template <> inline auto ::ark::meta::dummy<TYPE, GUARD> = []() {__VA_ARGS__ return 0;} ();
+
+#define RUN_CODE_QSTATIC(TYPE, GUARD, ...) \
+	template <> static inline auto ::ark::meta::dummy<TYPE, GUARD> = []() {__VA_ARGS__ return 0;} ();
+
+#define _ARK_META_COUT(TYPE) std::cout << "ctor:" << typeid(TYPE).name() << '\n'
+//#define _ARK_META_COUT(TYPE)
+
+
+// scope global, tre sa apara o singura data ca sa mearga
+// ori dai lista de servicii la REGISTER_TYPE ori la REGISTER_SERVICES dupa ce type-ul a fost inregistrat
+#define ARK_REGISTER_SERVICES(TYPE, GUARD, ...) \
+	RUN_CODE_NAMESPACE(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; services<TYPE>(__VA_ARGS__); )
+
+// de pus intr o clasa, si dat un type unic ca 'GUARD'
+#define ARK_REGISTER_SERVICES_IN_CLASS(TYPE, GUARD, ...) \
+	RUN_CODE_QSTATIC(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; services<TYPE>(__VA_ARGS__); )
+
+// standard
 #define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
-	REGISTER_SERVICES(TYPE, NAME, __VA_ARGS__) \
-	template <> inline auto ::ark::meta::registerMembers<TYPE>()
+	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
+	ARK_REGISTER_SERVICES(TYPE, decltype(NAME), __VA_ARGS__) \
+	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>()
 
 #define ARK_REGISTER_ENUM(TYPE) \
 	template <> inline auto ::ark::meta::registerEnum<TYPE>()
@@ -65,7 +83,16 @@ auto registerMembers<YourClass>()
 namespace ark::meta
 {
 	template <typename Class>
-	inline auto registerMembers();
+	constexpr inline auto registerMembers();
+
+	inline int getUniqueId()
+	{
+		static int cID = 0;
+		return cID++;
+	}
+
+	template <typename, typename=void>
+	inline auto dummy = 0;
 
 	struct Metadata {
 	private:
@@ -103,13 +130,15 @@ namespace ark::meta
 		 * If the class is not registered, sMembers is std::tuple<> */
 
 		template <typename T>
-		static inline const auto sMembers = registerMembers<T>();
+		inline const auto sMembers = registerMembers<T>();
 
 		// bagamiaspulanmicrosoft ca aparent initializeaza mai intai variabilele statice inline din clasa si dupa pe cele globale statice
 		// asa ca tre sa pun sTypeTable intr un struct ca sa ma asigur ca e construit inainte de varialbilele anonime din macroul REGISTER_SERVICES
 		//struct bagamiaspula {
 		struct guard {
 			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
+			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
+			//static inline std::map<std::pair<std::type_index, std::string_view>, void*> sServiceTable;
 		};
 
 		/* helper functions */
@@ -179,9 +208,6 @@ namespace ark::meta
 		};
 
 	} // end of namespace detail
-
-	template <typename T>
-	static inline auto dummy = 0;
 
 	template <typename T>
 	void constructMetadataFrom(std::string_view name)
@@ -317,14 +343,14 @@ namespace ark::meta
 	/* class members stuff */
 
 	template <typename... Args>
-	auto members(Args&&... args)
+	constexpr auto members(Args&&... args)
 	{
 		return std::make_tuple(std::forward<Args>(args)...);
 	}
 
 	// function used for registration of classes by user
 	template <typename Class>
-	inline auto registerMembers()
+	constexpr inline auto registerMembers()
 	{
 		return std::make_tuple();
 	}
@@ -455,6 +481,96 @@ namespace ark::meta
 		using class_type = Class;
 		using member_type = T;
 
+		constexpr Member(const char* name, member_ptr_t<Class, T> ptr) noexcept
+			: tag(Tag::ptr), name(name), ptr(ptr) {}
+
+		constexpr Member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
+			: tag(Tag::ref), name(name), refGetterPtr(getterPtr), refSetterPtr(setterPtr) {}
+
+		constexpr Member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
+			: tag(Tag::val), name(name), valGetterPtr(getterPtr), valSetterPtr(setterPtr) {}
+
+
+		bool hasPtr() const noexcept { return Tag::ptr == tag; }
+		bool hasRefFuncPtrs() const noexcept { return Tag::ref == tag; }
+		bool hasValFuncPtrs() const noexcept { return Tag::val == tag; }
+		bool canGetConstRef() const noexcept { return Tag::ptr == tag || Tag::ref == tag; }
+		//bool isFunction() const noexcept {}
+		//bool isProperty() const noexcept {}
+
+		const char* getName() const noexcept { return name; }
+		member_ptr_t<Class, T> getPtr() const noexcept { return ptr; }
+		auto getRefFuncPtrs() const noexcept { return std::pair{refGetterPtr, refSetterPtr}; }
+		auto getValFuncPtrs() const noexcept { return std::pair{valGetterPtr, valSetterPtr}; }
+		//auto getFunctionPtr() { }
+
+		const T& get(const Class& obj) const noexcept
+		{
+			if (Tag::ref == tag) {
+				return (obj.*refGetterPtr)();
+			} else {
+				return obj.*ptr;
+			}
+		}
+
+		T getCopy(const Class& obj) const noexcept
+		{
+			if (Tag::ref == tag) {
+				return (obj.*refGetterPtr)();
+			} else if (Tag::val == tag) {
+				return (obj.*valGetterPtr)();
+			} else {
+				return obj.*ptr;
+			}
+		}
+
+		template <typename U>
+		void set(Class& obj, U&& value) const noexcept
+		{
+			static_assert(std::is_constructible_v<T, U>);
+			if (Tag::ref == tag) {
+				(obj.*refSetterPtr)(value);
+			} else if (Tag::val == tag) {
+				(obj.*valSetterPtr)(std::forward<U>(value));
+			} else {
+				obj.*ptr = std::forward<U>(value);
+			} 
+		}
+
+	private:
+		const char* name;
+
+		enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef};
+		const Tag tag;
+
+		// add simple member function?
+		union {
+			const member_ptr_t<Class, T> ptr;
+			struct {
+				const ref_getter_func_ptr_t<Class, T> refGetterPtr;
+				const ref_setter_func_ptr_t<Class, T> refSetterPtr;
+			};
+			struct {
+				const val_getter_func_ptr_t<Class, T> valGetterPtr;
+				const val_setter_func_ptr_t<Class, T> valSetterPtr;
+			};
+			const nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr;
+		};
+
+		// T& getRef(Class& obj) const;
+		//Member& addNonConstGetter(nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr);
+		//bool canGetRef() const { return ptr || nonConstRefGetterPtr; }
+		//nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr = nullptr;
+	};
+
+	/*
+	
+	template <typename Class, typename T>
+	class Member {
+	public:
+		using class_type = Class;
+		using member_type = T;
+
 		Member(const char* name, member_ptr_t<Class, T> ptr) noexcept
 			: name(name), ptr(ptr) {}
 
@@ -465,16 +581,16 @@ namespace ark::meta
 			: name(name), valGetterPtr(getterPtr), valSetterPtr(setterPtr) {}
 
 
-		bool hasPtr() const noexcept { return ptr; }
-		bool hasFuncPtrs() const noexcept { return refGetterPtr || valSetterPtr; }
-		bool hasRefFuncPtrs() const noexcept { return refGetterPtr && refSetterPtr; }
-		bool hasValFuncPtrs() const noexcept { return valGetterPtr && refSetterPtr; }
+		//bool hasPtr() const noexcept { return ptr; }
+		//bool hasFuncPtrs() const noexcept { return refGetterPtr || valSetterPtr; }
+		//bool hasRefFuncPtrs() const noexcept { return refGetterPtr && refSetterPtr; }
+		//bool hasValFuncPtrs() const noexcept { return valGetterPtr && refSetterPtr; }
 		bool canGetConstRef() const noexcept { return ptr || refGetterPtr; }
 
 		const char* getName() const noexcept { return name; }
-		member_ptr_t<Class, T> getPtr() const noexcept { return ptr; }
-		auto getRefFuncPtrs() { return std::pair{refGetterPtr, refSetterPtr}; }
-		auto getValFuncPtrs() { return std::pair{valGetterPtr, valSetterPtr}; }
+		//member_ptr_t<Class, T> getPtr() const noexcept { return ptr; }
+		//auto getRefFuncPtrs() { return std::pair{refGetterPtr, refSetterPtr}; }
+		//auto getValFuncPtrs() { return std::pair{valGetterPtr, valSetterPtr}; }
 
 		const T& get(const Class& obj) const noexcept
 		{
@@ -541,20 +657,22 @@ namespace ark::meta
 		//nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr = nullptr;
 	};
 
+	*/
+
 	template <typename Class, typename T>
-	Member<Class, T> member(const char* name, T Class::* ptr) noexcept
+	constexpr Member<Class, T> member(const char* name, T Class::* ptr) noexcept
 	{
 		return Member<Class, T>(name, ptr);
 	}
 
 	template <typename Class, typename T>
-	Member<Class, T> member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	constexpr Member<Class, T> member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
 	{
 		return Member<Class, T>(name, getterPtr, setterPtr);
 	}
 
 	template <typename Class, typename T>
-	Member<Class, T> member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	constexpr Member<Class, T> member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
 	{
 		return Member<Class, T>(name, getterPtr, setterPtr);
 	}

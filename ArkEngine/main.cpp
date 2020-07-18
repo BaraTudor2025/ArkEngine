@@ -137,26 +137,34 @@ public:
 	}
 };
 
-namespace ark::meta
+ARK_REGISTER_TYPE(MovePlayer, "MovePlayerScript", ARK_DEFAULT_SERVICES)
 {
-	template <> inline auto registerMembers<MovePlayer>()
-	{
-		return members(
-			member("speed", &MovePlayer::speed),
-			member("scale", &MovePlayer::getScale, &MovePlayer::setScale)
-		);
-	}
-
-	template <> inline auto registerMembers<ParticleScripts::RotateEmitter>()
-	{
-		using namespace ParticleScripts;
-		return members(
-			member("distance", &RotateEmitter::distance),
-			member("angular_speed", &RotateEmitter::angleSpeed),
-			member("origin", &RotateEmitter::around)
-		);
-	}
+	return members(
+		member("speed", &MovePlayer::speed),
+		member("scale", &MovePlayer::getScale, &MovePlayer::setScale)
+	);
 }
+
+ARK_REGISTER_TYPE(ParticleScripts::RotateEmitter, "RotateEmitterScript", ARK_DEFAULT_SERVICES)
+{
+	using namespace ParticleScripts;
+	return members(
+		member("distance", &RotateEmitter::distance),
+		member("angular_speed", &RotateEmitter::angleSpeed),
+		member("origin", &RotateEmitter::around)
+	);
+}
+
+//namespace ark::meta
+//{
+	//template <> constexpr inline auto registerMembers<MovePlayer>()
+	//{
+	//}
+//
+//	template <> constexpr inline auto registerMembers<ParticleScripts::RotateEmitter>()
+//	{
+//	}
+//}
 
 //enum class GameTag { Bullet, Player, Wall };
 

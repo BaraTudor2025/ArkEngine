@@ -186,12 +186,13 @@ private:
 
 ARK_REGISTER_TYPE(sf::FloatRect, "FloatRect", ARK_DEFAULT_SERVICES)
 {
-	return members(
+	constexpr auto m = members(
 		member("top", &sf::FloatRect::top),
 		member("left", &sf::FloatRect::left),
 		member("height", &sf::FloatRect::height),
 		member("width", &sf::FloatRect::width)
 	);
+	return m;
 }
 
 ARK_REGISTER_TYPE(PixelParticles::Colors, "ColorPair", ARK_DEFAULT_SERVICES)

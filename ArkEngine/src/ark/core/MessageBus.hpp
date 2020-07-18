@@ -33,7 +33,7 @@ namespace ark {
 
 			Message* m = Util::construct_in_place<Message>(inPointer);
 			inPointer += sizeof(Message);
-			const_cast<int&>(m->id) = id; // so sue me
+			m->id = id;
 			m->m_size = sizeof(T);
 			m->m_data = Util::construct_in_place<T>(inPointer);
 			inPointer += sizeof(T);

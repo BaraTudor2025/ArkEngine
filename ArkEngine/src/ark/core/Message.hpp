@@ -10,7 +10,7 @@ namespace ark {
 
 	struct Message final {
 
-		const int id = -1;
+		int id = -1;
 
 		template <typename T>
 		const T& data() const

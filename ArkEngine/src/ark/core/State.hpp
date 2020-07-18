@@ -29,7 +29,9 @@ namespace ark {
 		virtual void handleMessage(const Message&) = 0;
 		virtual bool handleEvent(const sf::Event&) = 0;
 		virtual bool update() = 0;
+		virtual void preRender(sf::RenderTarget&) {}
 		virtual bool render(sf::RenderTarget&) = 0;
+		virtual void postRender(sf::RenderTarget&) {}
 		virtual int getStateId() = 0;
 
 	protected:
@@ -87,11 +89,23 @@ namespace ark {
 					break;
 		}
 
+		void preRender(sf::RenderTarget& target)
+		{
+			for (auto it = stack.rbegin(); it != stack.rend(); it++)
+				(*it)->preRender(target);
+		}
+
 		void render(sf::RenderTarget& target)
 		{
 			for (auto it = stack.rbegin(); it != stack.rend(); it++)
 				if (!(*it)->render(target))
 					break;
+		}
+
+		void postRender(sf::RenderTarget& target)
+		{
+			for (auto it = stack.rbegin(); it != stack.rend(); it++)
+				(*it)->postRender(target);
 		}
 
 		void pushState(int id)

@@ -21,8 +21,9 @@ namespace ark {
 		Renderer() = default;
 		virtual ~Renderer() = default;
 
+		virtual void preRender(sf::RenderTarget&) {}
 		virtual void render(sf::RenderTarget&) = 0;
-
+		virtual void postRender(sf::RenderTarget&) {}
 	};
 
 	class ARK_ENGINE_API System : public NonCopyable {

@@ -14,7 +14,7 @@ namespace ark
 		virtual ~Director() = default;
 
 		virtual void init() = 0;
-		virtual void update() = 0;
+		virtual void update() {}
 		virtual void handleMessage(const Message&) {}
 		virtual void handleEvent(const sf::Event&) {}
 

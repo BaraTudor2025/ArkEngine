@@ -171,10 +171,20 @@ namespace ark {
 				dir->update();
 		}
 
+		void preRender(sf::RenderTarget& target)
+		{
+			for (auto renderer : renderers)
+				renderer->preRender(target);
+		}
 		void render(sf::RenderTarget& target)
 		{
 			for (auto renderer : renderers)
 				renderer->render(target);
+		}
+		void postRender(sf::RenderTarget& target)
+		{
+			for (auto renderer : renderers)
+				renderer->postRender(target);
 		}
 
 		void processPendingData()

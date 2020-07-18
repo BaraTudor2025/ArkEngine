@@ -78,8 +78,9 @@ namespace ark {
 		{
 			auto& pool = pools.at(compId);
 			auto [newComponent, newIndex] = pool.getFreeSlot();
+			auto metadata = meta::getMetadata(this->typeFromId(compId));
 			if(defaultConstruct)
-				pool.metadata.default_constructor(newComponent);
+				metadata->default_constructor(newComponent);
 			return { newComponent, newIndex };
 		}
 
@@ -87,12 +88,14 @@ namespace ark {
 		{
 			auto& pool = pools.at(compId);
 			auto [newComponent, newIndex] = pool.getFreeSlot();
-			if (pool.metadata.copy_constructor) {
+
+			auto metadata = meta::getMetadata(this->typeFromId(compId));
+			if (metadata->copy_constructor) {
 				byte* copiedComponent = pool.componentAt(index);
-				pool.metadata.copy_constructor(newComponent, copiedComponent);
+				metadata->copy_constructor(newComponent, copiedComponent);
 			}
 			else
-				pool.metadata.default_constructor(newComponent);
+				metadata->default_constructor(newComponent);
 			return { newComponent, newIndex };
 		}
 
@@ -100,7 +103,9 @@ namespace ark {
 		{
 			auto& pool = pools.at(compId);
 			byte* component = pool.componentAt(index);
-			pool.metadata.destructor(component);
+			auto metadata = meta::getMetadata(this->typeFromId(compId));
+			if(metadata->destructor)
+				metadata->destructor(component);
 			pool.freeComponents.push_back(index);
 		}
 
@@ -119,12 +124,6 @@ namespace ark {
 			}
 			componentIndexes.push_back(type);
 			pools.emplace_back().constructPoolFrom<T>();
-		}
-
-		void renderEditorOfComponent(int* widgetId, int compId, void* component)
-		{
-			auto& pool = pools.at(compId);
-			pool.metadata.renderFields(widgetId, component);
 		}
 
 		std::vector<std::type_index>& getTypes()
@@ -150,16 +149,9 @@ namespace ark {
 				std::string_view name;
 				int size;
 				std::align_val_t alignment;
-				void(*default_constructor)(void*) = nullptr;
-				void(*copy_constructor)(void*, const void*) = nullptr;
-				void(*destructor)(void*) = nullptr;
 
-				std::function<void(int*, void*)> renderFields; // render in editor
 				std::function<json(const void*)> serialize;
 				std::function<void(const json&, void*)> deserialize;
-
-				//void(*move_constructor)(void*, void*) = nullptr;
-				//void(*relocate)(void*, void*) = nullptr; /*move + dtor?*/
 			};
 
 			struct Chunk {
@@ -185,21 +177,10 @@ namespace ark {
 			{
 				metadata.name = Util::getNameOfType<T>();
 				metadata.size = sizeof(T);
-				metadata.renderFields = SceneInspector::renderFieldsOfType<T>;
 				metadata.serialize = serialize_value<T>;
 				metadata.deserialize = deserialize_value<T>;
 				metadata.alignment = std::align_val_t{ alignof(T) };
 				custom_delete_buffer = [alignment = metadata.alignment](void* ptr) { ::operator delete[](ptr, alignment); };
-
-				metadata.default_constructor = [](void* This) { new(This)T(); };
-
-				if constexpr (std::is_copy_constructible_v<T>)
-					metadata.copy_constructor = [](void* This, const void* That) { new (This)T(*static_cast<const T*>(That)); };
-
-				if constexpr (!std::is_trivially_destructible_v<T>)
-					metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
-				else
-					metadata.destructor = [](void*) {};
 
 				int kiloByte = 2 * 1024;
 				numberOfComponentsPerChunk = kiloByte / metadata.size;

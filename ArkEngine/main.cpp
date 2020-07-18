@@ -155,17 +155,6 @@ ARK_REGISTER_TYPE(ParticleScripts::RotateEmitter, "RotateEmitterScript", ARK_DEF
 	);
 }
 
-//namespace ark::meta
-//{
-	//template <> constexpr inline auto registerMembers<MovePlayer>()
-	//{
-	//}
-//
-//	template <> constexpr inline auto registerMembers<ParticleScripts::RotateEmitter>()
-//	{
-//	}
-//}
-
 //enum class GameTag { Bullet, Player, Wall };
 
 /* TODO (general): TexturedParticles */
@@ -321,6 +310,7 @@ private:
 
 	friend class DelayedActionSystem;
 };
+ARK_REGISTER_TYPE(DelayedAction, "DelayedAction", ARK_DEFAULT_SERVICES) { return members(); }
 
 class DelayedActionSystem : public ark::SystemT<DelayedActionSystem> {
 public:
@@ -357,6 +347,8 @@ public:
 		p->emitter = Engine::mousePositon();
 	}
 };
+
+ARK_REGISTER_TYPE(EmittFromMouseTest, "EmitterScriptYoy", ARK_DEFAULT_SERVICES) { return members(); }
 
 class TestingState : public BasicState {
 	Entity player;

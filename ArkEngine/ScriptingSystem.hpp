@@ -3,6 +3,8 @@
 #include "ark/ecs/System.hpp"
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/Entity.hpp"
+#include "ark/ecs/Meta.hpp"
+#include "ark/ecs/DefaultServices.hpp"
 
 class ScriptClass : public NonCopyable {
 
@@ -29,9 +31,20 @@ private:
 
 template <typename T>
 class ScriptClassT : public ScriptClass {
+
+	//static inline auto _ = []() { 
+	//	ark::meta::constructMetadataFrom<T>(typeid(T).name()); 
+	//	using Type = T;
+	//	ark::meta::services(
+	//		ARK_SERVICE_INSPECTOR
+	//	);
+	//	//ark::meta::service(ark::SceneInspector::serviceName, ark::SceneInspector::renderFieldsOfType<T>)
+	//}();
+
 public:
 	ScriptClassT() : ScriptClass(typeid(T)) { }
 };
+
 
 struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingComponent> {
 
@@ -86,6 +99,7 @@ private:
 	std::vector<ScriptClass*> mToBeDeleted;
 	friend class ScriptingSystem;
 };
+ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", ARK_DEFAULT_SERVICES) { return members(); }
 
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {
 public:

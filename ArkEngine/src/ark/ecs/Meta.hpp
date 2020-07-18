@@ -33,6 +33,7 @@ auto registerMembers<YourClass>()
 
 #ifdef _MSC_VER
 #pragma warning (disable : 4396) // silly VS warning about inline friend stuff...
+#pragma warning (disable : 26495) // silly VS warning about inline friend stuff...
 #endif
 
 #include <cstring>
@@ -229,11 +230,11 @@ namespace ark::meta
 		if constexpr (std::is_move_assignable_v<T>)
 			metadata.move_assign = [](void* This, void* That) { *static_cast<T*>(This) = std::move(*static_cast<T*>(That)); };
 
-		if constexpr (not std::is_trivially_destructible_v<T> && std::is_destructible_v<T>)
+		//if constexpr (not std::is_trivially_destructible_v<T> && std::is_destructible_v<T>)
+		if constexpr (std::is_destructible_v<T>)
 			metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
 		
 		detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
-		//std::cout << "ctor: " << typeid(T).name() << '\n' ;
 	}
 
 	inline const Metadata* getMetadata(std::type_index type)
@@ -545,16 +546,16 @@ namespace ark::meta
 
 		// add simple member function?
 		union {
-			const member_ptr_t<Class, T> ptr;
+			member_ptr_t<Class, T> ptr;
 			struct {
-				const ref_getter_func_ptr_t<Class, T> refGetterPtr;
-				const ref_setter_func_ptr_t<Class, T> refSetterPtr;
+				ref_getter_func_ptr_t<Class, T> refGetterPtr;
+				ref_setter_func_ptr_t<Class, T> refSetterPtr;
 			};
 			struct {
-				const val_getter_func_ptr_t<Class, T> valGetterPtr;
-				const val_setter_func_ptr_t<Class, T> valSetterPtr;
+				val_getter_func_ptr_t<Class, T> valGetterPtr;
+				val_setter_func_ptr_t<Class, T> valSetterPtr;
 			};
-			const nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr;
+			nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr;
 		};
 
 		// T& getRef(Class& obj) const;
@@ -562,102 +563,6 @@ namespace ark::meta
 		//bool canGetRef() const { return ptr || nonConstRefGetterPtr; }
 		//nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr = nullptr;
 	};
-
-	/*
-	
-	template <typename Class, typename T>
-	class Member {
-	public:
-		using class_type = Class;
-		using member_type = T;
-
-		Member(const char* name, member_ptr_t<Class, T> ptr) noexcept
-			: name(name), ptr(ptr) {}
-
-		Member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
-			: name(name), refGetterPtr(getterPtr), refSetterPtr(setterPtr) {}
-
-		Member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
-			: name(name), valGetterPtr(getterPtr), valSetterPtr(setterPtr) {}
-
-
-		//bool hasPtr() const noexcept { return ptr; }
-		//bool hasFuncPtrs() const noexcept { return refGetterPtr || valSetterPtr; }
-		//bool hasRefFuncPtrs() const noexcept { return refGetterPtr && refSetterPtr; }
-		//bool hasValFuncPtrs() const noexcept { return valGetterPtr && refSetterPtr; }
-		bool canGetConstRef() const noexcept { return ptr || refGetterPtr; }
-
-		const char* getName() const noexcept { return name; }
-		//member_ptr_t<Class, T> getPtr() const noexcept { return ptr; }
-		//auto getRefFuncPtrs() { return std::pair{refGetterPtr, refSetterPtr}; }
-		//auto getValFuncPtrs() { return std::pair{valGetterPtr, valSetterPtr}; }
-
-		const T& get(const Class& obj) const noexcept
-		{
-			if (refGetterPtr) {
-				return (obj.*refGetterPtr)();
-			} else  {
-				return obj.*ptr;
-			}
-		}
-
-		T getCopy(const Class& obj) const noexcept
-		{
-			if (refGetterPtr) {
-				return (obj.*refGetterPtr)();
-			} else if (valGetterPtr) {
-				return (obj.*valGetterPtr)();
-			} else {
-				return obj.*ptr;
-			}
-		}
-
-		template <typename U>
-		void set(Class& obj, U&& value) const noexcept
-		{
-			static_assert(std::is_constructible_v<T, U>);
-			if (refSetterPtr) {
-				(obj.*refSetterPtr)(value);
-			} else if (valSetterPtr) {
-				(obj.*valSetterPtr)(std::forward<U>(value));
-			} else if (ptr) {
-				obj.*ptr = std::forward<U>(value);
-			} 
-		}
-
-	private:
-		const char* name;
-
-		member_ptr_t<Class, T> ptr = nullptr;
-		ref_getter_func_ptr_t<Class, T> refGetterPtr = nullptr;
-		ref_setter_func_ptr_t<Class, T> refSetterPtr = nullptr;
-		val_getter_func_ptr_t<Class, T> valGetterPtr = nullptr;
-		val_setter_func_ptr_t<Class, T> valSetterPtr = nullptr;
-
-		//union {
-		//	member_ptr_t<Class, T> ptr;
-		//	struct {
-		//		ref_getter_func_ptr_t<Class, T> refGetterPtr;
-		//		ref_setter_func_ptr_t<Class, T> refSetterPtr;
-		//	};
-		//	struct {
-		//		val_getter_func_ptr_t<Class, T> valGetterPtr;
-		//		val_setter_func_ptr_t<Class, T> valSetterPtr;
-		//	};
-		//	nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr;
-		//} members;
-		//enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef};
-		//Tag tag = Tag::ptr;
-		//std::uint8_t tag;
-
-
-		// T& getRef(Class& obj) const;
-		//Member& addNonConstGetter(nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr);
-		//bool canGetRef() const { return ptr || nonConstRefGetterPtr; }
-		//nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr = nullptr;
-	};
-
-	*/
 
 	template <typename Class, typename T>
 	constexpr Member<Class, T> member(const char* name, T Class::* ptr) noexcept

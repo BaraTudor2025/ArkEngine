@@ -60,7 +60,7 @@ namespace ark {
 	{
 		const Type& value = *static_cast<const Type*>(pValue);
 		json jsonObj;
-		meta::doForAllMembers<Type>([&value, &jsonObj](auto& member) {
+		meta::doForAllProperties<Type>([&value, &jsonObj](auto& member) {
 			using MemberType = meta::get_member_type<decltype(member)>;
 
 			if constexpr (meta::isRegistered<MemberType>()) {
@@ -82,7 +82,7 @@ namespace ark {
 	static void deserialize_value(const json& jsonObj, void* pValue)
 	{
 		Type& value = *static_cast<Type*>(pValue);
-		meta::doForAllMembers<Type>([&value, &jsonObj](auto& member) {
+		meta::doForAllProperties<Type>([&value, &jsonObj](auto& member) {
 			using MemberType = meta::get_member_type<decltype(member)>;
 
 			if constexpr (meta::isRegistered<MemberType>()) {

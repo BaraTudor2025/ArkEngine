@@ -76,7 +76,7 @@ namespace ark {
 		std::any newValue;
 		bool modified = false; // used in recursive call to check if the member was modified
 
-		meta::doForAllMembers<T>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
+		meta::doForAllProperties<T>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
 			using MemberType = meta::get_member_type<decltype(member)>;
 			ImGui::PushID(*widgetId);
 
@@ -125,7 +125,7 @@ namespace ark {
 			}
 			ImGui::PopID();
 			*widgetId += 1;
-		}); // doForAllMembers
+		}); // doForAllProperties
 		return modified;
 	}
 }

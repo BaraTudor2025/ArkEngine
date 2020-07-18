@@ -65,7 +65,7 @@ namespace ark {
 			Util::erase(m_children, &child);
 		}
 
-		const std::vector<Transform*>& getChildren() { return m_children; }
+		const std::vector<Transform*>& getChildren() const { return m_children; }
 
 		sf::Transform getWorldTransform()
 		{
@@ -125,6 +125,8 @@ ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
 		member("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
 		member("scale", &ark::Transform::getScale, &ark::Transform::setScale),
 		member("roatation", &ark::Transform::getRotation, &ark::Transform::setRotation),
-		member("origin", &ark::Transform::getOrigin, &ark::Transform::setOrigin)
+		member("origin", &ark::Transform::getOrigin, &ark::Transform::setOrigin),
+		member_function<ark::Transform, void, float, float>("move", &ark::Transform::move),
+		member_function<ark::Transform>("getChildren", &ark::Transform::getChildren)
 	);
 }

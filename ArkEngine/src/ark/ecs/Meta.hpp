@@ -76,7 +76,7 @@ auto registerMembers<YourClass>()
 #define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
 	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
 	ARK_REGISTER_SERVICES(TYPE, decltype(NAME), __VA_ARGS__) \
-	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>()
+	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
 
 #define ARK_REGISTER_ENUM(TYPE) \
 	template <> inline auto ::ark::meta::registerEnum<TYPE>()
@@ -84,7 +84,7 @@ auto registerMembers<YourClass>()
 namespace ark::meta
 {
 	template <typename Class>
-	constexpr inline auto registerMembers();
+	constexpr inline auto registerMembers() noexcept;
 
 	inline int getUniqueId()
 	{
@@ -160,6 +160,33 @@ namespace ark::meta
 		void for_tuple(F&& /* f */, const std::tuple<>& /* tuple */)
 		{ /* do nothing */ }
 
+		template <class F, class... Ts>
+		void for_each_argument(F f, Ts&&... a)
+		{
+			(void)std::initializer_list<int>{(f(std::forward<Ts>(a)), 0)...};
+		}
+
+		template <typename F, typename... Args>
+		void property_for_tuple(F&& f, const std::tuple<Args...>& tuple)
+		{
+			std::apply([&](const Args&... members) {
+				for_each_argument([&](const auto& member) {
+					if constexpr (member.isProperty)
+						f(member);
+				}, members...);
+			}, tuple);
+		}
+
+		template <typename F, typename... Args>
+		void function_for_tuple(F&& f, const std::tuple<Args...>& tuple)
+		{
+			std::apply([&](const Args&... members) {
+				for_each_argument([&](const auto& member) {
+					if constexpr (member.isFunction)
+						f(member);
+				}, members...);
+			}, tuple);
+		}
 
 		template <typename T>
 		constexpr bool areTheSameType() { return true; }
@@ -208,7 +235,45 @@ namespace ark::meta
 			static const size_t size = sizeof...(Args);
 		};
 
+		template<typename> struct function_traits;
+
+		template <typename Function>
+		struct function_traits : function_traits<
+			decltype(&Function::operator())
+		> { };
+
+		template <typename ClassType, typename ReturnType, typename... Arguments>
+		struct function_traits<
+			ReturnType(ClassType::*)(Arguments...) const
+		> : function_traits<ReturnType(*)(Arguments...)> { };
+
+		/* support the non-const operator ()
+		 * this will work with user defined functors */
+		template <typename ClassType, typename ReturnType, typename... Arguments>
+		struct function_traits<
+			ReturnType(ClassType::*)(Arguments...)
+		> : function_traits<ReturnType(*)(Arguments...)> { };
+
+		template <typename ReturnType, typename... Arguments>
+		struct function_traits<ReturnType(*)(Arguments...)>
+			: function_traits<ReturnType(Arguments...)> { };
+
+		template <typename ReturnType, typename... Arguments>
+		struct function_traits<ReturnType(Arguments...)> 
+		{
+			using return_type = ReturnType;
+
+			template <std::size_t Index>
+			using arg = typename std::tuple_element<
+				Index,
+				std::tuple<Arguments...>
+			>::type;
+
+			static constexpr std::size_t arity = sizeof...(Arguments);
+		};
+
 	} // end of namespace detail
+
 
 	template <typename T>
 	void constructMetadataFrom(std::string_view name)
@@ -344,21 +409,21 @@ namespace ark::meta
 	/* class members stuff */
 
 	template <typename... Args>
-	constexpr auto members(Args&&... args)
+	constexpr auto members(Args&&... args) noexcept
 	{
 		return std::make_tuple(std::forward<Args>(args)...);
 	}
 
 	// function used for registration of classes by user
 	template <typename Class>
-	constexpr inline auto registerMembers()
+	constexpr inline auto registerMembers() noexcept
 	{
 		return std::make_tuple();
 	}
 
 	// returns the number of registered members of the class
 	template <typename Class>
-	constexpr std::size_t getMemberCount()
+	constexpr std::size_t getMemberCount() noexcept
 	{
 		return std::tuple_size<decltype(registerMembers<Class>())>::value;
 	}
@@ -366,41 +431,42 @@ namespace ark::meta
 
 	// Check if class has registerMembers<T> specialization (has been registered)
 	template <typename Class>
-	constexpr bool isRegistered()
+	constexpr bool isRegistered() noexcept
 	{
 		return !std::is_same<std::tuple<>, decltype(registerMembers<Class>())>::value;
 	}
 
 	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>
-	void doForAllMembers(F&& f) noexcept
+	void doForAllProperties(F&& f) noexcept
 	{
-		detail::for_tuple(std::forward<F>(f), detail::sMembers<Class>);
+		//detail::for_tuple(std::forward<F>(f), detail::sMembers<Class>);
+		detail::property_for_tuple(std::forward<F>(f), detail::sMembers<Class>);
 	}
 
 	// version for non-registered classes (to generate less template stuff)
 	template <typename Class, typename F,
 		typename = std::enable_if_t<!isRegistered<Class>()>,
 		typename = void>
-	void doForAllMembers(F&& /*f*/) noexcept
+	void doForAllProperties(F&& /*f*/) noexcept
 	{
 		//static_assert(false, "nu i type-ul inregistrat!");
 		// do nothing! Nothing gets generated
 	}
 
-	// MemberType is Member<T, Class>
+	// MemberType is Property<T, Class>
 	template <typename MemberType>
 	using get_member_type = typename std::decay_t<MemberType>::member_type;
 
 	// Do F for member named 'name' with type T. It's important to pass correct type of the member
 	template <typename Class, typename T, typename F>
-	void doForMember(const char* name, F&& f)
+	void doForProperty(const char* name, F&& f)
 	{
-		doForAllMembers<Class>(
+		doForAllProperties<Class>(
 			[&](const auto& member)
 			{
 				if (!strcmp(name, member.getName())) {
 					using MemberT = meta::get_member_type<decltype(member)>;
-					static_assert((std::is_same<MemberT, T>::value) && "Member doesn't have type T");
+					static_assert((std::is_same<MemberT, T>::value) && "Property doesn't have type T");
 					if constexpr (std::is_same_v<MemberT, T>)
 						f(member);
 				}
@@ -410,10 +476,10 @@ namespace ark::meta
 
 	// Check if class T has member named 'name'
 	template <typename Class>
-	bool hasMember(const char* name)
+	bool hasProperty(const char* name)
 	{
 		bool found = false;
-		doForAllMembers<Class>(
+		doForAllProperties<Class>(
 			[&found, &name](const auto& member)
 			{
 				if (!strcmp(name, member.getName())) {
@@ -427,10 +493,10 @@ namespace ark::meta
 
 	// Get value of the member named 'name'
 	template <typename T, typename Class>
-	T getMemberValue(Class& obj, const char* name)
+	T getPropertyValue(Class& obj, const char* name)
 	{
 		T value;
-		doForMember<Class, T>(name,
+		doForProperty<Class, T>(name,
 			[&value, &obj](const auto& member)
 			{
 				value = member.getCopy(obj);
@@ -443,9 +509,9 @@ namespace ark::meta
 	template <typename T, typename Class, typename V,
 		typename = std::enable_if_t<std::is_constructible<T, V>::value>
 	>
-	void setMemberValue(Class& obj, const char* name, V&& value)
+	void setPropertyValue(Class& obj, const char* name, V&& value)
 	{
-		doForMember<Class, T>(name,
+		doForProperty<Class, T>(name,
 			[&obj, value = std::forward<V>(value)](const auto& member)
 			{
 				member.set(obj, value);
@@ -457,50 +523,98 @@ namespace ark::meta
 	template <typename Class, typename T>
 	using member_ptr_t = T Class::*;
 
-	// reference getter/setter func pointer type
 	template <typename Class, typename T>
 	using ref_getter_func_ptr_t = const T& (Class::*)() const;
 
 	template <typename Class, typename T>
 	using ref_setter_func_ptr_t = void (Class::*)(const T&);
 
-	// value getter/setter func pointer type
 	template <typename Class, typename T>
 	using val_getter_func_ptr_t = T(Class::*)() const;
 
 	template <typename Class, typename T>
 	using val_setter_func_ptr_t = void (Class::*)(T);
 
-	// non const reference getter
 	template <typename Class, typename T>
 	using nonconst_ref_getter_func_ptr_t = T& (Class::*)();
 
 
+	template <typename Class, typename Ret, typename... Args>
+	using function_ptr_t = Ret(Class::*)(Args...);
+
+	template <typename Class, typename Ret, typename... Args>
+	using const_function_ptr_t = Ret(Class::*)(Args...) const;
+
+
+
+	template <typename Class, typename Ret, typename... Args>
+	class MemberFunction {
+	public:
+		using class_type = Class;
+		using member_type = Ret(Args...);
+		using member_type_ptr = Ret(*)(Args...);
+
+		constexpr MemberFunction(const char* name, function_ptr_t<Class, Ret, Args...> fun) noexcept
+			: tag(Tag::fun), name(name), functionPtr(fun) { }
+
+		constexpr MemberFunction(const char* name, const_function_ptr_t<Class, Ret, Args...> fun) noexcept
+			: tag(Tag::constFun), name(name), constFunctionPtr(fun) { }
+
+		static constexpr bool isProperty = false;
+		static constexpr bool isFunction = true;
+
+		const char* getName() const noexcept { return name; }
+		bool isConst() const noexcept { return Tag::constFun == tag; }
+		auto getConstFunPtr() const noexcept { return constFunctionPtr; }
+		auto getFunPtr() const noexcept { return functionPtr; }
+
+		Ret call(Class& obj, Args&&... args) const noexcept { 
+			if (Tag::fun == tag) {
+				return (obj.*functionPtr)(std::forward<Args>(args));
+			}
+			else {
+				return (obj.*constFunctionPtr)(std::forward<Args>(args));
+			}
+		}
+
+	private:
+		const char* const name;
+
+		union {
+			function_ptr_t<Class, Ret, Args...> functionPtr;
+			const_function_ptr_t<Class, Ret, Args...> constFunctionPtr;
+		};
+
+		enum class Tag : std::uint8_t { fun, constFun};
+		const Tag tag;
+	};
+
+
 	template <typename Class, typename T>
-	class Member {
+	class Property {
 	public:
 		using class_type = Class;
 		using member_type = T;
 
-		constexpr Member(const char* name, member_ptr_t<Class, T> ptr) noexcept
+		constexpr Property(const char* name, member_ptr_t<Class, T> ptr) noexcept
 			: tag(Tag::ptr), name(name), ptr(ptr) {}
 
-		constexpr Member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
+		constexpr Property(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
 			: tag(Tag::ref), name(name), refGetterPtr(getterPtr), refSetterPtr(setterPtr) {}
 
-		constexpr Member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
+		constexpr Property(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
 			: tag(Tag::val), name(name), valGetterPtr(getterPtr), valSetterPtr(setterPtr) {}
 
+		static constexpr bool isProperty = true;
+		static constexpr bool isFunction = false;
 
 		bool hasPtr() const noexcept { return Tag::ptr == tag; }
 		bool hasRefFuncPtrs() const noexcept { return Tag::ref == tag; }
 		bool hasValFuncPtrs() const noexcept { return Tag::val == tag; }
 		bool canGetConstRef() const noexcept { return Tag::ptr == tag || Tag::ref == tag; }
-		//bool isFunction() const noexcept {}
-		//bool isProperty() const noexcept {}
 
 		const char* getName() const noexcept { return name; }
-		member_ptr_t<Class, T> getPtr() const noexcept { return ptr; }
+		auto getPtr() const noexcept { return ptr; }
 		auto getRefFuncPtrs() const noexcept { return std::pair{refGetterPtr, refSetterPtr}; }
 		auto getValFuncPtrs() const noexcept { return std::pair{valGetterPtr, valSetterPtr}; }
 		//auto getFunctionPtr() { }
@@ -539,7 +653,7 @@ namespace ark::meta
 		}
 
 	private:
-		const char* name;
+		const char* const name;
 
 		enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef};
 		const Tag tag;
@@ -559,27 +673,39 @@ namespace ark::meta
 		};
 
 		// T& getRef(Class& obj) const;
-		//Member& addNonConstGetter(nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr);
+		//Property& addNonConstGetter(nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr);
 		//bool canGetRef() const { return ptr || nonConstRefGetterPtr; }
 		//nonconst_ref_getter_func_ptr_t<Class, T> nonConstRefGetterPtr = nullptr;
 	};
 
-	template <typename Class, typename T>
-	constexpr Member<Class, T> member(const char* name, T Class::* ptr) noexcept
+	template <typename Class, typename Ret, typename... Args>
+	constexpr MemberFunction<Class, Ret, Args...> member_function(const char* name, function_ptr_t<Class, Ret, Args...> fun) noexcept
 	{
-		return Member<Class, T>(name, ptr);
+		return MemberFunction<Class, Ret, Args...>(name, fun);
+	}
+
+	template <typename Class, typename Ret, typename... Args>
+	constexpr MemberFunction<Class, Ret, Args...> member_function(const char* name, const_function_ptr_t<Class, Ret, Args...> fun) noexcept
+	{
+		return MemberFunction<Class, Ret, Args...>(name, fun);
 	}
 
 	template <typename Class, typename T>
-	constexpr Member<Class, T> member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	constexpr Property<Class, T> member(const char* name, T Class::* ptr) noexcept
 	{
-		return Member<Class, T>(name, getterPtr, setterPtr);
+		return { name, ptr };
 	}
 
 	template <typename Class, typename T>
-	constexpr Member<Class, T> member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	constexpr Property<Class, T> member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
 	{
-		return Member<Class, T>(name, getterPtr, setterPtr);
+		return Property<Class, T>(name, getterPtr, setterPtr);
+	}
+
+	template <typename Class, typename T>
+	constexpr Property<Class, T> member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	{
+		return Property<Class, T>(name, getterPtr, setterPtr);
 	}
 
 } // end of namespace meta

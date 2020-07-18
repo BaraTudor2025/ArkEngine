@@ -205,5 +205,8 @@
     <ClInclude Include="ScriptingSystem.hpp">
       <Filter>Systems</Filter>
     </ClInclude>
+    <ClInclude Include="src\ark\ecs\DefaultServices.hpp">
+      <Filter>ark\ecs</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

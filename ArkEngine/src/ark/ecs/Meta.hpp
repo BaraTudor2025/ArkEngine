@@ -55,11 +55,11 @@ auto registerMembers<YourClass>()
 		RUN_CODE(using Type = TYPE; constructMetadataFrom<TYPE>(NAME); services<TYPE>(__VA_ARGS__);); \
 	}
 
-#define REGISTER_MEMBERS(TYPE, NAME, ...) \
+#define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
 	REGISTER_SERVICES(TYPE, NAME, __VA_ARGS__) \
 	template <> inline auto ::ark::meta::registerMembers<TYPE>()
 
-#define REGISTER_ENUM(TYPE) \
+#define ARK_REGISTER_ENUM(TYPE) \
 	template <> inline auto ::ark::meta::registerEnum<TYPE>()
 
 namespace ark::meta

@@ -12,6 +12,7 @@
 #include <ark/ecs/Meta.hpp>
 #include <ark/util/RandomNumbers.hpp>
 #include <ark/util/Util.hpp>
+#include <ark/ecs/DefaultServices.hpp>
 
 #include "Quad.hpp"
 
@@ -106,7 +107,7 @@ private:
 	friend class PointParticleSystem;
 };
 
-REGISTER_MEMBERS(PointParticles, "PointParticles", ARK_SERVICE_INSPECTOR)
+ARK_REGISTER_TYPE(PointParticles, "PointParticles", ARK_DEFAULT_SERVICES)
 {
 	using PP = PointParticles;
 	return members(
@@ -183,7 +184,7 @@ private:
 	friend class PixelParticleSystem;
 };
 
-REGISTER_MEMBERS(sf::FloatRect, "FloatRect", ARK_SERVICE_INSPECTOR)
+ARK_REGISTER_TYPE(sf::FloatRect, "FloatRect", ARK_DEFAULT_SERVICES)
 {
 	return members(
 		member("top", &sf::FloatRect::top),
@@ -193,7 +194,7 @@ REGISTER_MEMBERS(sf::FloatRect, "FloatRect", ARK_SERVICE_INSPECTOR)
 	);
 }
 
-REGISTER_MEMBERS(PixelParticles::Colors, "ColorPair", ARK_SERVICE_INSPECTOR)
+ARK_REGISTER_TYPE(PixelParticles::Colors, "ColorPair", ARK_DEFAULT_SERVICES)
 {
 	return members(
 		member("dominant", &PixelParticles::Colors::first),
@@ -201,7 +202,7 @@ REGISTER_MEMBERS(PixelParticles::Colors, "ColorPair", ARK_SERVICE_INSPECTOR)
 	);
 }
 
-REGISTER_MEMBERS(PixelParticles, "PixelParticles", ARK_SERVICE_INSPECTOR)
+ARK_REGISTER_TYPE(PixelParticles, "PixelParticles", ARK_DEFAULT_SERVICES)
 {
 	return members(
 		member("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),

@@ -7,6 +7,7 @@
 #include <ark/ecs/components/Transform.hpp>
 #include <ark/util/ResourceManager.hpp>
 #include <ark/util/Util.hpp>
+#include <ark/ecs/DefaultServices.hpp>
 
 #include "Quad.hpp"
 
@@ -135,17 +136,15 @@ private:
 	template <std::size_t N> decltype(auto) get();
 };
 
-namespace ark::meta {
-	template <> inline auto registerMembers<Animation>()
-	{
-		return members(
-			member("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
-			member("texture", &Animation::getTexture, &Animation::setTexture),
-			member("frame_time", &Animation::frameTime),
-			member("row", &Animation::row)
-			//member("frame_size", &Animation::frameSize)
-		);
-	}
+ARK_REGISTER_TYPE(Animation, "Animation", ARK_DEFAULT_SERVICES)
+{
+	return members(
+		member("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
+		member("texture", &Animation::getTexture, &Animation::setTexture),
+		member("frame_time", &Animation::frameTime),
+		member("row", &Animation::row)
+		//member("frame_size", &Animation::frameSize)
+	);
 }
 
 class AnimationSystem : public ark::SystemT<AnimationSystem>, public ark::Renderer {

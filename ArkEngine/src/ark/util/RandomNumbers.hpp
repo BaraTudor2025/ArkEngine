@@ -1,6 +1,8 @@
 #pragma once
 
 #include <random>
+#include "ark/ecs/Meta.hpp"
+#include "ark/ecs/DefaultServices.hpp"
 
 enum class DistributionType { normal, uniform };
 
@@ -13,25 +15,33 @@ struct Distribution {
 template<typename T> Distribution(T, T)->Distribution<T>;
 template<typename T> Distribution(T, T, DistributionType)->Distribution<T>;
 
-namespace ark::meta {
-
-	template <> inline auto registerMembers<Distribution<float>>()
-	{
-		return members(
-			member("lower", &Distribution<float>::a),
-			member("upper", &Distribution<float>::b),
-			member("type", &Distribution<float>::type)
-		);
-	}
-
-	template <> inline auto registerEnum<DistributionType>()
-	{
-		return enumValues(
-			enumValue("uniform", DistributionType::uniform),
-			enumValue("normal", DistributionType::normal)
-		);
-	}
+ARK_REGISTER_TYPE(Distribution<float>, "Distribution", ARK_DEFAULT_SERVICES)
+{
+	return members(
+		member("lower", &Distribution<float>::a),
+		member("upper", &Distribution<float>::b),
+		member("type", &Distribution<float>::type)
+	);
 }
+
+ARK_REGISTER_ENUM(DistributionType)
+{
+	return enumValues(
+		enumValue("uniform", DistributionType::uniform),
+		enumValue("normal", DistributionType::normal)
+	);
+}
+
+//namespace ark::meta {
+//
+//	//template <> inline auto registerMembers<Distribution<float>>()
+//	//{
+//	//}
+//
+//	template <> inline auto registerEnum<DistributionType>()
+//	{
+//	}
+//}
 
 
 namespace detail {

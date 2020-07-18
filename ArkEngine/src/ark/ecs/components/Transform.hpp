@@ -6,6 +6,7 @@
 #include "ark/core/Core.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Component.hpp"
+#include "ark/ecs/DefaultServices.hpp"
 
 namespace ark {
 
@@ -21,8 +22,8 @@ namespace ark {
 
 		// don't actually use it, copy_ctor is defined so that the compiler dosen't 
 		// scream when we instantiate deque<Transform> in the implementation
-		Transform(const Transform& tx) {}
-		Transform& operator=(const Transform& tx) {}
+		//Transform(const Transform& tx) {}
+		//Transform& operator=(const Transform& tx) {}
 
 		Transform(Transform&& tx) noexcept
 		{
@@ -118,7 +119,7 @@ namespace ark {
 	};
 }
 
-template <> inline auto ::ark::meta::registerMembers<ark::Transform>()
+ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
 {
 	return members(
 		member("position", &ark::Transform::getPosition, &ark::Transform::setPosition),

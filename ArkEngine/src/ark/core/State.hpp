@@ -13,7 +13,8 @@
 #include "ark/core/Logger.hpp"
 #include "ark/util/Util.hpp"
 
-namespace ark {
+namespace ark
+{
 
 	class StateStack;
 	class MessageBus;
@@ -53,17 +54,11 @@ namespace ark {
 
 	public:
 
-		enum class Action {
-			Push,
-			Pop,
-			Clear
-		};
-
 		template <typename T>
 		void registerState(int id)
 		{
-			factories[id] = [this]() {
-				auto state = std::make_unique<T>(*this->messageBus);
+			mFactories[id] = [this]() {
+				auto state = std::make_unique<T>(*this->mMessageBus);
 				state->stateStack = this;
 				return std::move(state);
 			};
@@ -71,89 +66,151 @@ namespace ark {
 
 		void handleMessage(const Message& message)
 		{
-			for (auto it = stack.rbegin(); it != stack.rend(); it++)
-				(*it)->handleMessage(message);
+			forEachState([&](auto& state) {
+				state->handleMessage(message);
+			});
 		}
 
 		void handleEvent(const sf::Event& event)
 		{
-			for (auto it = stack.rbegin(); it != stack.rend(); it++)
-				if (!(*it)->handleEvent(event))
-					break;
+			forEachState([&](auto& state) {
+				state->handleEvent(event);
+			});
 		}
 
 		void update()
 		{
-			for (auto it = stack.rbegin(); it != stack.rend(); it++)
-				if (!(*it)->update())
-					break;
+			forEachState([](auto& state) {
+				state->update();
+			});
 		}
 
 		void preRender(sf::RenderTarget& target)
 		{
-			for (auto it = stack.rbegin(); it != stack.rend(); it++)
-				(*it)->preRender(target);
+			forEachState([&](auto& state) {
+				state->preRender(target);
+			});
 		}
 
 		void render(sf::RenderTarget& target)
 		{
-			for (auto it = stack.rbegin(); it != stack.rend(); it++)
-				if (!(*it)->render(target))
-					break;
+			forEachState([&](auto& state) {
+				state->render(target);
+			});
 		}
 
 		void postRender(sf::RenderTarget& target)
 		{
-			for (auto it = stack.rbegin(); it != stack.rend(); it++)
-				(*it)->postRender(target);
+			forEachState([&](auto& state) {
+				state->postRender(target);
+			});
+		}
+
+		void pushStateAndDisablePreviouses(int id)
+		{
+			mPendingChanges.push_back([this, id]() {
+				auto state = createState(id);
+				if (state) {
+					state->init();
+					mStates.emplace(mStates.begin() + mStateLastIndex, StateData{ std::move(state), mBeginActiveIndex });
+					mStateLastIndex += 1;
+					mBeginActiveIndex = mStateLastIndex - 1;
+				}
+			});
 		}
 
 		void pushState(int id)
 		{
-			pendingChanges.push_back({Action::Push, id});
+			mPendingChanges.push_back([this, id]() {
+				auto state = createState(id);
+				if (state) {
+					state->init();
+					mStates.emplace(mStates.begin() + mStateLastIndex, StateData{ std::move(state), ArkInvalidIndex });
+					mStateLastIndex += 1;
+				}
+			});
 		}
 
-		void popState()
+		void pushOverlay(int id)
 		{
-			pendingChanges.push_back({Action::Pop, ArkInvalidID});
+			mPendingChanges.push_back([this, id]() {
+				auto state = createState(id);
+				if (state) {
+					state->init();
+					mStates.emplace_back(StateData{ std::move(state), ArkInvalidIndex });
+				}
+			});
+		}
+
+		void popState() // int id
+		{
+			mPendingChanges.push_back([this]() {
+				auto& state = mStates.at(std::size_t(mStateLastIndex) - 1);
+				if (state.previousStateThatDisablesIndex != ArkInvalidIndex) {
+					mBeginActiveIndex = state.previousStateThatDisablesIndex;
+				}
+				mStates.erase(mStates.begin() + mStateLastIndex - 1);
+				mStateLastIndex--;
+			});
+		}
+
+		void popOverlay()
+		{
+			mPendingChanges.push_back([this]() {
+				if(mStateLastIndex < mStates.size())
+					mStates.pop_back();
+			});
 		}
 
 		void clearStack()
 		{
-			pendingChanges.push_back({Action::Clear, ArkInvalidID});
+			mPendingChanges.push_back([this]() {
+				mStates.clear();
+				mStateLastIndex = 0;
+				mBeginActiveIndex = 0;
+			});
 		}
 
 		void processPendingChanges()
 		{
-			for (auto changes : pendingChanges) {
-				if (changes.action == Action::Push) {
-					auto it = factories.find(changes.stateId);
-					if (it == factories.end()) {
-						EngineLog(LogSource::StateStack, LogLevel::Error, "didn't find state with id %d", changes.stateId);
-						return;
-					}
-					auto factorie = it->second;
-					stack.emplace_back(factorie());
-					stack.back()->init();
-				} else if (changes.action == Action::Pop) {
-					stack.pop_back();
-				} else if (changes.action == Action::Clear) {
-					stack.clear();
-				}
-			}
-			pendingChanges.clear();
+			for (auto change : mPendingChanges)
+				change();
+			mPendingChanges.clear();
 		}
 
 	private:
-		struct PendingChange {
-			Action action;
-			int stateId = ArkInvalidID;
+
+		template <typename F>
+		void forEachState(F&& f)
+		{
+			for (auto it = mStates.begin() + mBeginActiveIndex; it != mStates.end(); it++) {
+				f(it->state);
+			}
+		}
+
+		auto createState(int id) -> std::unique_ptr<State>
+		{
+			auto it = mFactories.find(id);
+			if (it == mFactories.end()) {
+				EngineLog(LogSource::StateStack, LogLevel::Error, "didn't find state with id %d", id);
+				return nullptr;
+			}
+			else
+				return it->second();
+		}
+
+		struct StateData {
+			std::unique_ptr<State> state;
+			int previousStateThatDisablesIndex = -1;
 		};
 
-		std::vector<std::unique_ptr<State>> stack;
-		std::map<int, std::function<std::unique_ptr<State>()>> factories;
-		std::vector<PendingChange> pendingChanges;
-		MessageBus* messageBus;
+		std::vector<StateData> mStates;
+		std::vector<std::function<void()>> mPendingChanges;
+		int mStateLastIndex = 0;
+		int mBeginActiveIndex = 0;
+		std::map<int, std::function<std::unique_ptr<State>()>> mFactories;
+		MessageBus* mMessageBus;
+
 		friend class Engine;
 	};
 }

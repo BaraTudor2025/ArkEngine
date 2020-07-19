@@ -52,7 +52,7 @@ namespace ark {
 		view.setSize(vm.width, vm.height);
 		view.setCenter(0, 0);
 		window.create(vm, name, sf::Style::Close | sf::Style::Resize, settings);
-		stateStack.messageBus = &messageBus;
+		stateStack.mMessageBus = &messageBus;
 
 		Resources::addHandler<sf::Texture>("textures", Resources::load_SFML_resource<sf::Texture>);
 		Resources::addHandler<sf::Font>("fonts", Resources::load_SFML_resource<sf::Font>);
@@ -144,7 +144,9 @@ namespace ark {
 
 			window.clear(backGroundColor);
 
+			stateStack.preRender(window);
 			stateStack.render(window);
+			stateStack.postRender(window);
 			ImGui::SFML::Render(window);
 			window.display();
 		}

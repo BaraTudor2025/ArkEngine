@@ -68,12 +68,11 @@ namespace ark {
 		sf::Event event;
 		while (window.pollEvent(event)) {
 
-			ImGui::SFML::ProcessEvent(event);
-
 			switch (event.type) {
 
 			case sf::Event::Closed:
 				window.close();
+				stateStack.handleEvent(event);
 				break;
 
 			case sf::Event::Resized:
@@ -81,6 +80,7 @@ namespace ark {
 				auto [x, y] = window.getSize();
 				auto aspectRatio = float(x) / float(y);
 				view.setSize({width * aspectRatio, (float) height});
+				stateStack.handleEvent(event);
 				//window.setView(view);
 				break;
 			}
@@ -102,16 +102,6 @@ namespace ark {
 	void Engine::run()
 	{
 		auto lag = sf::Time::Zero;
-		auto imguiLag = sf::Time::Zero;
-		auto imgui_fixed_time = sf::seconds(1 / 60.f);
-
-		ImGui::SFML::Init(window);
-		InternalGui::init();
-
-#ifdef NDEBUG
-		// call update so that program doesn't crash
-		ImGui::SFML::Update(window, imgui_fixed_time);
-#endif
 
 		clock.restart();
 
@@ -126,30 +116,17 @@ namespace ark {
 			while (lag >= fixed_time) {
 				lag -= fixed_time;
 				updateEngine();
+
+				window.clear(backGroundColor);
+
+				stateStack.preRender(window);
+				stateStack.render(window);
+				stateStack.postRender(window);
+				window.display();
 			}
 #endif
 
-#if defined _DEBUG || defined USE_DELTA_TIME
-			ImGui::SFML::Update(window, delta_time);
-			InternalGui::render();
-#else
-			// updating imgui at a consistent rate
-			imguiLag += delta_time;
-			while (imguiLag >= imgui_fixed_time) {
-				imguiLag -= imgui_fixed_time;
-				ImGui::SFML::Update(window, imgui_fixed_time);
-				InternalGui::render();
-			}
-#endif
-
-			window.clear(backGroundColor);
-
-			stateStack.preRender(window);
-			stateStack.render(window);
-			stateStack.postRender(window);
-			ImGui::SFML::Render(window);
-			window.display();
 		}
-		ImGui::SFML::Shutdown();
+		
 	}
 }

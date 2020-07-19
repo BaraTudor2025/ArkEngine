@@ -208,13 +208,8 @@ namespace ark {
 
 					const ark::meta::Metadata* mdata = ark::meta::getMetadata(compType);
 					if (mdata) {
-						std::cout << mdata->name << '\n';
 						auto render = ark::meta::getService<void(int*, void*)>(*mdata, serviceName);
 						render(&widgetId, compData.component);
-					}
-					else {
-						//std::cout << compType.name() << '\n';
-						//componentManager.renderEditorOfComponent(&widgetId, compData.id, compData.component);
 					}
 					ImGui::Separator();
 				}

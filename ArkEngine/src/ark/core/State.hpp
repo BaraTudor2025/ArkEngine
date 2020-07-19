@@ -28,10 +28,10 @@ namespace ark
 
 		virtual void init() {}
 		virtual void handleMessage(const Message&) = 0;
-		virtual bool handleEvent(const sf::Event&) = 0;
-		virtual bool update() = 0;
+		virtual void handleEvent(const sf::Event&) = 0;
+		virtual void update() = 0;
 		virtual void preRender(sf::RenderTarget&) {}
-		virtual bool render(sf::RenderTarget&) = 0;
+		virtual void render(sf::RenderTarget&) = 0;
 		virtual void postRender(sf::RenderTarget&) {}
 		virtual int getStateId() = 0;
 
@@ -44,8 +44,8 @@ namespace ark
 		void addTab(std::string, std::function<void()>);
 		void removeTab(std::string);
 
-	private:
 		StateStack* stateStack = nullptr;
+	private:
 		MessageBus* messageBus = nullptr;
 		friend class StateStack;
 	};
@@ -108,7 +108,7 @@ namespace ark
 
 		void pushStateAndDisablePreviouses(int id)
 		{
-			mPendingChanges.push_back([this, id]() {
+			mInPendingChanges.push_back([this, id]() {
 				auto state = createState(id);
 				if (state) {
 					state->init();
@@ -121,7 +121,7 @@ namespace ark
 
 		void pushState(int id)
 		{
-			mPendingChanges.push_back([this, id]() {
+			mInPendingChanges.push_back([this, id]() {
 				auto state = createState(id);
 				if (state) {
 					state->init();
@@ -133,7 +133,7 @@ namespace ark
 
 		void pushOverlay(int id)
 		{
-			mPendingChanges.push_back([this, id]() {
+			mInPendingChanges.push_back([this, id]() {
 				auto state = createState(id);
 				if (state) {
 					state->init();
@@ -144,7 +144,7 @@ namespace ark
 
 		void popState() // int id
 		{
-			mPendingChanges.push_back([this]() {
+			mInPendingChanges.push_back([this]() {
 				auto& state = mStates.at(std::size_t(mStateLastIndex) - 1);
 				if (state.previousStateThatDisablesIndex != ArkInvalidIndex) {
 					mBeginActiveIndex = state.previousStateThatDisablesIndex;
@@ -156,7 +156,7 @@ namespace ark
 
 		void popOverlay()
 		{
-			mPendingChanges.push_back([this]() {
+			mInPendingChanges.push_back([this]() {
 				if(mStateLastIndex < mStates.size())
 					mStates.pop_back();
 			});
@@ -164,7 +164,7 @@ namespace ark
 
 		void clearStack()
 		{
-			mPendingChanges.push_back([this]() {
+			mInPendingChanges.push_back([this]() {
 				mStates.clear();
 				mStateLastIndex = 0;
 				mBeginActiveIndex = 0;
@@ -173,9 +173,10 @@ namespace ark
 
 		void processPendingChanges()
 		{
-			for (auto change : mPendingChanges)
+			mInPendingChanges.swap(mOutPendingChanges);
+			for (auto change : mOutPendingChanges)
 				change();
-			mPendingChanges.clear();
+			mOutPendingChanges.clear();
 		}
 
 	private:
@@ -205,7 +206,8 @@ namespace ark
 		};
 
 		std::vector<StateData> mStates;
-		std::vector<std::function<void()>> mPendingChanges;
+		std::vector<std::function<void()>> mInPendingChanges;
+		std::vector<std::function<void()>> mOutPendingChanges;
 		int mStateLastIndex = 0;
 		int mBeginActiveIndex = 0;
 		std::map<int, std::function<std::unique_ptr<State>()>> mFactories;

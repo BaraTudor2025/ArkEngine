@@ -139,7 +139,7 @@ public:
 
 ARK_REGISTER_TYPE(MovePlayer, "MovePlayerScript", ARK_DEFAULT_SERVICES)
 {
-	return members(
+	return ark::meta::members(
 		member("speed", &MovePlayer::speed),
 		member("scale", &MovePlayer::getScale, &MovePlayer::setScale)
 	);
@@ -221,7 +221,8 @@ public:
 };
 
 enum States {
-	TestingState
+	TestingState,
+	ImGuiLayer
 };
 
 class BasicState : public ark::State {
@@ -236,7 +237,7 @@ protected:
 public:
 	BasicState(ark::MessageBus& bus) : ark::State(bus) {}
 
-	bool handleEvent(const sf::Event& event) override
+	void handleEvent(const sf::Event& event) override
 	{
 		if (!pauseScene)
 			scene.handleEvent(event);
@@ -247,7 +248,7 @@ public:
 				takenSS = false;
 			}
 
-		return false;
+		//return false;
 	}
 
 	void handleMessage(const ark::Message& message) override
@@ -256,16 +257,17 @@ public:
 			scene.handleMessage(message);
 	}
 
-	bool update() override
+	void update() override
 	{
-		if (!pauseScene)
+		if (!pauseScene) {
 			scene.update();
+		}
 		else
 			scene.processPendingData();
-		return false;
+		//return false;
 	}
 
-	bool render(sf::RenderTarget& target) override
+	void render(sf::RenderTarget& target) override
 	{
 		if (!pauseScene) {
 			scene.render(target);
@@ -284,7 +286,7 @@ public:
 			target.draw(screen);
 		}
 
-		return false;
+		//return false;
 	}
 };
 
@@ -371,6 +373,7 @@ private:
 
 	void init() override
 	{
+		this->stateStack->pushOverlay(States::ImGuiLayer);
 		scene.addSystem<PointParticleSystem>();
 		scene.addSystem<PixelParticleSystem>();
 		scene.addSystem<FpsCounterSystem>();
@@ -559,6 +562,51 @@ class ChildTestScene : public TemplateScene {
 };
 #endif
 
+class ImGuiLayer : public ark::State {
+public:
+	ImGuiLayer(ark::MessageBus& mb) : State(mb) {}
+	~ImGuiLayer() { ImGui::SFML::Shutdown(); }
+
+	int getStateId() override { return States::ImGuiLayer; }
+
+	void init() override
+	{
+		ImGui::SFML::Init(Engine::getWindow());
+		InternalGui::init();
+	}
+
+	void handleMessage(const ark::Message& m) override
+	{
+
+	}
+	
+	void handleEvent(const sf::Event& event) override
+	{
+		ImGui::SFML::ProcessEvent(event);
+	}
+
+	void update() override
+	{
+		ImGui::SFML::Update(Engine::getWindow(), Engine::deltaTime());
+	}
+
+	void preRender(sf::RenderTarget& win) override
+	{
+		// ImGui::Begin(); ??
+		InternalGui::render();
+	}
+
+	void render(sf::RenderTarget& win) override
+	{
+		ImGui::SFML::Render(win);
+	}
+
+	void postRender(sf::RenderTarget& win) override
+	{
+		//ImGui::End();
+	}
+};
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	sf::ContextSettings settings = sf::ContextSettings();
@@ -568,6 +616,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::backGroundColor = sf::Color(50, 50, 50);
 	Engine::getWindow().setVerticalSyncEnabled(false);
 	Engine::registerState<class TestingState>(States::TestingState);
+	Engine::registerState<class ImGuiLayer>(States::ImGuiLayer);
 	Engine::pushFirstState(States::TestingState);
 
 	Engine::run();

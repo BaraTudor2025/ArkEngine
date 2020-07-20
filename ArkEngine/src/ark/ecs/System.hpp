@@ -39,6 +39,10 @@ namespace ark {
 
 		bool isActive() { return active; }
 
+		const std::string_view name;
+		const std::vector<Entity>& getEntities() const { return entities; }
+		const std::vector<std::string_view>& getComponentNames() const { return componentNames; }
+
 	protected:
 		template <typename T>
 		void requireComponent()
@@ -92,7 +96,6 @@ namespace ark {
 
 	private:
 		friend class SystemManager;
-		friend class SceneInspector;
 		ComponentManager* componentManager = nullptr;
 		std::vector<Entity> entities;
 		std::vector<std::type_index> componentTypes;
@@ -102,7 +105,6 @@ namespace ark {
 		std::type_index type;
 		// used for inspection
 		std::vector<std::string_view> componentNames;
-		std::string_view name;
 		bool active = true;
 	};
 
@@ -154,12 +156,9 @@ namespace ark {
 			return nullptr;
 		}
 
-		std::vector<System*> getSystems()
+		const auto& getSystems() const
 		{
-			std::vector<System*> retSystems;
-			for (auto& sys : systems)
-				retSystems.push_back(sys.get());
-			return retSystems;
+			return systems;
 		}
 
 		template <typename T>
@@ -230,7 +229,6 @@ namespace ark {
 		}
 
 	private:
-		friend class SceneInspector;
 		std::vector<std::unique_ptr<System>> systems;
 		std::vector<System*> activeSystems;
 		MessageBus& messageBus;

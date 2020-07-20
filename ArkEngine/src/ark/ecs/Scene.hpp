@@ -64,11 +64,11 @@ namespace ark {
 			destroyedEntities.push_back(entity);
 		}
 
-
 		Entity getEntityByName(std::string name)
 		{
 			return entityManager.getEntityByName(name);
 		}
+
 
 		template <typename T, typename...Args>
 		T* addSystem(Args&&... args)
@@ -87,28 +87,9 @@ namespace ark {
 			return systemManager.getSystem<T>();
 		}
 
-		template <typename T, typename...Args>
-		T* addDirector(Args&&... args)
+		const auto& getSystems()
 		{
-			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
-			Director* director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
-			director->mScene = this;
-			director->mType = typeid(T);
-			director->mMessageBus = &mMessageBus;
-			director->init();
-			if constexpr (std::is_base_of_v<Renderer, T>)
-				renderers.push_back(director);
-			return static_cast<T*>(director);
-		}
-
-		template <typename T>
-		T* getDirector()
-		{
-			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
-			for (auto& dir : mDirectors)
-				if (dir->mType == typeid(T))
-					return dir.get();
-			return nullptr;
+			return systemManager.getSystems();
 		}
 
 		template <typename T>
@@ -136,6 +117,40 @@ namespace ark {
 			if (std::is_base_of_v<Renderer, T>)
 				Util::erase(renderers, systemManager.getSystem<T>());
 			systemManager.removeSystem<T>();
+		}
+
+		template <typename T, typename...Args>
+		T* addDirector(Args&&... args)
+		{
+			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
+			Director* director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+			director->mScene = this;
+			director->mType = typeid(T);
+			director->mMessageBus = &mMessageBus;
+			director->init();
+			if constexpr (std::is_base_of_v<Renderer, T>)
+				renderers.push_back(director);
+			return static_cast<T*>(director);
+		}
+
+		template <typename T>
+		T* getDirector()
+		{
+			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
+			for (auto& dir : mDirectors)
+				if (dir->mType == typeid(T))
+					return dir.get();
+			return nullptr;
+		}
+
+		std::type_index componentTypeFromId(int id) const
+		{
+			return componentManager.typeFromId(id);
+		}
+
+		const auto& getComponentTypes() const
+		{
+			return componentManager.getTypes();
 		}
 
 		void handleEvent(const sf::Event& event)

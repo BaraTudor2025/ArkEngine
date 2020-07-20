@@ -49,7 +49,7 @@ namespace ark {
 				return pos - std::begin(this->componentIndexes);
 		}
 
-		std::type_index typeFromId(int id)
+		std::type_index typeFromId(int id) const
 		{
 			return componentIndexes.at(id);
 		}
@@ -126,7 +126,7 @@ namespace ark {
 			pools.emplace_back().constructPoolFrom<T>();
 		}
 
-		std::vector<std::type_index>& getTypes()
+		const std::vector<std::type_index>& getTypes() const
 		{
 			return this->componentIndexes;
 		}
@@ -216,7 +216,6 @@ namespace ark {
 		};
 
 		friend class System;
-		friend class SceneInspector;
 		//std::unordered_map<std::type_index, ComponentPool> pools;
 		std::vector<std::type_index> componentIndexes;
 		std::vector<ComponentPool> pools;

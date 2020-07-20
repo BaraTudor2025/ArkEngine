@@ -110,7 +110,7 @@ namespace ark {
 #endif
 		//disable entity children
 
-		const std::string& getName();
+		const std::string& getName() const;
 
 		void setName(std::string name);
 

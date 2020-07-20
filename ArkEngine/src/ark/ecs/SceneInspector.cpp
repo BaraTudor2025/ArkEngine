@@ -1,7 +1,6 @@
 #include <imgui.h>
 #include <libs/tinyformat.hpp>
 
-#include "ark/ecs/System.hpp"
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/EntityManager.hpp"
 #include "ark/ecs/Scene.hpp"
@@ -76,19 +75,20 @@ namespace ark {
 	void SceneInspector::renderSystemInspector()
 	{
 		if (ImGui::TreeNode("Systems:")) {
-			for (const auto& system : mSystemManager->systems) {
-				std::string text = tfm::format("%s: E(%d) C(%d)", system->name.data(), system->entities.size(), system->componentNames.size());
+			for (const auto& uSys : scene.getSystems()) {
+				const System* system = uSys.get();
+				std::string text = tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
 				if (ImGui::TreeNodeEx(text.c_str(), ImGuiTreeNodeFlags_CollapsingHeader)) {
 					float indent_w = 10;
 					ImGui::Indent(indent_w);
 
 					ImGui::TextUnformatted("Components:");
-					for (std::string_view name : system->componentNames) {
+					for (std::string_view name : system->getComponentNames()) {
 						ImGui::BulletText(name.data());
 					}
 
 					ImGui::TextUnformatted("Entities:");
-					for (Entity e : system->entities) {
+					for (const Entity e : system->getEntities()) {
 						ImGui::BulletText(e.getName().c_str());
 					}
 					ImGui::Unindent(indent_w);
@@ -100,9 +100,7 @@ namespace ark {
 	}
 
 	void SceneInspector::init() {
-		mSystemManager = &scene.systemManager;
 		mScriptManager = &scene.scriptManager;
-		mComponentManager = &scene.componentManager;
 		mEntityManager = &scene.entityManager;
 	}
 
@@ -131,7 +129,7 @@ namespace ark {
 
 					ImGui::TextUnformatted("Components:");
 					for (const auto& compData : entity.components) {
-						const auto type = mComponentManager->typeFromId(compData.id);
+						const auto type = scene.componentTypeFromId(compData.id);
 						ImGui::BulletText(Util::getNameOfType(type));
 					}
 
@@ -193,7 +191,7 @@ namespace ark {
 				ImGui::TextUnformatted("Components:");
 				int widgetId = 0;
 				for (auto& compData : entity.components) {
-					const auto compType = mComponentManager->typeFromId(compData.id);
+					const auto compType = scene.componentTypeFromId(compData.id);
 					ImGui::BulletText(Util::getNameOfType(compType));
 					// remove component button
 					const auto typeNameSize = ImGui::GetItemRectSize();
@@ -224,8 +222,8 @@ namespace ark {
 					return true;
 				};
 				int componentItemIndex;
-				auto& types = mComponentManager->getTypes();
-				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, static_cast<void*>(&types), types.size())) {
+				const auto& types = scene.getComponentTypes();
+				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
 					Entity e;
 					e.id = selectedEntity;
 					e.manager = mEntityManager;
@@ -254,7 +252,17 @@ namespace ark {
 							ImGui::EndPopup();
 						}
 						ImGui::PopID();
-						mScriptManager->renderEditorOfScript(&widgetId, script.get());
+						const ark::meta::Metadata* mdata = ark::meta::getMetadata(script->type);
+						if (mdata) {
+							auto render = ark::meta::getService<void(int*, void*)>(*mdata, serviceName);
+							//auto render = ark::meta::getService<void(int*, void*)>(script->type, serviceName);
+							render(&widgetId, script.get());
+							//std::cout << script->type.name();
+							//std::cout << "\n";
+						}
+						else {
+							mScriptManager->renderEditorOfScript(&widgetId, script.get());
+						}
 						ImGui::Separator();
 					}
 				}

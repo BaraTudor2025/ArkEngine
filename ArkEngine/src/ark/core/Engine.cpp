@@ -10,7 +10,7 @@ namespace ark {
 
 	const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
 
-	const std::string& Entity::getName() { return manager->getNameOfEntity(*this); }
+	const std::string& Entity::getName() const { return manager->getNameOfEntity(*this); }
 
 	void Entity::setName(std::string name) { return manager->setNameOfEntity(*this, name); }
 

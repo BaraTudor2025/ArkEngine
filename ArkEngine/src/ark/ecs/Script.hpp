@@ -16,7 +16,7 @@ namespace ark {
 	class ARK_ENGINE_API Script : public NonCopyable {
 
 	public:
-		Script(std::type_index type) : type(type), name(Util::getNameOfType(type)) {}
+		Script(std::type_index type) : mType(type), name(Util::getNameOfType(type)) {}
 		virtual ~Script() = default;
 
 		//if a script is disabled in the same frame of construction then init will not be called
@@ -27,20 +27,21 @@ namespace ark {
 		template <typename T> T* getComponent() { return m_entity.tryGetComponent<T>(); }
 		template <typename T> T* getScript() { return m_entity.getScript<T>(); };
 		Entity entity() { return m_entity; }
-		void deactivate() { m_entity.setScriptActive(type, false); }
+		void deactivate() { m_entity.setScriptActive(mType, false); }
 		bool isActive() { return active; }
 
 		const std::string_view name;
+		__declspec(property(get = getType)) std::type_index type;
+		std::type_index getType() const { return mType; }
 
 	private:
 		Entity m_entity;
 		bool active = true;
 		bool isInitialized = false;
-		std::type_index type;
+		std::type_index mType;
 
 		friend class EntityManager;
 		friend class ScriptManager;
-		friend class SceneInspector;
 	};
 
 	template <typename T>
@@ -122,7 +123,7 @@ namespace ark {
 
 			auto& scripts = scriptPools.at(indexOfPool);
 			for (auto& script : scripts)
-				if (script->type == type)
+				if (script->mType == type)
 					return script.get();
 			return nullptr;
 		}
@@ -148,7 +149,7 @@ namespace ark {
 			auto& scripts = scriptPools[indexOfPool];
 			json jsonScripts;
 			for (const auto& script : scripts)
-				jsonScripts[script->name.data()] = metadata.at(script->type).serialize(script.get());
+				jsonScripts[script->name.data()] = metadata.at(script->mType).serialize(script.get());
 			return jsonScripts;
 		}
 
@@ -159,7 +160,7 @@ namespace ark {
 			auto& scripts = scriptPools[indexOfPool];
 			for (const auto& script : scripts) {
 				const json& jsonScript = jsonObj.at(script->name.data());
-				metadata.at(script->type).deserialize(jsonScript, script.get());
+				metadata.at(script->mType).deserialize(jsonScript, script.get());
 			}
 		}
 
@@ -234,8 +235,8 @@ namespace ark {
 			auto& scripts = scriptPools.at(indexOfPool);
 			for (auto& script : scripts) {
 				EngineLog(LogSource::ScriptM, LogLevel::Info, "deleting (%s)", script->name.data());
-				deleteScriptFromLists(indexOfPool, script->type);
-				Util::erase(scriptsToBeDeleted, std::pair{indexOfPool, script->type});
+				deleteScriptFromLists(indexOfPool, script->mType);
+				Util::erase(scriptsToBeDeleted, std::pair{indexOfPool, script->mType});
 			}
 
 			scripts.clear();
@@ -244,7 +245,7 @@ namespace ark {
 
 		void renderEditorOfScript(int* id, Script* script)
 		{
-			metadata.at(script->type).renderFields(id, script);
+			metadata.at(script->mType).renderFields(id, script);
 		}
 
 	private:
@@ -258,7 +259,7 @@ namespace ark {
 
 		void deleteScript(int indexOfPool, std::type_index type)
 		{
-			Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->type == type; });
+			Util::erase_if(scriptPools.at(indexOfPool), [type](auto& p) { return p->mType == type; });
 		}
 
 	private:

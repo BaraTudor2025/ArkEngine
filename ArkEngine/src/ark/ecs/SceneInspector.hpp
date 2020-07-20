@@ -14,9 +14,7 @@
 namespace ark {
 
 	class EntityManager;
-	class SystemManager;
 	class ScriptManager;
-	class ComponentManager;
 	class Scene;
 
 	class SceneInspector : public Director {
@@ -44,9 +42,7 @@ namespace ark {
 
 	private:
 		EntityManager* mEntityManager;
-		SystemManager* mSystemManager;
 		ScriptManager* mScriptManager;
-		ComponentManager* mComponentManager;
 
 		using FieldFunc = std::function<std::any(std::string_view, const void*)>;
 		static std::unordered_map<std::type_index, FieldFunc> fieldRendererTable;

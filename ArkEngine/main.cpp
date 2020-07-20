@@ -382,7 +382,7 @@ private:
 		scene.addSystem<AnimationSystem>();
 		scene.addSystem<DelayedActionSystem>();
 		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
-		addTab("scene inspector", [&]() { inspector.render(); });
+		ImGuiLayer::addTab({ "scene inspector", [&]() { inspector.render(); } });
 		//scene.addSystem<TestMessageSystem>();
 
 		button = scene.createEntity("button");
@@ -561,51 +561,6 @@ class ChildTestScene : public TemplateScene {
 	Entity* grandson;
 };
 #endif
-
-class ImGuiLayer : public ark::State {
-public:
-	ImGuiLayer(ark::MessageBus& mb) : State(mb) {}
-	~ImGuiLayer() { ImGui::SFML::Shutdown(); }
-
-	int getStateId() override { return States::ImGuiLayer; }
-
-	void init() override
-	{
-		ImGui::SFML::Init(Engine::getWindow());
-		InternalGui::init();
-	}
-
-	void handleMessage(const ark::Message& m) override
-	{
-
-	}
-	
-	void handleEvent(const sf::Event& event) override
-	{
-		ImGui::SFML::ProcessEvent(event);
-	}
-
-	void update() override
-	{
-		ImGui::SFML::Update(Engine::getWindow(), Engine::deltaTime());
-	}
-
-	void preRender(sf::RenderTarget& win) override
-	{
-		// ImGui::Begin(); ??
-		InternalGui::render();
-	}
-
-	void render(sf::RenderTarget& win) override
-	{
-		ImGui::SFML::Render(win);
-	}
-
-	void postRender(sf::RenderTarget& win) override
-	{
-		//ImGui::End();
-	}
-};
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {

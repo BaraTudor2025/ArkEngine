@@ -197,8 +197,10 @@ namespace ark {
 
 	static ImFont* arkFont;
 
-	void InternalGui::init()
+	void ImGuiLayer::init()
 	{
+		ImGui::SFML::Init(Engine::getWindow());
+		//ImGuiLayer::init();
 #if not USE_NATIVE_CONSOLE
 		// redirecting stdout and stderr to stringstream to print the output to the gui console
 		StdOutLogger::stdout_buf = std::cout.rdbuf();
@@ -223,7 +225,7 @@ namespace ark {
 		ImGui::SFML::UpdateFontTexture();
 	}
 
-	void InternalGui::render()
+	void ImGuiLayer::preRender(sf::RenderTarget&)
 	{
 		ImGui::Begin("MyWindow");
 		ImGui::PushFont(arkFont);

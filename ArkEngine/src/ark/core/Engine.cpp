@@ -29,19 +29,6 @@ namespace ark {
 		this->stateStack->clearStack();
 	}
 
-	void State::addTab(std::string name, std::function<void()> render)
-	{
-		InternalGui::addTab({name, render});
-	}
-
-	void State::removeTab(std::string name)
-	{
-		InternalGui::removeTab(name);
-	}
-
-	State::~State()
-	{}
-
 	std::unordered_map<std::type_index, Resources::Handler> Resources::handlers;
 
 	void Engine::create(sf::VideoMode vm, std::string name, sf::Time fixedUpdateTime, sf::ContextSettings settings)
@@ -111,6 +98,12 @@ namespace ark {
 
 #if defined _DEBUG || defined USE_DELTA_TIME
 			updateEngine();
+			window.clear(backGroundColor);
+
+			stateStack.preRender(window);
+			stateStack.render(window);
+			stateStack.postRender(window);
+			window.display();
 #else
 			lag += delta_time;
 			while (lag >= fixed_time) {

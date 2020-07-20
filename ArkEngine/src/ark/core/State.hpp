@@ -23,8 +23,8 @@ namespace ark
 	class State : public NonCopyable, public NonMovable {
 
 	public:
-		State(MessageBus& mb) : messageBus(&mb) {}
-		virtual ~State();
+		State(MessageBus& mb) : mMessageBus(&mb) {}
+		virtual ~State() = default;
 
 		virtual void init() {}
 		virtual void handleMessage(const Message&) = 0;
@@ -37,16 +37,15 @@ namespace ark
 
 	protected:
 
-		MessageBus& getMessageBus() { return *messageBus; }
+		MessageBus& getMessageBus() { return *mMessageBus; }
 		void requestStackPush(int stateId);
 		void requestStackPop();
 		void requestStackClear();
-		void addTab(std::string, std::function<void()>);
-		void removeTab(std::string);
 
 		StateStack* stateStack = nullptr;
 	private:
-		MessageBus* messageBus = nullptr;
+		MessageBus* mMessageBus = nullptr;
+		std::type_index mType = typeid(State);
 		friend class StateStack;
 	};
 
@@ -60,8 +59,18 @@ namespace ark
 			mFactories[id] = [this]() {
 				auto state = std::make_unique<T>(*this->mMessageBus);
 				state->stateStack = this;
+				state->mType = typeid(T);
 				return std::move(state);
 			};
+		}
+
+		template <typename T>
+		T* getState()
+		{
+			for (auto& [state, _] : mStates)
+				if (T* ptr = dynamic_cast<T*>(state.get()))
+					return ptr;
+			return nullptr;
 		}
 
 		void handleMessage(const Message& message)

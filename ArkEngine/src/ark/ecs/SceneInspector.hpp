@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "ark/ecs/Meta.hpp"
+#include "ark/ecs/Director.hpp"
 
 #define ARK_SERVICE_INSPECTOR service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderFieldsOfType<Type>)
 
@@ -18,12 +19,13 @@ namespace ark {
 	class ComponentManager;
 	class Scene;
 
-	class SceneInspector {
+	class SceneInspector : public Director {
 
 	public:
-		explicit SceneInspector(Scene& scene);
+		SceneInspector() = default;
 		~SceneInspector() = default;
 
+		void init() override;
 		void renderSystemInspector();
 		void renderEntityInspector();
 		void renderEntityEditor();
@@ -41,10 +43,10 @@ namespace ark {
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
 
 	private:
-		EntityManager& entityManager;
-		SystemManager& systemManager;
-		ScriptManager& scriptManager;
-		ComponentManager& componentManager;
+		EntityManager* mEntityManager;
+		SystemManager* mSystemManager;
+		ScriptManager* mScriptManager;
+		ComponentManager* mComponentManager;
 
 		using FieldFunc = std::function<std::any(std::string_view, const void*)>;
 		static std::unordered_map<std::type_index, FieldFunc> fieldRendererTable;

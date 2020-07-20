@@ -8,6 +8,7 @@
 #include "Director.hpp"
 
 #include <SFML/Graphics/Drawable.hpp>
+#include <memory>
 
 // TODO (Scene): add Directors?
 
@@ -97,7 +98,7 @@ namespace ark {
 			director->init();
 			if constexpr (std::is_base_of_v<Renderer, T>)
 				renderers.push_back(director);
-			return director.get();
+			return static_cast<T*>(director);
 		}
 
 		template <typename T>

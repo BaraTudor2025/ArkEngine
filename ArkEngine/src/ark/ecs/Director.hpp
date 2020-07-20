@@ -1,12 +1,17 @@
+#pragma once
+
 #include <typeindex>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Event.hpp>
-#include "ark/ecs/Scene.hpp"
 #include "ark/core/Message.hpp"
 #include "ark/core/MessageBus.hpp"
 
+#define ROPROPERTY(GET) __declspec(property(get=GET))
+
 namespace ark
 {
+	class Scene;
+
 	class Director {
 
 	public:
@@ -28,13 +33,17 @@ namespace ark
 		template <typename F>
 		void forEachEntity(F&& f);
 
-		Scene& scene() const { return *mScene; }
-		std::type_index type() const { return mType; }
+		ROPROPERTY(getScene) Scene scene;
+		ROPROPERTY(getType) std::type_index type;
+
+		Scene& getScene() const { return *mScene; }
+		std::type_index getType() const { return mType; }
+
 
 	private:
 		MessageBus* mMessageBus;
 		Scene* mScene;
-		std::type_index mType;
+		std::type_index mType = typeid(Director);
 
 		friend class Scene;
 	};

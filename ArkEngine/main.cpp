@@ -362,7 +362,6 @@ class TestingState : public BasicState {
 	Entity rotatingParticles;
 	std::vector<Entity> fireWorks;
 	std::vector<Entity> particleFountains;
-	SceneInspector inspector{ scene };
 
 public:
 	TestingState(ark::MessageBus& mb) : BasicState(mb) {}
@@ -382,7 +381,9 @@ private:
 		scene.addSystem<AnimationSystem>();
 		scene.addSystem<DelayedActionSystem>();
 		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
-		ImGuiLayer::addTab({ "scene inspector", [&]() { inspector.render(); } });
+
+		auto* inspector = scene.addDirector<SceneInspector>();
+		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->render(); } });
 		//scene.addSystem<TestMessageSystem>();
 
 		button = scene.createEntity("button");

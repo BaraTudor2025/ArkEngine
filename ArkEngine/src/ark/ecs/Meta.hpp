@@ -617,7 +617,6 @@ namespace ark::meta
 		auto getPtr() const noexcept { return mPtr; }
 		auto getRefFuncPtrs() const noexcept { return std::pair{mRefGetter, mRefSetter}; }
 		auto getValFuncPtrs() const noexcept { return std::pair{mValGetter, mValSetter}; }
-		//auto getFunctionPtr() { }
 
 		const T& get(const Class& obj) const noexcept
 		{

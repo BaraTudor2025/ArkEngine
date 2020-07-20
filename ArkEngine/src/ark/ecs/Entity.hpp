@@ -27,10 +27,15 @@ namespace ark {
 		template <typename T>
 		T& getComponent();
 
+		template <typename T>
+		const T& getComponent() const;
+
 		// returns nullptr if component is not found
 		template <typename T>
 		T* tryGetComponent();
 
+		template <typename T>
+		const T* tryGetComponent() const;
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		template <typename T>
@@ -71,7 +76,7 @@ namespace ark {
 
 		const ComponentManager::ComponentMask& getComponentMask();
 
-		bool isValid() { return manager != nullptr; }
+		bool isValid() const { return manager != nullptr; }
 
 #if 0 //disable entity children
 
@@ -114,12 +119,12 @@ namespace ark {
 
 		void setName(std::string name);
 
-		friend bool operator==(Entity left, Entity right)
+		friend bool operator==(const Entity left, const Entity right)
 		{
 			return left.manager == right.manager && left.id == right.id;
 		}
 
-		friend bool operator!=(Entity left, Entity right)
+		friend bool operator!=(const Entity left, const Entity right)
 		{
 			if (left.manager == right.manager)
 				return left.id != right.id;
@@ -127,7 +132,7 @@ namespace ark {
 				return true;
 		}
 
-		friend bool operator<(Entity left, Entity right)
+		friend bool operator<(const Entity left, const Entity right)
 		{
 			return left.id < right.id;
 		}

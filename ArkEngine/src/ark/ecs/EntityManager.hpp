@@ -455,6 +455,17 @@ namespace ark {
 		return *comp;
 	}
 
+	template<typename T>
+	inline const T& Entity::getComponent() const
+	{
+		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
+		auto comp = manager->getComponentOfEntity<T>(*this);
+		if (!comp)
+			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
+		return *comp;
+	}
+
+
 	inline void Entity::addComponent(std::type_index type)
 	{
 		manager->addComponentOnEntity(*this, type);
@@ -465,6 +476,13 @@ namespace ark {
 	{
 		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		return manager->getComponentOfEntity<T>(*this);
+	}
+
+	template<typename T>
+	inline const T* Entity::tryGetComponent() const
+	{
+		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
+		return &this->getComponent<T>();
 	}
 
 	template <typename T>

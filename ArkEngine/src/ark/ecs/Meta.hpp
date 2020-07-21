@@ -9,10 +9,10 @@ namespace meta
 template <>
 auto registerMembers<YourClass>()
 {
-    return members(
-        member(...),
-        ...
-    );
+	return members(
+		member(...),
+		...
+	);
 }
 
 }
@@ -95,13 +95,15 @@ namespace ark::meta
 		return cID++;
 	}
 
-	template <typename, typename=void>
+	template <typename, typename = void>
 	inline auto dummy = 0;
 
 	struct Metadata {
 	private:
 		Metadata(std::type_index type, std::size_t size, std::size_t align, std::string_view name)
-			: type(type), size(size), align(align), name(name) { }
+			: type(type), size(size), align(align), name(name)
+		{
+		}
 	public:
 		std::type_index type;
 		std::size_t size;
@@ -117,11 +119,6 @@ namespace ark::meta
 
 		void(*move_constructor)(void*, void*) = nullptr;
 		void(*move_assign)(void*, void*) = nullptr;
-
-		// exp: services["EDITOR"] = SceneInspector::renderFieldsOfType<T>;
-		// exp: services["SERIALIZE-JSON"] = serialize_value<T>;
-		// exp: services["NEW-UNIQUE"] = lambdaToPtr([]()->unique_ptr<TBase> { return make_unique<T>();});
-		std::unordered_map<std::string_view, void*> services;
 
 		template <typename T>
 		friend void constructMetadataFrom(std::string_view name);
@@ -141,8 +138,13 @@ namespace ark::meta
 		//struct/namespace bagamiaspula {
 		struct guard {
 			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
+			static inline std::map<std::pair<std::type_index, std::string_view>, void*> sServiceTable;
 			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
-			//static inline std::map<std::pair<std::type_index, std::string_view>, void*> sServiceTable;
+
+
+			// exp: services["EDITOR"] = SceneInspector::renderFieldsOfType<T>;
+			// exp: services["SERIALIZE-JSON"] = serialize_value<T>;
+			// exp: services["NEW-UNIQUE"] = lambdaToPtr([]()->unique_ptr<TBase> { return make_unique<T>();});
 		};
 
 		/* helper functions */
@@ -161,7 +163,8 @@ namespace ark::meta
 
 		template <typename F>
 		void for_tuple(F&& /* f */, const std::tuple<>& /* tuple */)
-		{ /* do nothing */ }
+		{ /* do nothing */
+		}
 
 		template <class F, class... Ts>
 		void for_each_argument(F f, Ts&&... a)
@@ -226,7 +229,7 @@ namespace ark::meta
 		}
 
 
-		template <typename T, typename...> 
+		template <typename T, typename...>
 		using getFirstArg = T;
 
 		template <typename... Args>
@@ -262,7 +265,7 @@ namespace ark::meta
 			: function_traits<ReturnType(Arguments...)> { };
 
 		template <typename ReturnType, typename... Arguments>
-		struct function_traits<ReturnType(Arguments...)> 
+		struct function_traits<ReturnType(Arguments...)>
 		{
 			using return_type = ReturnType;
 
@@ -301,12 +304,12 @@ namespace ark::meta
 		//if constexpr (not std::is_trivially_destructible_v<T> && std::is_destructible_v<T>)
 		if constexpr (std::is_destructible_v<T>)
 			metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
-		
-		if(not detail::guard::sTypeTable.count(typeid(T)))
+
+		if (not detail::guard::sTypeTable.count(typeid(T)))
 			detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
 	}
 
-	inline const Metadata* getMetadata(std::type_index type)
+	inline auto getMetadata(std::type_index type) -> const Metadata*
 	{
 		if (detail::guard::sTypeTable.count(type))
 			return &detail::guard::sTypeTable.at(type);
@@ -318,37 +321,31 @@ namespace ark::meta
 	inline void services(Args&&... args)
 	{
 		if constexpr (sizeof...(Args) > 0) {
-			Metadata& m = detail::guard::sTypeTable.at(typeid(T));
-			((m.services[args.first] = args.second), ...);
+			((detail::guard::sServiceTable[{typeid(T), args.first}] = args.second), ...);
 		}
 	}
 
 	template <typename F>
 	auto service(std::string_view name, F fun) -> std::pair<std::string_view, void*>
 	{
-		static_assert(std::is_function_v<std::remove_pointer_t<F>> || std::is_class_v<F>, "fun must be function or non-capturing lambda");
+		static_assert(std::is_function_v<std::remove_pointer_t<F>>
+			|| (std::is_class_v<F> && std::is_empty_v<F>),
+			"F must be function non-capturing lambda");
 
-		if constexpr (std::is_object_v<F>) // is lambda
-			return { name, static_cast<detail::make_func_ptr_t<F>>(fun) };
-		else
-			return { name, fun };
+		return { name, static_cast<detail::make_func_ptr_t<F>>(fun) };
 	}
 
 	template <typename F>
-	auto getService(const Metadata& m, std::string_view serviceName) -> detail::make_func_ptr_t<F>
+	auto getService(std::type_index type, std::string_view serviceName) -> detail::make_func_ptr_t<F>
 	{
 		using FP = detail::make_func_ptr_t<F>;
-		return reinterpret_cast<FP>(m.services.at(serviceName));
-	}
-
-	template <typename T, typename F>
-	auto getService(std::string_view serviceName) -> detail::make_func_ptr_t<F>
-	{
-		using FP = detail::make_func_ptr_t<F>;
-		if(auto m = getMetadata(typeid(T)); m)
-			return reinterpret_cast<FP>(m->services(serviceName));
-		else
+		if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
+			it != detail::guard::sServiceTable.end()) {
+			return reinterpret_cast<FP>(it->second);
+		}
+		else {
 			return nullptr;
+		}
 	}
 
 
@@ -376,15 +373,16 @@ namespace ark::meta
 		using EnumT = typename EnumValueH::enum_type;
 		return std::array<EnumValueHolder<EnumT>, sizeof...(Ts)> { std::forward<Ts>(args)... };
 	}
-	
+
 	template <typename T> inline auto registerEnum()
 	{
 		static_assert(false, "T wasn't registered");
 		return std::array<T, 0>{};
 	}
 
-	template <typename T> inline const auto& getEnumValues() /* -> array<T,N> */ { 
-		static auto enumVals = registerEnum<T>(); 
+	template <typename T> inline const auto& getEnumValues() /* -> array<T,N> */
+	{
+		static auto enumVals = registerEnum<T>();
 		return enumVals;
 	}
 
@@ -449,7 +447,7 @@ namespace ark::meta
 	template <typename Class, typename F,
 		typename = std::enable_if_t<!isRegistered<Class>()>,
 		typename = void>
-	void doForAllFunctions(F&& /*f*/) noexcept
+		void doForAllFunctions(F&& /*f*/) noexcept
 	{
 		//static_assert(false, "nu i type-ul inregistrat!");
 		// do nothing! Nothing gets generated
@@ -466,7 +464,7 @@ namespace ark::meta
 	template <typename Class, typename F,
 		typename = std::enable_if_t<!isRegistered<Class>()>,
 		typename = void>
-	void doForAllProperties(F&& /*f*/) noexcept
+		void doForAllProperties(F&& /*f*/) noexcept
 	{
 		//static_assert(false, "nu i type-ul inregistrat!");
 		// do nothing! Nothing gets generated
@@ -482,14 +480,14 @@ namespace ark::meta
 	{
 		doForAllProperties<Class>(
 			[&](const auto& member)
-			{
-				if (!strcmp(name, member.getName())) {
-					using MemberT = meta::get_member_type<decltype(member)>;
-					static_assert((std::is_same<MemberT, T>::value) && "Property doesn't have type T");
-					if constexpr (std::is_same_v<MemberT, T>)
-						f(member);
-				}
+		{
+			if (!strcmp(name, member.getName())) {
+				using MemberT = meta::get_member_type<decltype(member)>;
+				static_assert((std::is_same<MemberT, T>::value) && "Property doesn't have type T");
+				if constexpr (std::is_same_v<MemberT, T>)
+					f(member);
 			}
+		}
 		);
 	}
 
@@ -500,11 +498,11 @@ namespace ark::meta
 		bool found = false;
 		doForAllProperties<Class>(
 			[&found, &name](const auto& member)
-			{
-				if (!strcmp(name, member.getName())) {
-					found = true;
-				}
+		{
+			if (!strcmp(name, member.getName())) {
+				found = true;
 			}
+		}
 		);
 		return found;
 	}
@@ -517,9 +515,9 @@ namespace ark::meta
 		T value;
 		doForProperty<Class, T>(name,
 			[&value, &obj](const auto& member)
-			{
-				value = member.getCopy(obj);
-			}
+		{
+			value = member.getCopy(obj);
+		}
 		);
 		return value;
 	}
@@ -528,13 +526,13 @@ namespace ark::meta
 	template <typename T, typename Class, typename V,
 		typename = std::enable_if_t<std::is_constructible<T, V>::value>
 	>
-	void setPropertyValue(Class& obj, const char* name, V&& value)
+		void setPropertyValue(Class& obj, const char* name, V&& value)
 	{
 		doForProperty<Class, T>(name,
 			[&obj, value = std::forward<V>(value)](const auto& member)
-			{
-				member.set(obj, value);
-			}
+		{
+			member.set(obj, value);
+		}
 		);
 	}
 
@@ -555,7 +553,7 @@ namespace ark::meta
 	using val_setter_func_ptr_t = void (Class::*)(T);
 
 	template <typename Class, typename T>
-	using nonconst_ref_getter_func_ptr_t = T& (Class::*)();
+	using nonconst_ref_getter_func_ptr_t = T & (Class::*)();
 
 
 	template <typename Class, typename Ret, typename... Args>
@@ -574,10 +572,14 @@ namespace ark::meta
 		using member_type_ptr = Ret(*)(Args...);
 
 		constexpr MemberFunction(const char* name, function_ptr_t<Class, Ret, Args...> fun) noexcept
-			: mTag(Tag::fun), mName(name), mFunctionPtr(fun) { }
+			: mTag(Tag::fun), mName(name), mFunctionPtr(fun)
+		{
+		}
 
 		constexpr MemberFunction(const char* name, const_function_ptr_t<Class, Ret, Args...> fun) noexcept
-			: mTag(Tag::constFun), mName(name), mConstFunctionPtr(fun) { }
+			: mTag(Tag::constFun), mName(name), mConstFunctionPtr(fun)
+		{
+		}
 
 		static constexpr bool isProperty = false;
 		static constexpr bool isFunction = true;
@@ -587,7 +589,8 @@ namespace ark::meta
 		auto getConstFunPtr() const noexcept { return mConstFunctionPtr; }
 		auto getFunPtr() const noexcept { return mFunctionPtr; }
 
-		Ret call(Class& obj, Args&&... args) const noexcept { 
+		Ret call(Class& obj, Args&&... args) const noexcept
+		{
 			if (Tag::fun == mTag) {
 				return (obj.*mFunctionPtr)(std::forward<Args>(args));
 			}
@@ -604,7 +607,7 @@ namespace ark::meta
 			const_function_ptr_t<Class, Ret, Args...> mConstFunctionPtr;
 		};
 
-		enum class Tag : std::uint8_t { fun, constFun};
+		enum class Tag : std::uint8_t { fun, constFun };
 		const Tag mTag;
 	};
 
@@ -616,13 +619,19 @@ namespace ark::meta
 		using member_type = T;
 
 		constexpr Property(const char* name, member_ptr_t<Class, T> ptr) noexcept
-			: mTag(Tag::ptr), mName(name), mPtr(ptr) {}
+			: mTag(Tag::ptr), mName(name), mPtr(ptr)
+		{
+		}
 
 		constexpr Property(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
-			: mTag(Tag::ref), mName(name), mRefGetter(getterPtr), mRefSetter(setterPtr) {}
+			: mTag(Tag::ref), mName(name), mRefGetter(getterPtr), mRefSetter(setterPtr)
+		{
+		}
 
 		constexpr Property(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
-			: mTag(Tag::val), mName(name), mValGetter(getterPtr), mValSetter(setterPtr) {}
+			: mTag(Tag::val), mName(name), mValGetter(getterPtr), mValSetter(setterPtr)
+		{
+		}
 
 		static constexpr bool isProperty = true;
 		static constexpr bool isFunction = false;
@@ -634,14 +643,15 @@ namespace ark::meta
 
 		const char* getName() const noexcept { return mName; }
 		auto getPtr() const noexcept { return mPtr; }
-		auto getRefFuncPtrs() const noexcept { return std::pair{mRefGetter, mRefSetter}; }
-		auto getValFuncPtrs() const noexcept { return std::pair{mValGetter, mValSetter}; }
+		auto getRefFuncPtrs() const noexcept { return std::pair{ mRefGetter, mRefSetter }; }
+		auto getValFuncPtrs() const noexcept { return std::pair{ mValGetter, mValSetter }; }
 
 		const T& get(const Class& obj) const noexcept
 		{
 			if (Tag::ref == mTag) {
 				return (obj.*mRefGetter)();
-			} else {
+			}
+			else {
 				return obj.*mPtr;
 			}
 		}
@@ -650,9 +660,11 @@ namespace ark::meta
 		{
 			if (Tag::ref == mTag) {
 				return (obj.*mRefGetter)();
-			} else if (Tag::val == mTag) {
+			}
+			else if (Tag::val == mTag) {
 				return (obj.*mValGetter)();
-			} else {
+			}
+			else {
 				return obj.*mPtr;
 			}
 		}
@@ -663,17 +675,19 @@ namespace ark::meta
 			static_assert(std::is_constructible_v<T, U>);
 			if (Tag::ref == mTag) {
 				(obj.*mRefSetter)(value);
-			} else if (Tag::val == mTag) {
+			}
+			else if (Tag::val == mTag) {
 				(obj.*mValSetter)(std::forward<U>(value));
-			} else {
+			}
+			else {
 				obj.*mPtr = std::forward<U>(value);
-			} 
+			}
 		}
 
 	private:
 		const char* const mName;
 
-		enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef};
+		enum class Tag : std::uint8_t { ptr, ref, val, nonConstRef };
 		const Tag mTag;
 
 		union {

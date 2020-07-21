@@ -9,7 +9,7 @@
 class ScriptClass : public NonCopyable {
 
 public:
-	ScriptClass(std::type_index type) : mType(type) { }
+	ScriptClass(std::type_index type) : mType(type) {}
 	virtual ~ScriptClass() = default;
 
 	virtual void bind() noexcept = 0;
@@ -20,6 +20,11 @@ public:
 
 	ark::Entity entity() { return mEntity; }
 	void setActive(bool isActive) { mIsActive = isActive; }
+
+	__declspec(property(get = getType))
+		std::type_index type;
+
+	std::type_index getType() const { return mType; }
 
 private:
 	bool mIsActive = true;
@@ -42,7 +47,7 @@ class ScriptClassT : public ScriptClass {
 	//}();
 
 public:
-	ScriptClassT() : ScriptClass(typeid(T)) { }
+	ScriptClassT() : ScriptClass(typeid(T)) {}
 };
 
 

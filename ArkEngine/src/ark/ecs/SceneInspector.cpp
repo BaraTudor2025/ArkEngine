@@ -209,9 +209,7 @@ namespace ark {
 					}
 					ImGui::PopID();
 
-					const ark::meta::Metadata* mdata = ark::meta::getMetadata(compType);
-					if (mdata) {
-						auto render = ark::meta::getService<void(int*, void*)>(*mdata, serviceName);
+					if (auto render = ark::meta::getService<void(int*, void*)>(compType, serviceName)) {
 						render(&widgetId, compData.component);
 					}
 					ImGui::Separator();
@@ -254,9 +252,8 @@ namespace ark {
 							ImGui::EndPopup();
 						}
 						ImGui::PopID();
-						const ark::meta::Metadata* mdata = ark::meta::getMetadata(script->type);
-						if (mdata) {
-							auto render = ark::meta::getService<void(int*, void*)>(*mdata, serviceName);
+
+						if (auto render = ark::meta::getService<void(int*, void*)>(script->type, serviceName)) {
 							render(&widgetId, script.get());
 						}
 						ImGui::Separator();

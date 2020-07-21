@@ -72,11 +72,14 @@ auto registerMembers<YourClass>()
 #define ARK_REGISTER_SERVICES_IN_CLASS(TYPE, GUARD, ...) \
 	RUN_CODE_QSTATIC(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; services<TYPE>(__VA_ARGS__); )
 
+#define ARK_REGISTER_MEMBERS(TYPE) \
+	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
+
 // standard
 #define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
 	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
 	ARK_REGISTER_SERVICES(TYPE, decltype(NAME), __VA_ARGS__) \
-	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
+	ARK_REGISTER_MEMBERS(TYPE)
 
 #define ARK_REGISTER_ENUM(TYPE) \
 	template <> inline auto ::ark::meta::registerEnum<TYPE>()
@@ -135,7 +138,7 @@ namespace ark::meta
 
 		// bagamiaspulanmicrosoft ca aparent initializeaza mai intai variabilele statice inline din clasa si dupa pe cele globale statice
 		// asa ca tre sa pun sTypeTable intr un struct ca sa ma asigur ca e construit inainte de varialbilele anonime din macroul REGISTER_SERVICES
-		//struct bagamiaspula {
+		//struct/namespace bagamiaspula {
 		struct guard {
 			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
 			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
@@ -299,7 +302,8 @@ namespace ark::meta
 		if constexpr (std::is_destructible_v<T>)
 			metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
 		
-		detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
+		if(not detail::guard::sTypeTable.count(typeid(T)))
+			detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
 	}
 
 	inline const Metadata* getMetadata(std::type_index type)
@@ -434,6 +438,21 @@ namespace ark::meta
 	constexpr bool isRegistered() noexcept
 	{
 		return !std::is_same<std::tuple<>, decltype(registerMembers<Class>())>::value;
+	}
+
+	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>
+	void doForAllFunctions(F&& f) noexcept
+	{
+		detail::function_for_tuple(std::forward<F>(f), detail::sMembers<Class>);
+	}
+
+	template <typename Class, typename F,
+		typename = std::enable_if_t<!isRegistered<Class>()>,
+		typename = void>
+	void doForAllFunctions(F&& /*f*/) noexcept
+	{
+		//static_assert(false, "nu i type-ul inregistrat!");
+		// do nothing! Nothing gets generated
 	}
 
 	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>

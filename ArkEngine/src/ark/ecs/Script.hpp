@@ -8,6 +8,8 @@
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/Serialize.hpp"
 #include "ark/util/Util.hpp"
+#include "ark/ecs/Meta.hpp"
+#include "ark/ecs/DefaultServices.hpp"
 
 namespace ark {
 
@@ -48,10 +50,9 @@ namespace ark {
 	int registerScript();
 
 
-	/* helper class */
 	template <typename T>
 	class ScriptT : public Script {
-		// calling this function at start up time
+
 		static inline const auto _ = registerScript<T>();
 	public:
 		ScriptT() : Script(typeid(T))
@@ -243,11 +244,6 @@ namespace ark {
 			freePools.push_back(indexOfPool);
 		}
 
-		void renderEditorOfScript(int* id, Script* script)
-		{
-			metadata.at(script->mType).renderFields(id, script);
-		}
-
 	private:
 		void deleteScriptFromLists(int indexOfPool, std::type_index type)
 		{
@@ -276,7 +272,6 @@ namespace ark {
 
 		struct ScriptMetadata {
 			std::function<std::unique_ptr<Script>()> construct;
-			std::function<void(int*, void*)> renderFields;
 			std::function<json(const void*)> serialize;
 			std::function<void(const json&, void*)> deserialize;
 		};
@@ -288,8 +283,13 @@ namespace ark {
 			static_assert(std::is_base_of_v<Script, T>);
 			static_assert(std::is_default_constructible_v<T>, "Script needs to have default constructor");
 
+			auto newService = ark::meta::service("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
+
+			ark::meta::constructMetadataFrom<T>(typeid(T).name());
+			using Type = T;
+			ark::meta::services<T>(ark::meta::ARK_SERVICE_INSPECTOR, newService);
+
 			auto& metadata = ScriptManager::metadata[typeid(T)];
-			metadata.renderFields = SceneInspector::renderFieldsOfType<T>;
 			metadata.serialize = serialize_value<T>;
 			metadata.deserialize = deserialize_value<T>;
 			metadata.construct = []() -> std::unique_ptr<Script> {

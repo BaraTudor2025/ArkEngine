@@ -104,6 +104,7 @@ namespace ark {
 		mEntityManager = &scene.entityManager;
 	}
 
+#if 0
 	void SceneInspector::renderEntityInspector()
 	{
 		if (ImGui::TreeNode("Entities:")) {
@@ -148,6 +149,7 @@ namespace ark {
 			ImGui::TreePop();
 		}
 	}
+#endif
 
 	void SceneInspector::renderEntityEditor()
 	{
@@ -255,13 +257,7 @@ namespace ark {
 						const ark::meta::Metadata* mdata = ark::meta::getMetadata(script->type);
 						if (mdata) {
 							auto render = ark::meta::getService<void(int*, void*)>(*mdata, serviceName);
-							//auto render = ark::meta::getService<void(int*, void*)>(script->type, serviceName);
 							render(&widgetId, script.get());
-							//std::cout << script->type.name();
-							//std::cout << "\n";
-						}
-						else {
-							mScriptManager->renderEditorOfScript(&widgetId, script.get());
 						}
 						ImGui::Separator();
 					}

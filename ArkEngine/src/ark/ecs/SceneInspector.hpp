@@ -25,13 +25,13 @@ namespace ark {
 
 		void init() override;
 		void renderSystemInspector();
-		void renderEntityInspector();
+		//void renderEntityInspector();
 		void renderEntityEditor();
 
 		void render()
 		{
 			renderSystemInspector();
-			renderEntityInspector();
+			//renderEntityInspector();
 			renderEntityEditor();
 		}
 

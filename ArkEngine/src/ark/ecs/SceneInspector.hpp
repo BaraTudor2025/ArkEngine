@@ -8,6 +8,7 @@
 
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Director.hpp"
+#include "ark/ecs/Renderer.hpp"
 
 #define ARK_SERVICE_INSPECTOR service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderFieldsOfType<Type>)
 
@@ -17,7 +18,7 @@ namespace ark {
 	class ScriptManager;
 	class Scene;
 
-	class SceneInspector : public Director {
+	class SceneInspector : public Director, public Renderer {
 
 	public:
 		SceneInspector() = default;
@@ -28,9 +29,9 @@ namespace ark {
 		//void renderEntityInspector();
 		void renderEntityEditor();
 
-		void render()
+		void render(sf::RenderTarget&) override
 		{
-			renderSystemInspector();
+			//renderSystemInspector();
 			//renderEntityInspector();
 			renderEntityEditor();
 		}

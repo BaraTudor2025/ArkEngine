@@ -6,6 +6,7 @@
 #include "Entity.hpp"
 #include "EntityManager.hpp"
 #include "Director.hpp"
+#include "Renderer.hpp"
 
 #include <SFML/Graphics/Drawable.hpp>
 #include <memory>
@@ -123,14 +124,14 @@ namespace ark {
 		T* addDirector(Args&&... args)
 		{
 			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
-			Director* director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+			auto& director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 			director->mScene = this;
 			director->mType = typeid(T);
 			director->mMessageBus = &mMessageBus;
 			director->init();
 			if constexpr (std::is_base_of_v<Renderer, T>)
-				renderers.push_back(director);
-			return static_cast<T*>(director);
+				renderers.push_back(dynamic_cast<Renderer*>(director.get()));
+			return static_cast<T*>(director.get());
 		}
 
 		template <typename T>

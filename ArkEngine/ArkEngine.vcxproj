@@ -286,6 +286,7 @@
     <ClInclude Include="src\ark\ecs\Entity.hpp" />
     <ClInclude Include="src\ark\ecs\EntityManager.hpp" />
     <ClInclude Include="src\ark\ecs\Meta.hpp" />
+    <ClInclude Include="src\ark\ecs\Renderer.hpp" />
     <ClInclude Include="src\ark\ecs\Scene.hpp" />
     <ClInclude Include="src\ark\ecs\SceneInspector.hpp" />
     <ClInclude Include="src\ark\ecs\Script.hpp" />

@@ -211,5 +211,8 @@
     <ClInclude Include="src\ark\ecs\Director.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
+    <ClInclude Include="src\ark\ecs\Renderer.hpp">
+      <Filter>ark\ecs</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

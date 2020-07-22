@@ -372,7 +372,6 @@ private:
 
 	void init() override
 	{
-		this->stateStack->pushOverlay(States::ImGuiLayer);
 		scene.addSystem<PointParticleSystem>();
 		scene.addSystem<PixelParticleSystem>();
 		scene.addSystem<FpsCounterSystem>();
@@ -383,7 +382,7 @@ private:
 		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
 
 		auto* inspector = scene.addDirector<SceneInspector>();
-		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->render(); } });
+		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->renderSystemInspector(); } });
 		//scene.addSystem<TestMessageSystem>();
 
 		button = scene.createEntity("button");
@@ -574,6 +573,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::registerState<class TestingState>(States::TestingState);
 	Engine::registerState<class ImGuiLayer>(States::ImGuiLayer);
 	Engine::pushFirstState(States::TestingState);
+	Engine::pushOverlay(States::ImGuiLayer);
 
 	Engine::run();
 

@@ -38,6 +38,11 @@ namespace ark {
 			stateStack.pushState(id);
 		}
 
+		static void pushOverlay(int id)
+		{
+			stateStack.pushOverlay(id);
+		}
+
 		static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }
 
 		// use delta time in debugging, and fixed time for release

@@ -8,6 +8,8 @@
 #include <ark/util/ResourceManager.hpp>
 #include <ark/util/Util.hpp>
 #include <ark/ecs/DefaultServices.hpp>
+#include <ark/ecs/Renderer.hpp>
+
 
 #include "Quad.hpp"
 

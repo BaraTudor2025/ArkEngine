@@ -127,6 +127,14 @@ namespace ark::meta
 
 	namespace detail
 	{
+		template <typename... Args>
+		struct type_list
+		{
+			template <std::size_t N>
+			using type = std::tuple_element_t<N, std::tuple<Args...>>;
+			using indices = std::index_sequence_for<Args...>;
+			static const size_t size = sizeof...(Args);
+		};
 		/* sMembers holds all Member objects constructed via meta::registerMembers<T> call.
 		 * If the class is not registered, sMembers is std::tuple<> */
 
@@ -149,31 +157,42 @@ namespace ark::meta
 
 		/* helper functions */
 
+		// c++20 ?
+		//template <std::size_t Idx = 0, const auto& tupleT, typename F>
+		//constexpr int template_for_tuple(F f)
+		//{
+		//	constexpr auto tupMem = std::get<Idx>(tupleT);
+		//	constexpr decltype(auto) _ = f(tupMem);
+		//	if constexpr (Idx + 1 != std::tuple_size_v<std::decay_t<decltype(tupleT)>>)
+		//		template_for_tuple<Idx + 1, tupleT>(f);
+		//	return 0;
+		//}
+
 		template <typename F, typename... Args, std::size_t... Idx>
-		void for_tuple_impl(F&& f, const std::tuple<Args...>& tuple, std::index_sequence<Idx...>)
+		constexpr void for_tuple_impl(F f, std::tuple<Args...> tuple, std::index_sequence<Idx...>)
 		{
 			(f(std::get<Idx>(tuple)), ...);
 		}
 
 		template <typename F, typename... Args>
-		void for_tuple(F&& f, const std::tuple<Args...>& tuple)
+		constexpr void for_tuple(F f, std::tuple<Args...> tuple)
 		{
 			for_tuple_impl(f, tuple, std::index_sequence_for<Args...>{});
 		}
 
 		template <typename F>
-		void for_tuple(F&& /* f */, const std::tuple<>& /* tuple */)
+		constexpr void for_tuple(F&& /* f */, const std::tuple<>& /* tuple */)
 		{ /* do nothing */
 		}
 
 		template <class F, class... Ts>
-		void for_each_argument(F f, Ts&&... a)
+		constexpr void for_each_argument(F&& f, Ts&&... a)
 		{
 			(void)std::initializer_list<int>{(f(std::forward<Ts>(a)), 0)...};
 		}
 
 		template <typename F, typename... Args>
-		void property_for_tuple(F&& f, const std::tuple<Args...>& tuple)
+		constexpr void property_for_tuple(F&& f, const std::tuple<Args...>& tuple)
 		{
 			std::apply([&](const Args&... members) {
 				for_each_argument([&](const auto& member) {
@@ -184,7 +203,7 @@ namespace ark::meta
 		}
 
 		template <typename F, typename... Args>
-		void function_for_tuple(F&& f, const std::tuple<Args...>& tuple)
+		constexpr void function_for_tuple(F&& f, const std::tuple<Args...>& tuple)
 		{
 			std::apply([&](const Args&... members) {
 				for_each_argument([&](const auto& member) {
@@ -223,7 +242,7 @@ namespace ark::meta
 		using make_func_ptr_t = typename make_func_ptr<T>::type;
 
 		template <typename L>
-		void* lambdaToPtr(L&& lambda)
+		constexpr void* lambdaToPtr(L&& lambda)
 		{
 			return static_cast<detail::make_func_ptr_t<L>>(lambda);
 		}
@@ -231,15 +250,6 @@ namespace ark::meta
 
 		template <typename T, typename...>
 		using getFirstArg = T;
-
-		template <typename... Args>
-		struct type_list
-		{
-			template <std::size_t N>
-			using type = std::tuple_element_t<N, std::tuple<Args...>>;
-			using indices = std::index_sequence_for<Args...>;
-			static const size_t size = sizeof...(Args);
-		};
 
 		template<typename> struct function_traits;
 
@@ -427,7 +437,7 @@ namespace ark::meta
 	template <typename Class>
 	constexpr std::size_t getMemberCount() noexcept
 	{
-		return std::tuple_size<decltype(registerMembers<Class>())>::value;
+		return std::tuple_size_v<decltype(registerMembers<Class>())>;
 	}
 
 
@@ -435,11 +445,23 @@ namespace ark::meta
 	template <typename Class>
 	constexpr bool isRegistered() noexcept
 	{
-		return !std::is_same<std::tuple<>, decltype(registerMembers<Class>())>::value;
+		return !std::is_same_v<std::tuple<>, decltype(registerMembers<Class>())>;
 	}
 
 	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>
-	void doForAllFunctions(F&& f) noexcept
+	constexpr void doForAllMembers(F f) noexcept
+	{
+		// c++20 ?
+		//static constexpr auto mems = registerMembers<Class>();
+		//detail::template_for_tuple<0, mems>(f);
+		detail::for_tuple(f, detail::sMembers<Class>);
+	}
+
+	template <typename Class, typename F, typename = std::enable_if_t<!isRegistered<Class>()>, typename=void>
+	constexpr void doForAllMembers(F&& f) noexcept { }
+
+	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>
+	constexpr void doForAllFunctions(F&& f) noexcept
 	{
 		detail::function_for_tuple(std::forward<F>(f), detail::sMembers<Class>);
 	}
@@ -447,7 +469,7 @@ namespace ark::meta
 	template <typename Class, typename F,
 		typename = std::enable_if_t<!isRegistered<Class>()>,
 		typename = void>
-		void doForAllFunctions(F&& /*f*/) noexcept
+	constexpr void doForAllFunctions(F&& /*f*/) noexcept
 	{
 		//static_assert(false, "nu i type-ul inregistrat!");
 		// do nothing! Nothing gets generated
@@ -470,7 +492,6 @@ namespace ark::meta
 		// do nothing! Nothing gets generated
 	}
 
-	// MemberType is Property<T, Class>
 	template <typename MemberType>
 	using get_member_type = typename std::decay_t<MemberType>::member_type;
 
@@ -483,7 +504,7 @@ namespace ark::meta
 		{
 			if (!strcmp(name, member.getName())) {
 				using MemberT = meta::get_member_type<decltype(member)>;
-				static_assert((std::is_same<MemberT, T>::value) && "Property doesn't have type T");
+				static_assert((std::is_same_v<MemberT, T>) && "Property doesn't have type T");
 				if constexpr (std::is_same_v<MemberT, T>)
 					f(member);
 			}
@@ -572,26 +593,26 @@ namespace ark::meta
 		using member_type_ptr = Ret(*)(Args...);
 
 		constexpr MemberFunction(const char* name, function_ptr_t<Class, Ret, Args...> fun) noexcept
-			: mTag(Tag::fun), mName(name), mFunctionPtr(fun)
+			: isConst(false), mName(name), mFunctionPtr(fun)
 		{
 		}
 
 		constexpr MemberFunction(const char* name, const_function_ptr_t<Class, Ret, Args...> fun) noexcept
-			: mTag(Tag::constFun), mName(name), mConstFunctionPtr(fun)
+			: isConst(true), mName(name), mConstFunctionPtr(fun)
 		{
 		}
 
 		static constexpr bool isProperty = false;
 		static constexpr bool isFunction = true;
 
-		const char* getName() const noexcept { return mName; }
-		bool isConst() const noexcept { return Tag::constFun == mTag; }
-		auto getConstFunPtr() const noexcept { return mConstFunctionPtr; }
-		auto getFunPtr() const noexcept { return mFunctionPtr; }
+		const bool isConst;
+		constexpr const char* getName() const noexcept { return this->mName; }
+		constexpr auto getConstFunPtr() const noexcept { return mConstFunctionPtr; }
+		constexpr auto getFunPtr() const noexcept { return mFunctionPtr; }
 
 		Ret call(Class& obj, Args&&... args) const noexcept
 		{
-			if (Tag::fun == mTag) {
+			if (!isConst) {
 				return (obj.*mFunctionPtr)(std::forward<Args>(args));
 			}
 			else {
@@ -607,8 +628,6 @@ namespace ark::meta
 			const_function_ptr_t<Class, Ret, Args...> mConstFunctionPtr;
 		};
 
-		enum class Tag : std::uint8_t { fun, constFun };
-		const Tag mTag;
 	};
 
 

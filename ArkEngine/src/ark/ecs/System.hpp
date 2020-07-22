@@ -3,28 +3,15 @@
 #include <vector>
 
 #include <SFML/Window/Event.hpp>
-#include <SFML/Graphics/RenderTarget.hpp>
 
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/Component.hpp"
 #include "ark/core/Message.hpp"
 #include "ark/core/MessageBus.hpp"
 
-
 namespace ark {
 
 	class Scene;
-
-	class ARK_ENGINE_API Renderer : public NonCopyable {
-
-	public:
-		Renderer() = default;
-		virtual ~Renderer() = default;
-
-		virtual void preRender(sf::RenderTarget&) {}
-		virtual void render(sf::RenderTarget&) = 0;
-		virtual void postRender(sf::RenderTarget&) {}
-	};
 
 	class ARK_ENGINE_API System : public NonCopyable {
 

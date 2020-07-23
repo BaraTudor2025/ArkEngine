@@ -18,9 +18,9 @@ template<typename T> Distribution(T, T, DistributionType)->Distribution<T>;
 ARK_REGISTER_TYPE(Distribution<float>, "Distribution", ARK_DEFAULT_SERVICES)
 {
 	return members(
-		member("lower", &Distribution<float>::a),
-		member("upper", &Distribution<float>::b),
-		member("type", &Distribution<float>::type)
+		member_property("lower", &Distribution<float>::a),
+		member_property("upper", &Distribution<float>::b),
+		member_property("type", &Distribution<float>::type)
 	);
 }
 

@@ -140,8 +140,8 @@ public:
 ARK_REGISTER_TYPE(MovePlayer, "MovePlayerScript", ARK_DEFAULT_SERVICES)
 {
 	return ark::meta::members(
-		member("speed", &MovePlayer::speed),
-		member("scale", &MovePlayer::getScale, &MovePlayer::setScale)
+		member_property("speed", &MovePlayer::speed),
+		member_property("scale", &MovePlayer::getScale, &MovePlayer::setScale)
 	);
 }
 
@@ -149,9 +149,9 @@ ARK_REGISTER_TYPE(ParticleScripts::RotateEmitter, "RotateEmitterScript", ARK_DEF
 {
 	using namespace ParticleScripts;
 	return members(
-		member("distance", &RotateEmitter::distance),
-		member("angular_speed", &RotateEmitter::angleSpeed),
-		member("origin", &RotateEmitter::around)
+		member_property("distance", &RotateEmitter::distance),
+		member_property("angular_speed", &RotateEmitter::angleSpeed),
+		member_property("origin", &RotateEmitter::around)
 	);
 }
 

@@ -60,19 +60,19 @@ namespace ark {
 	{
 		const Type& value = *static_cast<const Type*>(pValue);
 		json jsonObj;
-		meta::doForAllProperties<Type>([&value, &jsonObj](auto& member) {
-			using MemberType = meta::get_member_type<decltype(member)>;
+		meta::doForAllProperties<Type>([&value, &jsonObj](auto& property) {
+			using PropType = meta::get_member_type<decltype(property)>;
 
-			if constexpr (meta::isRegistered<MemberType>()) {
-				auto local = member.getCopy(value);
-				jsonObj[member.getName()] = serialize_value<MemberType>(&local);
-			} else if constexpr (std::is_enum_v<MemberType> /*&& is registered */) {
-				auto memberValue = member.getCopy(value);
-				const auto& fields = meta::getEnumValues<MemberType>();
-				const char* fieldName = meta::getNameOfEnumValue<MemberType>(memberValue);
-				jsonObj[member.getName()] = fieldName;
+			if constexpr (meta::isRegistered<PropType>()) {
+				auto local = property.getCopy(value);
+				jsonObj[property.getName()] = serialize_value<PropType>(&local);
+			} else if constexpr (std::is_enum_v<PropType> /*&& is registered */) {
+				auto propValue = property.getCopy(value);
+				const auto& fields = meta::getEnumValues<PropType>();
+				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
+				jsonObj[property.getName()] = fieldName;
 			} else /* normal(convertible) value */ {
-				jsonObj[member.getName()] = member.getCopy(value);
+				jsonObj[property.getName()] = property.getCopy(value);
 			}
 		});
 		return jsonObj;
@@ -82,21 +82,21 @@ namespace ark {
 	static void deserialize_value(const json& jsonObj, void* pValue)
 	{
 		Type& value = *static_cast<Type*>(pValue);
-		meta::doForAllProperties<Type>([&value, &jsonObj](auto& member) {
-			using MemberType = meta::get_member_type<decltype(member)>;
+		meta::doForAllProperties<Type>([&value, &jsonObj](auto& property) {
+			using PropType = meta::get_member_type<decltype(property)>;
 
-			if constexpr (meta::isRegistered<MemberType>()) {
-				//const json& jsonMember = jsonObj.at(member.getName());
-				MemberType memberValue;
-				deserialize_value<MemberType>(jsonObj.at(member.getName()), &memberValue);
-				member.set(value, memberValue);
-			} else if constexpr (std::is_enum_v<MemberType>) {
-				auto enumValueName = jsonObj.at(member.getName()).get<std::string>();
-				auto memberValue = meta::getValueOfEnumName<MemberType>(enumValueName.c_str());
-				member.set(value, memberValue);
+			if constexpr (meta::isRegistered<PropType>()) {
+				//const json& jsonMember = jsonObj.at(property.getName());
+				PropType propValue;
+				deserialize_value<PropType>(jsonObj.at(property.getName()), &propValue);
+				property.set(value, propValue);
+			} else if constexpr (std::is_enum_v<PropType>) {
+				auto enumValueName = jsonObj.at(property.getName()).get<std::string>();
+				auto memberValue = meta::getValueOfEnumName<PropType>(enumValueName.c_str());
+				property.set(value, memberValue);
 			} else /* normal(convertible) value*/ {
-				auto&& memberValue = jsonObj.at(member.getName()).get<MemberType>();
-				member.set(value, memberValue);
+				auto&& memberValue = jsonObj.at(property.getName()).get<PropType>();
+				property.set(value, memberValue);
 			}
 
 		});

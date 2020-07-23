@@ -16,8 +16,6 @@ namespace ark
 {
 
 	class EntityManager;
-	class ScriptManager;
-	class Scene;
 
 	class SceneInspector : public Director, public Renderer {
 
@@ -46,8 +44,8 @@ namespace ark
 		EntityManager* mEntityManager;
 		//ScriptManager* mScriptManager;
 
-		using FieldFunc = std::function<std::any(std::string_view, const void*)>;
-		static std::unordered_map<std::type_index, FieldFunc> fieldRendererTable;
+		using RenderPropFunc = std::function<std::any(std::string_view, const void*)>;
+		static std::unordered_map<std::type_index, RenderPropFunc> sPropertyRendererTable;
 
 	};
 }
@@ -77,34 +75,34 @@ namespace ark
 	{
 		TComp& valueToRender = *static_cast<TComp*>(pValue);
 		std::any newValue;
-		bool modified = false; // used in recursive call to check if the member was modified
+		bool modified = false; // used in recursive call to check if the property was modified
 
-		meta::doForAllProperties<TComp>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
-			using MemberType = meta::get_member_type<decltype(member)>;
+		meta::doForAllProperties<TComp>([widgetId, &modified, &newValue, &valueToRender, &table = sPropertyRendererTable](auto& property) mutable {
+			using PropType = meta::get_member_type<decltype(property)>;
 			ImGui::PushID(*widgetId);
 
-			if constexpr (meta::isRegistered<MemberType>()) {
+			if constexpr (meta::isRegistered<PropType>()) {
 				// recursively render members that are registered
-				auto memberValue = member.getCopy(valueToRender);
-				ImGui::Text("%s:", member.getName());
-				if (renderFieldsOfType<MemberType>(widgetId, &memberValue)) {
-					member.set(valueToRender, memberValue);
+				auto propValue = property.getCopy(valueToRender);
+				ImGui::Text("%s:", property.getName());
+				if (renderFieldsOfType<PropType>(widgetId, &propValue)) {
+					property.set(valueToRender, propValue);
 					modified = true;
 				}
 			}
-			else if constexpr (std::is_enum_v<MemberType> /* && is registered*/) {
-				auto memberValue = member.getCopy(valueToRender);
-				const auto& fields = meta::getEnumValues<MemberType>();
-				const char* fieldName = meta::getNameOfEnumValue<MemberType>(memberValue);
+			else if constexpr (std::is_enum_v<PropType> /* && is registered*/) {
+				auto propValue = property.getCopy(valueToRender);
+				const auto& fields = meta::getEnumValues<PropType>();
+				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
 
 				// render enum values in a list
-				ArkSetFieldName(member.getName());
+				ArkSetFieldName(property.getName());
 				if (ImGui::BeginCombo("", fieldName, 0)) {
 					for (const auto& field : fields) {
-						if (ArkSelectable(field.name, field.value == memberValue)) {
-							memberValue = field.value;
+						if (ArkSelectable(field.name, field.value == propValue)) {
+							propValue = field.value;
 							modified = true;
-							member.set(valueToRender, memberValue);
+							property.set(valueToRender, propValue);
 							break;
 						}
 					}
@@ -113,17 +111,17 @@ namespace ark
 			}
 			else {
 				 // render field using predefined table
-				auto& renderField = table.at(typeid(MemberType));
+				auto& renderProperty = table.at(typeid(PropType));
 
-				if (member.canGetConstRef())
-					newValue = renderField(member.getName(), &member.get(valueToRender));
+				if (property.canGetConstRef())
+					newValue = renderProperty(property.getName(), &property.get(valueToRender));
 				else {
-					MemberType local = member.getCopy(valueToRender);
-					newValue = renderField(member.getName(), &local);
+					PropType local = property.getCopy(valueToRender);
+					newValue = renderProperty(property.getName(), &local);
 				}
 
 				if (newValue.has_value()) {
-					member.set(valueToRender, std::any_cast<MemberType>(newValue));
+					property.set(valueToRender, std::any_cast<PropType>(newValue));
 					modified = true;
 				}
 				newValue.reset();

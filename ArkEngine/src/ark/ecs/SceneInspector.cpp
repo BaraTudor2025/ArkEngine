@@ -323,7 +323,7 @@ namespace ark {
 		ImGui::SetKeyboardFocusHere(i);
 	}
 
-	std::unordered_map<std::type_index, SceneInspector::FieldFunc> SceneInspector::fieldRendererTable = {
+	std::unordered_map<std::type_index, SceneInspector::RenderPropFunc> SceneInspector::sPropertyRendererTable = {
 
 		{ typeid(int), [](std::string_view name, const void* pField) {
 			int field = *static_cast<const int*>(pField);

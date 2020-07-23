@@ -141,10 +141,10 @@ private:
 ARK_REGISTER_TYPE(Animation, "Animation", ARK_DEFAULT_SERVICES)
 {
 	return members(
-		member("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
-		member("texture", &Animation::getTexture, &Animation::setTexture),
-		member("frame_time", &Animation::frameTime),
-		member("row", &Animation::row)
+		member_property("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
+		member_property("texture", &Animation::getTexture, &Animation::setTexture),
+		member_property("frame_time", &Animation::frameTime),
+		member_property("row", &Animation::row)
 		//member("frame_size", &Animation::frameSize)
 	);
 }

@@ -111,13 +111,13 @@ ARK_REGISTER_TYPE(PointParticles, "PointParticles", ARK_DEFAULT_SERVICES)
 {
 	using PP = PointParticles;
 	return members(
-		member("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
-		member("lifeTime", &PP::getLifeTime, &PP::setLifeTime),
-		member("spawn", &PP::spawn),
-		member("fireworks", &PP::fireworks),
-		member("emitter", &PP::emitter),
-		member("speedDistribution", &PP::speedDistribution),
-		member("angleDistribution", &PP::angleDistribution)
+		member_property("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
+		member_property("lifeTime", &PP::getLifeTime, &PP::setLifeTime),
+		member_property("spawn", &PP::spawn),
+		member_property("fireworks", &PP::fireworks),
+		member_property("emitter", &PP::emitter),
+		member_property("speedDistribution", &PP::speedDistribution),
+		member_property("angleDistribution", &PP::angleDistribution)
 	);
 }
 
@@ -187,10 +187,10 @@ private:
 ARK_REGISTER_TYPE(sf::FloatRect, "FloatRect", ARK_DEFAULT_SERVICES)
 {
 	constexpr auto m = members(
-		member("top", &sf::FloatRect::top),
-		member("left", &sf::FloatRect::left),
-		member("height", &sf::FloatRect::height),
-		member("width", &sf::FloatRect::width)
+		member_property("top", &sf::FloatRect::top),
+		member_property("left", &sf::FloatRect::left),
+		member_property("height", &sf::FloatRect::height),
+		member_property("width", &sf::FloatRect::width)
 	);
 	return m;
 }
@@ -198,25 +198,25 @@ ARK_REGISTER_TYPE(sf::FloatRect, "FloatRect", ARK_DEFAULT_SERVICES)
 ARK_REGISTER_TYPE(PixelParticles::Colors, "ColorPair", ARK_DEFAULT_SERVICES)
 {
 	return members(
-		member("dominant", &PixelParticles::Colors::first),
-		member("subdominant", &PixelParticles::Colors::second)
+		member_property("dominant", &PixelParticles::Colors::first),
+		member_property("subdominant", &PixelParticles::Colors::second)
 	);
 }
 
 ARK_REGISTER_TYPE(PixelParticles, "PixelParticles", ARK_DEFAULT_SERVICES)
 {
 	return members(
-		member("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),
-		member("particles_per_second", &PixelParticles::particlesPerSecond),
-		member("spawn", &PixelParticles::spawn),
-		member("speed", &PixelParticles::speed),
-		member("gravity", &PixelParticles::gravity),
-		member("emitter", &PixelParticles::emitter),
-		member("size", &PixelParticles::size),
-		member("life_time", &PixelParticles::lifeTime),
-		member("angle_dist", &PixelParticles::angleDistribution),
-		member("platform", &PixelParticles::platform),
-		member("colors", &PixelParticles::getColors, &PixelParticles::setColors)
+		member_property("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),
+		member_property("particles_per_second", &PixelParticles::particlesPerSecond),
+		member_property("spawn", &PixelParticles::spawn),
+		member_property("speed", &PixelParticles::speed),
+		member_property("gravity", &PixelParticles::gravity),
+		member_property("emitter", &PixelParticles::emitter),
+		member_property("size", &PixelParticles::size),
+		member_property("life_time", &PixelParticles::lifeTime),
+		member_property("angle_dist", &PixelParticles::angleDistribution),
+		member_property("platform", &PixelParticles::platform),
+		member_property("colors", &PixelParticles::getColors, &PixelParticles::setColors)
 	);
 }
 

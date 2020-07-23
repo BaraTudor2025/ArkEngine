@@ -756,19 +756,19 @@ namespace ark::meta
 	}
 
 	template <typename Class, typename T>
-	constexpr Property<Class, T> member(const char* name, T Class::* ptr) noexcept
+	constexpr Property<Class, T> member_property(const char* name, T Class::* ptr) noexcept
 	{
 		return { name, ptr };
 	}
 
 	template <typename Class, typename T>
-	constexpr Property<Class, T> member(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	constexpr Property<Class, T> member_property(const char* name, ref_getter_func_ptr_t<Class, T> getterPtr, ref_setter_func_ptr_t<Class, T> setterPtr) noexcept
 	{
 		return Property<Class, T>(name, getterPtr, setterPtr);
 	}
 
 	template <typename Class, typename T>
-	constexpr Property<Class, T> member(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
+	constexpr Property<Class, T> member_property(const char* name, val_getter_func_ptr_t<Class, T> getterPtr, val_setter_func_ptr_t<Class, T> setterPtr) noexcept
 	{
 		return Property<Class, T>(name, getterPtr, setterPtr);
 	}

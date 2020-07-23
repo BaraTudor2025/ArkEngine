@@ -122,10 +122,10 @@ namespace ark {
 ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
 {
 	return members(
-		member("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
-		member("scale", &ark::Transform::getScale, &ark::Transform::setScale),
-		member("roatation", &ark::Transform::getRotation, &ark::Transform::setRotation),
-		member("origin", &ark::Transform::getOrigin, &ark::Transform::setOrigin),
+		member_property("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
+		member_property("scale", &ark::Transform::getScale, &ark::Transform::setScale),
+		member_property("roatation", &ark::Transform::getRotation, &ark::Transform::setRotation),
+		member_property("origin", &ark::Transform::getOrigin, &ark::Transform::setOrigin),
 		member_function<ark::Transform, void, float, float>("move", &ark::Transform::move),
 		member_function<ark::Transform>("getChildren", &ark::Transform::getChildren)
 	);

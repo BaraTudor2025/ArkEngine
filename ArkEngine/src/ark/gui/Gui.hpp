@@ -34,18 +34,10 @@ namespace ark {
 			ImGui::SFML::Update(Engine::getWindow(), Engine::deltaTime());
 		}
 
-		// calls imgui functions
+		// calls registered tabs
 		void preRender(sf::RenderTarget& win) override;
-
-		void render(sf::RenderTarget& win) override
-		{
-			ImGui::SFML::Render(win);
-		}
-
-		void postRender(sf::RenderTarget& win) override
-		{
-			//ImGui::End();
-		}
+		void render(sf::RenderTarget& win) override;
+		void postRender(sf::RenderTarget& win) override;
 
 	public:
 

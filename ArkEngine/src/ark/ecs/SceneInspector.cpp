@@ -100,7 +100,7 @@ namespace ark {
 	}
 
 	void SceneInspector::init() {
-		mScriptManager = &scene.scriptManager;
+		//mScriptManager = &scene.scriptManager;
 		mEntityManager = &scene.entityManager;
 	}
 
@@ -151,6 +151,20 @@ namespace ark {
 	}
 #endif
 
+	void AlignButtonToRight(const char* str, std::function<void()> callback)
+	{
+		const ImVec2 typeNameSize = ImGui::GetItemRectSize();
+		const ImVec2 buttonTextSize = ImGui::CalcTextSize(str);
+		//const float width = ImGui::GetWindowContentRegionWidth();
+		const float width = ImGui::GetContentRegionAvailWidth();
+		ImGui::SameLine(0, width - typeNameSize.x - buttonTextSize.x + 20);
+
+		ImGui::PushID(&str);
+		if (ImGui::Button(str))
+			callback();
+		ImGui::PopID();
+	}
+
 	void SceneInspector::renderEntityEditor()
 	{
 		const int windowHeight = 700;
@@ -163,9 +177,9 @@ namespace ark {
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			int entityId = 0;
-			ImGui::BeginChild("left_pane", ImVec2(150, 0), true);
+			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
+			//this->forEachEntity([]() {});
 			for (const auto& entity : mEntityManager->entities) {
-
 				if (auto it = std::find(mEntityManager->freeEntities.begin(), mEntityManager->freeEntities.end(), entityId); it != mEntityManager->freeEntities.end()) {
 					if (selectedEntity == entityId)
 						selectedEntity = -1;
@@ -181,7 +195,7 @@ namespace ark {
 			ImGui::SameLine();
 
 			// editor of selected entity
-			ImGui::BeginChild("right_pane", ImVec2(0, 0), false);
+			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
 			if (selectedEntity != -1) {
 
 				// entity name at the top
@@ -194,23 +208,22 @@ namespace ark {
 				int widgetId = 0;
 				for (auto& compData : entity.components) {
 					const auto compType = scene.componentTypeFromId(compData.id);
-					ImGui::BulletText(Util::getNameOfType(compType));
-					// remove component button
-					const auto typeNameSize = ImGui::GetItemRectSize();
-					const auto buttonTextSize = ImGui::CalcTextSize("remove component");
-					const auto width = ImGui::GetContentRegionAvailWidth();
-					ImGui::SameLine(0, width - typeNameSize.x - buttonTextSize.x - 10);
-					ImGui::PushID(&compData);
-					if (ImGui::Button("remove component")) {
-						Entity e;
-						e.id = selectedEntity;
-						e.manager = mEntityManager;
-						e.removeComponent(compType);
-					}
-					ImGui::PopID();
 
 					if (auto render = ark::meta::getService<void(int*, void*)>(compType, serviceName)) {
-						render(&widgetId, compData.component);
+						ImGui::AlignTextToFramePadding();
+						auto mdata = ark::meta::getMetadata(compType);
+						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+
+							AlignButtonToRight("remove component", [&]() {
+								Entity e;
+								e.id = selectedEntity;
+								e.manager = mEntityManager;
+								e.removeComponent(compType);
+							});
+
+							render(&widgetId, compData.component);
+							ImGui::TreePop();
+						}
 					}
 					ImGui::Separator();
 				}
@@ -230,6 +243,7 @@ namespace ark {
 					e.addComponent(types.at(componentItemIndex));
 				}
 
+#if 0
 				// script editor
 				ImGui::NewLine();
 				ImGui::NewLine();
@@ -277,6 +291,7 @@ namespace ark {
 					std::advance(it, scriptItemIndex);
 					e.addScript(it->first);
 				}
+#endif
 			}
 			ImGui::EndChild();
 		}

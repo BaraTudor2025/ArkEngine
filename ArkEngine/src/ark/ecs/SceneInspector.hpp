@@ -10,9 +10,10 @@
 #include "ark/ecs/Director.hpp"
 #include "ark/ecs/Renderer.hpp"
 
-#define ARK_SERVICE_INSPECTOR service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderFieldsOfType<Type>)
+#define ARK_SERVICE_INSPECTOR ark::meta::service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderFieldsOfType<Type>)
 
-namespace ark {
+namespace ark
+{
 
 	class EntityManager;
 	class ScriptManager;
@@ -43,7 +44,7 @@ namespace ark {
 
 	private:
 		EntityManager* mEntityManager;
-		ScriptManager* mScriptManager;
+		//ScriptManager* mScriptManager;
 
 		using FieldFunc = std::function<std::any(std::string_view, const void*)>;
 		static std::unordered_map<std::type_index, FieldFunc> fieldRendererTable;
@@ -52,7 +53,8 @@ namespace ark {
 }
 
 
-namespace ImGui {
+namespace ImGui
+{
 	void PushID(int);
 	void PopID();
 	bool BeginCombo(const char* label, const char* preview_value, int flags);
@@ -61,21 +63,23 @@ namespace ImGui {
 	void Indent(float);
 	void Unindent(float);
 	void Text(char const*, ...);
+	void TreePop();
 }
 
-namespace ark {
-
+namespace ark
+{
 	void ArkSetFieldName(std::string_view name);
 	bool ArkSelectable(const char* label, bool selected); // forward to ImGui::Selectable
+	void AlignButtonToRight(const char* str, std::function<void()> callback);
 
-	template <typename T>
+	template <typename TComp>
 	bool SceneInspector::renderFieldsOfType(int* widgetId, void* pValue)
 	{
-		T& valueToRender = *static_cast<T*>(pValue);
+		TComp& valueToRender = *static_cast<TComp*>(pValue);
 		std::any newValue;
 		bool modified = false; // used in recursive call to check if the member was modified
 
-		meta::doForAllProperties<T>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
+		meta::doForAllProperties<TComp>([widgetId, &modified, &newValue, &valueToRender, &table = fieldRendererTable](auto& member) mutable {
 			using MemberType = meta::get_member_type<decltype(member)>;
 			ImGui::PushID(*widgetId);
 
@@ -87,7 +91,8 @@ namespace ark {
 					member.set(valueToRender, memberValue);
 					modified = true;
 				}
-			} else if constexpr (std::is_enum_v<MemberType> /* && is registered*/) {
+			}
+			else if constexpr (std::is_enum_v<MemberType> /* && is registered*/) {
 				auto memberValue = member.getCopy(valueToRender);
 				const auto& fields = meta::getEnumValues<MemberType>();
 				const char* fieldName = meta::getNameOfEnumValue<MemberType>(memberValue);
@@ -105,8 +110,9 @@ namespace ark {
 					}
 					ImGui::EndCombo();
 				}
-			} else {
-				// render field using predefined table
+			}
+			else {
+				 // render field using predefined table
 				auto& renderField = table.at(typeid(MemberType));
 
 				if (member.canGetConstRef())

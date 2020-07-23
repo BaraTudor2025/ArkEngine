@@ -121,7 +121,7 @@ namespace ark::meta
 		void(*move_assign)(void*, void*) = nullptr;
 
 		template <typename T>
-		friend void constructMetadataFrom(std::string_view name);
+		friend void constructMetadataFrom(std::string_view name) noexcept;
 	};
 
 
@@ -135,9 +135,9 @@ namespace ark::meta
 			using indices = std::index_sequence_for<Args...>;
 			static const size_t size = sizeof...(Args);
 		};
+
 		/* sMembers holds all Member objects constructed via meta::registerMembers<T> call.
 		 * If the class is not registered, sMembers is std::tuple<> */
-
 		template <typename T>
 		inline const auto sMembers = registerMembers<T>();
 
@@ -147,6 +147,7 @@ namespace ark::meta
 		struct guard {
 			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
 			static inline std::map<std::pair<std::type_index, std::string_view>, void*> sServiceTable;
+			static inline std::unordered_map<std::string_view, std::vector<std::type_index>> sTypeGroups;
 			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
 
 
@@ -292,7 +293,7 @@ namespace ark::meta
 
 
 	template <typename T>
-	void constructMetadataFrom(std::string_view name)
+	void constructMetadataFrom(std::string_view name) noexcept
 	{
 		Metadata metadata{ typeid(T), sizeof(T), alignof(T), name };
 
@@ -319,7 +320,7 @@ namespace ark::meta
 			detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
 	}
 
-	inline auto getMetadata(std::type_index type) -> const Metadata*
+	inline auto getMetadata(std::type_index type)  noexcept-> const Metadata*
 	{
 		if (detail::guard::sTypeTable.count(type))
 			return &detail::guard::sTypeTable.at(type);
@@ -328,7 +329,7 @@ namespace ark::meta
 	}
 
 	template <typename T, typename... Args>
-	inline void services(Args&&... args)
+	inline void services(Args&&... args) noexcept
 	{
 		if constexpr (sizeof...(Args) > 0) {
 			((detail::guard::sServiceTable[{typeid(T), args.first}] = args.second), ...);
@@ -336,7 +337,7 @@ namespace ark::meta
 	}
 
 	template <typename F>
-	auto service(std::string_view name, F fun) -> std::pair<std::string_view, void*>
+	inline auto service(std::string_view name, F fun) noexcept -> std::pair<std::string_view, void*>
 	{
 		static_assert(std::is_function_v<std::remove_pointer_t<F>>
 			|| (std::is_class_v<F> && std::is_empty_v<F>),
@@ -346,7 +347,7 @@ namespace ark::meta
 	}
 
 	template <typename F>
-	auto getService(std::type_index type, std::string_view serviceName) -> detail::make_func_ptr_t<F>
+	inline auto getService(std::type_index type, std::string_view serviceName) noexcept -> detail::make_func_ptr_t<F>
 	{
 		using FP = detail::make_func_ptr_t<F>;
 		if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
@@ -356,6 +357,20 @@ namespace ark::meta
 		else {
 			return nullptr;
 		}
+	}
+
+	inline void addTypeToGroup(std::string_view groupName, std::type_index type) noexcept
+	{
+		detail::guard::sTypeGroups[groupName].push_back(type);
+	}
+
+	inline const std::vector<std::type_index>& getTypeGroup(std::string_view groupName) noexcept
+	{
+		auto it = detail::guard::sTypeGroups.find(groupName);
+		if (it != detail::guard::sTypeGroups.end())
+			return it->second;
+		else
+			return {};
 	}
 
 

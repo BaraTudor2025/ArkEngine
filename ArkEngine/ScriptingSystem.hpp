@@ -30,22 +30,26 @@ private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
 	std::type_index mType;
+
 	friend class ScriptingSystem;
 	friend struct ScriptingComponent;
 };
 
+inline const std::string_view gScriptGroupName = "ark_scripts";
+
+template <typename T>
+void registerScript()
+{
+	using Type = T;
+	ark::meta::constructMetadataFrom<T>(typeid(T).name());
+	ark::meta::services<T>(ARK_DEFAULT_SERVICES);
+	ark::meta::services<T>(ark::meta::service("unique_ptr", []() -> std::unique_ptr<ScriptClass> { return std::make_unique<T>(); }));
+	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
+}
+
 template <typename T>
 class ScriptClassT : public ScriptClass {
-
-	//static inline auto _ = []() { 
-	//	ark::meta::constructMetadataFrom<T>(typeid(T).name()); 
-	//	using Type = T;
-	//	ark::meta::services(
-	//		ARK_SERVICE_INSPECTOR
-	//	);
-	//	//ark::meta::service(ark::SceneInspector::serviceName, ark::SceneInspector::renderFieldsOfType<T>)
-	//}();
-
+	static inline auto _ = (registerScript<T>(), 0);
 public:
 	ScriptClassT() : ScriptClass(typeid(T)) {}
 };
@@ -54,57 +58,127 @@ public:
 struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingComponent> {
 
 	ScriptingComponent() = default;
+
+	// if entity is provided then scripts will be binded immediatly,
+	// oherwise they will be binded next frame
+	// next frames, after the creation of the scripting component, scripts will be binded immediatly
 	ScriptingComponent(ark::Entity e) : mEntity(e) {}
 
 	template <typename T, typename... Args>
 	T* addScript(Args&&... args)
 	{
-		static_assert(std::is_base_of_v<ScriptClass, T>);
-		auto p = std::make_unique<T>(std::forward<Args>(args)...);
-		T* pScript = p.get();
-		auto& script = mScripts.emplace_back(std::move(p));
-		if (mEntity.isValid())
-			script->bind();
-		return pScript;
+		if (auto s = getScript(typeid(T))) {
+			return static_cast<T*>(s);
+		}
+		else {
+			static_assert(std::is_base_of_v<ScriptClass, T>);
+			auto& script = mScripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
+			if (mEntity.isValid()) {
+				script->mEntity = mEntity;
+				script->bind();
+			}
+			return static_cast<T*>(script.get());
+		}
+	}
+
+	ScriptClass* addScript(std::type_index type)
+	{
+		if (auto s = getScript(type))
+			return s;
+		else {
+			auto create = ark::meta::getService<std::unique_ptr<ScriptClass>()>(type, "unique_ptr");
+			auto& script = mScripts.emplace_back(create());
+			if (mEntity.isValid()) {
+				script->mEntity = mEntity;
+				script->bind();
+			}
+			return script.get();
+		}
 	}
 
 	template <typename T>
 	T* getScript()
 	{
-		return dynamic_cast<T*>(findScript(typeid(T)));
+		return dynamic_cast<T*>(getScript(typeid(T)));
 	}
 
-	template <typename T>
-	void setActive(bool isActive)
-	{
-		ScriptClass* pScript = findScript(typeid(T));
-		pScript->mIsActive = isActive; // add buffering?
-	}
-
-	template <typename T>
-	void removeScript()
-	{
-		if (ScriptClass* p = findScript(typeid(T)); p)
-			mToBeDeleted.push_back(p);
-	}
-
-private:
-
-	ScriptClass* findScript(std::type_index type)
+	ScriptClass* getScript(std::type_index type)
 	{
 		for (auto& script : mScripts)
 			if (script->mType == type)
 				return script.get();
 		return nullptr;
-		//return std::find(mScripts.begin(), mScripts.end(), [&type](const auto& s) { return s.mType == type; });
 	}
 
+	void setActive(std::type_index type, bool isActive)
+	{
+		ScriptClass* pScript = getScript(type);
+		pScript->mIsActive = isActive; // add buffering?
+	}
+
+	template <typename T>
+	void setActive(bool isActive) { setActive(typeid(T), isActive); }
+
+	void removeScript(std::type_index type)
+	{
+		if (ScriptClass* p = getScript(type))
+			mToBeDeleted.push_back(p);
+	}
+
+	template <typename T>
+	void removeScript() { removeScript(typeid(T)); }
+
+private:
 	ark::Entity mEntity;
 	std::vector<std::unique_ptr<ScriptClass>> mScripts;
 	std::vector<ScriptClass*> mToBeDeleted;
+
+	friend void renderScriptComponents(int* widgetId, void* pvScriptComponent);
 	friend class ScriptingSystem;
 };
-ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", ARK_DEFAULT_SERVICES) { return members(); }
+
+
+static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
+{
+	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
+	for (auto& script : scriptingComp->mScripts) {
+		auto* mdata = ark::meta::getMetadata(script->type);
+
+		if (auto render = ark::meta::getService<void(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
+			ImGui::AlignTextToFramePadding();
+			if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+				ark::AlignButtonToRight("remove script", [&]() {
+					scriptingComp->removeScript(script->type);
+				});
+				render(widgetId, script.get());
+				ImGui::TreePop();
+			}
+		}
+		ImGui::Separator();
+
+	}
+	const auto& typeList = ark::meta::getTypeGroup(gScriptGroupName);
+
+	auto scriptGetter = [](void* data, int index, const char** out_text) mutable -> bool {
+		const auto& types = *static_cast<std::remove_reference_t<decltype(typeList)>*>(data);
+		auto it = types.begin();
+		std::advance(it, index);
+		//*out_text = it->name();
+		*out_text = ark::meta::getMetadata(*it)->name.data();
+		return true;
+	};
+	int scriptItemIndex;
+	if (ImGui::Combo("add script", &scriptItemIndex, scriptGetter, (void*)(&typeList), typeList.size())) {
+		auto it = typeList.begin() + scriptItemIndex;
+		scriptingComp->addScript(*it);
+	}
+}
+
+ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", ark::meta::service(ark::SceneInspector::serviceName, renderScriptComponents))
+{
+	return members();
+}
+
 
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {
 public:
@@ -117,8 +191,9 @@ public:
 
 	void onEntityAdded(ark::Entity entity) override
 	{
-		auto& scripts = entity.getComponent<ScriptingComponent>().mScripts;
-		for (auto& script : scripts) {
+		auto& scriptComp = entity.getComponent<ScriptingComponent>();
+		scriptComp.mEntity = entity;
+		for (auto& script : scriptComp.mScripts) {
 			if (not script->mEntity.isValid()) {
 				script->mEntity = entity;
 				script->bind();
@@ -155,10 +230,10 @@ public:
 		});
 	}
 
-	//void handleMessage(const ark::Message& m) override
-	//{
-	//	// nush
-	//}
+	void handleMessage(const ark::Message& m) override
+	{
+		// nush
+	}
 
 private:
 	template <typename F>

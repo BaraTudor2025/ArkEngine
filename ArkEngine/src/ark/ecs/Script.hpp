@@ -287,7 +287,7 @@ namespace ark {
 
 			ark::meta::constructMetadataFrom<T>(typeid(T).name());
 			using Type = T;
-			ark::meta::services<T>(ark::meta::ARK_SERVICE_INSPECTOR, newService);
+			ark::meta::services<T>(ARK_SERVICE_INSPECTOR, newService);
 
 			auto& metadata = ScriptManager::metadata[typeid(T)];
 			metadata.serialize = serialize_value<T>;

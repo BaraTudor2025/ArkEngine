@@ -227,8 +227,9 @@ namespace ark {
 
 	void ImGuiLayer::preRender(sf::RenderTarget&)
 	{
-		ImGui::Begin("MyWindow");
 		ImGui::PushFont(arkFont);
+
+		ImGui::Begin("MyWindow");
 		if (ImGui::BeginTabBar("GameTabBar")) {
 			for (const auto& tab : tabs) {
 				if (ImGui::BeginTabItem(tab.name.c_str())) {
@@ -238,7 +239,18 @@ namespace ark {
 			}
 			ImGui::EndTabBar();
 		}
-		ImGui::PopFont();
 		ImGui::End();
 	}
+
+	void ImGuiLayer::render(sf::RenderTarget& win)
+	{
+		ImGui::PopFont();
+
+		ImGui::SFML::Render(win);
+	}
+
+	void ImGuiLayer::postRender(sf::RenderTarget& win)
+	{
+	}
+
 }

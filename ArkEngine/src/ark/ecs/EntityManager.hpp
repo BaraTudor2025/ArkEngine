@@ -32,13 +32,13 @@ namespace ark {
 			if (!freeEntities.empty()) {
 				e.id = freeEntities.back();
 				freeEntities.pop_back();
-				auto& entity = getEntity(e);
 			} else {
 				e.id = entities.size();
-				auto& entity = entities.emplace_back();
-				entity.mask.reset();
+				entities.emplace_back().mask.reset();
 			}
 			auto& entity = getEntity(e);
+			entity.id = e.id;
+			entity.isFree = false;
 
 			if (name.empty())
 				entity.name = std::string("entity_") + std::to_string(e.id);
@@ -153,11 +153,11 @@ namespace ark {
 
 			scriptManager.removeScripts(entity.scriptsIndex);
 
-			//entity.childrenIndex = ArkInvalidIndex;
 			entity.name.clear();
 			entity.mask.reset();
 			entity.scriptsIndex = ArkInvalidIndex;
 			entity.components.clear();
+			entity.isFree = true;
 		}
 
 		// if component already exists, then the existing component is returned
@@ -390,17 +390,15 @@ namespace ark {
 
 		struct InternalEntityData {
 			struct ComponentData {
-				using Self = const ComponentData&;
 				int16_t id;
 				int16_t index;
 				void* component; // reference
-				friend bool operator==(Self left, Self right) { return left.id == right.id; }
 			};
-			//int16_t childrenIndex = ArkInvalidIndex;
-			//int16_t parentIndex = ArkInvalidIndex;
 			ComponentManager::ComponentMask mask;
 			std::vector<ComponentData> components;
 			int16_t scriptsIndex = ArkInvalidIndex;
+			int16_t id = ArkInvalidID;
+			bool isFree = false;
 			std::string name = "";
 
 			void* getComponent(int id)
@@ -433,9 +431,7 @@ namespace ark {
 		std::vector<int> freeEntities;
 		ComponentManager& componentManager;
 		ScriptManager& scriptManager;
-		friend class SceneInspector;
 		friend class Director;
-		//std::vector<std::vector<Entity>> childrenTree;
 	};
 
 	template<typename T, typename ...Args>

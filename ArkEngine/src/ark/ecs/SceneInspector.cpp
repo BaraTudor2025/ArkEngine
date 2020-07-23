@@ -99,10 +99,7 @@ namespace ark {
 		}
 	}
 
-	void SceneInspector::init() {
-		//mScriptManager = &scene.scriptManager;
-		mEntityManager = &scene.entityManager;
-	}
+	void SceneInspector::init() { }
 
 #if 0
 	void SceneInspector::renderEntityInspector()
@@ -176,21 +173,11 @@ namespace ark {
 
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
-			int entityId = 0;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			//this->forEachEntity([]() {});
-			for (const auto& entity : mEntityManager->entities) {
-				if (auto it = std::find(mEntityManager->freeEntities.begin(), mEntityManager->freeEntities.end(), entityId); it != mEntityManager->freeEntities.end()) {
-					if (selectedEntity == entityId)
-						selectedEntity = -1;
-					entityId += 1;
-					continue;
-				}
-				if (ImGui::Selectable(entity.name.c_str(), selectedEntity == entityId)) {
-					selectedEntity = entityId;
-				}
-				entityId += 1;
-			}
+			forEachEntity([&](const auto& entity) {
+				if (ImGui::Selectable(entity.name.c_str(), selectedEntity == entity.id))
+					selectedEntity = entity.id;
+			});
 			ImGui::EndChild();
 			ImGui::SameLine();
 
@@ -199,7 +186,7 @@ namespace ark {
 			if (selectedEntity != -1) {
 
 				// entity name at the top
-				auto& entity = mEntityManager->entities.at(selectedEntity);
+				auto& entity = getEntityData(selectedEntity);
 				ImGui::Text("Entity: %s", entity.name.c_str());
 				ImGui::Separator();
 
@@ -215,9 +202,7 @@ namespace ark {
 						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
 							AlignButtonToRight("remove component", [&]() {
-								Entity e;
-								e.id = selectedEntity;
-								e.manager = mEntityManager;
+								Entity e = scene.entityFromId(selectedEntity);
 								e.removeComponent(compType);
 							});
 
@@ -237,9 +222,7 @@ namespace ark {
 				int componentItemIndex;
 				const auto& types = scene.getComponentTypes();
 				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
-					Entity e;
-					e.id = selectedEntity;
-					e.manager = mEntityManager;
+					Entity e = scene.entityFromId(selectedEntity);
 					e.addComponent(types.at(componentItemIndex));
 				}
 

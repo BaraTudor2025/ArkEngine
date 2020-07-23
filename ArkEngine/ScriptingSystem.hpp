@@ -219,7 +219,6 @@ public:
 				if (script->mIsActive)
 					script->update();
 			}
-
 		}
 	}
 

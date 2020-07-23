@@ -16,7 +16,9 @@ namespace ark {
 		Entity() = default;
 		~Entity() = default;
 
-		//TODO: Entity cloneWithScripts(std::string name = "");
+		using ID = int;
+
+		ID getID() const { return id; }
 
 		template <typename T, typename...Args>
 		T& addComponent(Args&& ... args);
@@ -142,6 +144,6 @@ namespace ark {
 		EntityManager* manager = nullptr;
 		int id = ArkInvalidIndex;
 		friend class EntityManager;
-		friend class SceneInspector;
+		friend class Scene;
 	};
 }

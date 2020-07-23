@@ -41,9 +41,6 @@ namespace ark
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
 
 	private:
-		EntityManager* mEntityManager;
-		//ScriptManager* mScriptManager;
-
 		using RenderPropFunc = std::function<std::any(std::string_view, const void*)>;
 		static std::unordered_map<std::type_index, RenderPropFunc> sPropertyRendererTable;
 

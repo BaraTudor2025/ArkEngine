@@ -35,6 +35,14 @@ namespace ark {
 			createdEntities.push_back(entityManager.createEntity(std::move(name)));
 			return createdEntities.back();
 		}
+		
+		Entity entityFromId(int id)
+		{
+			Entity e;
+			e.id = id;
+			e.manager = &entityManager;
+			return e;
+		}
 
 		Entity loadEntity(std::string name)
 		{
@@ -231,7 +239,6 @@ namespace ark {
 
 	private:
 		friend class EntityManager;
-		friend class SceneInspector;
 		friend class Director;
 		ComponentManager componentManager;
 		ScriptManager scriptManager;
@@ -249,7 +256,13 @@ namespace ark {
 	void Director::forEachEntity(F&& f)
 	{
 		for (auto& entityData : mScene->entityManager.entities) {
-			f(entityData);
+			if(!entityData.isFree)
+				f(entityData);
 		}
+	}
+
+	inline auto& Director::getEntityData(int id)
+	{
+		return mScene->entityManager.entities.at(id);
 	}
 }

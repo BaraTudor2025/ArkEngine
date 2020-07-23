@@ -268,7 +268,6 @@ namespace ark {
 		std::vector<std::pair<int, std::type_index>> scriptsToBeDeleted; // indexOfPool and type
 
 		friend class EntityManager;
-		friend class SceneInspector;
 
 		struct ScriptMetadata {
 			std::function<std::unique_ptr<Script>()> construct;

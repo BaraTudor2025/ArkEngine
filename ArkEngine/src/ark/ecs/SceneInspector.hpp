@@ -10,7 +10,7 @@
 #include "ark/ecs/Director.hpp"
 #include "ark/ecs/Renderer.hpp"
 
-#define ARK_SERVICE_INSPECTOR ark::meta::service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderFieldsOfType<Type>)
+#define ARK_SERVICE_INSPECTOR ark::meta::service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderPropertiesOfType<Type>)
 
 namespace ark
 {
@@ -36,7 +36,7 @@ namespace ark
 		}
 
 		template <typename T>
-		static bool renderFieldsOfType(int* widgetId, void* pValue);
+		static bool renderPropertiesOfType(int* widgetId, void* pValue);
 
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
 
@@ -71,7 +71,7 @@ namespace ark
 	void AlignButtonToRight(const char* str, std::function<void()> callback);
 
 	template <typename TComp>
-	bool SceneInspector::renderFieldsOfType(int* widgetId, void* pValue)
+	bool SceneInspector::renderPropertiesOfType(int* widgetId, void* pValue)
 	{
 		TComp& valueToRender = *static_cast<TComp*>(pValue);
 		std::any newValue;
@@ -85,7 +85,7 @@ namespace ark
 				// recursively render members that are registered
 				auto propValue = property.getCopy(valueToRender);
 				ImGui::Text("%s:", property.getName());
-				if (renderFieldsOfType<PropType>(widgetId, &propValue)) {
+				if (renderPropertiesOfType<PropType>(widgetId, &propValue)) {
 					property.set(valueToRender, propValue);
 					modified = true;
 				}

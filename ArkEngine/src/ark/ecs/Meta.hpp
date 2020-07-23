@@ -151,7 +151,7 @@ namespace ark::meta
 			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
 
 
-			// exp: services["EDITOR"] = SceneInspector::renderFieldsOfType<T>;
+			// exp: services["EDITOR"] = SceneInspector::renderPropertiesOfType<T>;
 			// exp: services["SERIALIZE-JSON"] = serialize_value<T>;
 			// exp: services["NEW-UNIQUE"] = lambdaToPtr([]()->unique_ptr<TBase> { return make_unique<T>();});
 		};

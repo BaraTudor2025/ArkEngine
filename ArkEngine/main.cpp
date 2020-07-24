@@ -44,7 +44,8 @@ class ColisionSystem : public System {
 
 #endif
 
-class MovePlayer : public ark::ScriptT<MovePlayer> {
+//class MovePlayer : public ark::ScriptT<MovePlayer> {
+class MovePlayer : public ScriptClassT<MovePlayer> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
@@ -82,14 +83,15 @@ public:
 		return transform->getScale();
 	}
 
-	void init() override
+	//void init() override
+	void bind() noexcept override
 	{
 		transform = getComponent<Transform>();
 		animation = getComponent<Animation>();
 		runningParticles = getComponent<PixelParticles>();
 	}
 
-	void update() override
+	void update() noexcept override
 	{
 		bool moved = false;
 		auto dt = Engine::deltaTime().asSeconds();
@@ -352,6 +354,27 @@ public:
 
 ARK_REGISTER_TYPE(EmittFromMouseTest, "EmitterScriptYoy", ARK_DEFAULT_SERVICES) { return members(); }
 
+class SaveEntityScript : public ScriptClassT<SaveEntityScript> {
+	ark::SerializeDirector* serde;
+public:
+	SaveEntityScript() = default;
+
+	void bind() noexcept override {
+		serde = scene.getDirector<ark::SerializeDirector>();
+	}
+
+	void handleEvent(const sf::Event& ev) noexcept override
+	{
+		if (ev.type == sf::Event::KeyPressed) {
+			if (ev.key.code == sf::Keyboard::K) {
+				auto e = entity();
+				serde->serializeEntity(e);
+				GameLog("just serialized entity %s", e.getName());
+			}
+		}
+	}
+};
+
 class TestingState : public BasicState {
 	Entity player;
 	Entity button;
@@ -382,6 +405,7 @@ private:
 		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
 
 		auto* inspector = scene.addDirector<SceneInspector>();
+		auto* serde = scene.addDirector<SerializeDirector>();
 		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->renderSystemInspector(); } });
 		//scene.addSystem<TestMessageSystem>();
 
@@ -395,14 +419,26 @@ private:
 		//fireWorks.resize(0);
 		//createEntity(fireWorks);
 
-		player = scene.loadEntity("player");
-		/*
+		//player = scene.loadEntity("player");
+		player = scene.createEntity("player2");
+		serde->deserializeEntity(player);
+		auto& playerScripts = player.getComponent<ScriptingComponent>();
+		playerScripts.addScript<SaveEntityScript>();
+
+		//player.addComponent<DelayedAction>(sf::seconds(3), [this, serde](Entity e) {
+		//	GameLog("just serialized entity %s", e.getName());
+		//	//scene.serializeEntity(e);
+		//	serde->serializeEntity(e);
+		//});
+		
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		player = scene.createEntity("player");
+		/*player = scene.createEntity("player2");
 		auto& transform = player.addComponent<Transform>();
 		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		auto moveScript = player.addScript<MovePlayer>(400, 180);
+		//auto moveScript = player.addScript<MovePlayer>(400, 180);
+		auto& playerScripting = player.addComponent<ScriptingComponent>(player);
+		auto moveScript = playerScripting.addScript<MovePlayer>(400, 180);
 
 		transform.move(Engine::center());
 		transform.setOrigin(animation.frameSize() / 2.f);
@@ -417,9 +453,10 @@ private:
 
 		moveScript->setScale({0.1, 0.1});
 
-		player.addComponent<DelayedAction>(sf::seconds(4), [this](Entity e) {
+		player.addComponent<DelayedAction>(sf::seconds(4), [this, serde](Entity e) {
 			GameLog("just serialized entity %s", e.getName());
-			scene.serializeEntity(e);
+			//scene.serializeEntity(e);
+			serde->serializeEntity(e);
 		});
 		/**/
 

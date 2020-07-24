@@ -104,16 +104,16 @@ namespace ark {
 	}
 
 	template <typename Type>
-	static void deserialize_value(const json& jsonObj, void* pValue)
+	static void deserialize_value(Scene& s, Entity& e, const json& jsonObj, void* pValue)
 	{
 		Type& value = *static_cast<Type*>(pValue);
-		meta::doForAllProperties<Type>([&value, &jsonObj](auto& property) {
+		meta::doForAllProperties<Type>([&value, &jsonObj, &e, &s](auto& property) {
 			using PropType = meta::get_member_type<decltype(property)>;
 
 			if constexpr (meta::isRegistered<PropType>()) {
 				//const json& jsonMember = jsonObj.at(property.getName());
 				PropType propValue;
-				deserialize_value<PropType>(jsonObj.at(property.getName()), &propValue);
+				deserialize_value<PropType>(s, e, jsonObj.at(property.getName()), &propValue);
 				property.set(value, propValue);
 			} else if constexpr (std::is_enum_v<PropType>) {
 				auto enumValueName = jsonObj.at(property.getName()).get<std::string>();

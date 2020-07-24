@@ -145,10 +145,10 @@ namespace ark {
 		template <typename T>
 		T* getDirector()
 		{
-			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
+			static_assert(std::is_base_of_v<Director, T>, " T not a director type");
 			for (auto& dir : mDirectors)
 				if (dir->mType == typeid(T))
-					return dir.get();
+					return static_cast<T*>(dir.get());
 			return nullptr;
 		}
 

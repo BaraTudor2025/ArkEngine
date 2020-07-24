@@ -26,14 +26,20 @@ public:
 
 	std::type_index getType() const { return mType; }
 
+	__declspec(property(get = getScene))
+		ark::Scene& scene;
+
+	ark::Scene& getScene() { return *mScene; }
+
 private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
+	ark::Scene* mScene;
 	std::type_index mType;
 
 	friend class ScriptingSystem;
 	friend struct ScriptingComponent;
-	friend void deserializeScriptComponents(const nlohmann::json& obj, void* p);
+	friend void deserializeScriptComponents(ark::Scene&, ark::Entity&, const nlohmann::json& obj, void* p);
 };
 
 inline const std::string_view gScriptGroupName = "ark_scripts";
@@ -76,6 +82,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 			auto& script = mScripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
 			if (mEntity.isValid()) {
 				script->mEntity = mEntity;
+				script->mScene = mScene;
 				script->bind();
 			}
 			return static_cast<T*>(script.get());
@@ -91,6 +98,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 			auto& script = mScripts.emplace_back(create());
 			if (mEntity.isValid()) {
 				script->mEntity = mEntity;
+				script->mScene = mScene;
 				script->bind();
 			}
 			return script.get();
@@ -131,12 +139,13 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 
 private:
 	ark::Entity mEntity;
+	ark::Scene* mScene;
 	std::vector<std::unique_ptr<ScriptClass>> mScripts;
 	std::vector<ScriptClass*> mToBeDeleted;
 
 	friend void renderScriptComponents(int* widgetId, void* pvScriptComponent);
 	friend nlohmann::json serializeScriptComponents(const void* p);
-	friend void deserializeScriptComponents(const nlohmann::json& obj, void* p);
+	friend void deserializeScriptComponents(ark::Scene&, ark::Entity&, const nlohmann::json& obj, void* p);
 	friend class ScriptingSystem;
 };
 
@@ -153,10 +162,8 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	return jsonScripts;
 }
 
-static void deserializeScriptComponents(const nlohmann::json& jsonScripts, void* pvScriptComponent)
+static void deserializeScriptComponents(ark::Scene& scene, ark::Entity& entity, const nlohmann::json& jsonScripts, void* pvScriptComponent)
 {
-	// TODO: de luat ca parametru 'entity'
-	ark::Entity entity;
 	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
 	// allocate scripts and default construct
 	for (const auto& [scriptName, _] : jsonScripts.items()) {
@@ -168,9 +175,10 @@ static void deserializeScriptComponents(const nlohmann::json& jsonScripts, void*
 	for(auto& script : scriptingComp->mScripts){
 		const auto* mdata = ark::meta::getMetadata(script->type);
 		script->mEntity = entity;
+		script->mScene = &scene;
 		script->bind();
-		if (auto deserialize = ark::meta::getService<void(const nlohmann::json&, void*)>(mdata->type, ark::SerializeDirector::serviceDeserializeName )) {
-			deserialize(jsonScripts.at(mdata->name.data()), script.get());
+		if (auto deserialize = ark::meta::getService<void(ark::Scene&, ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerializeDirector::serviceDeserializeName )) {
+			deserialize(scene, entity, jsonScripts.at(mdata->name.data()), script.get());
 		}
 	}
 }
@@ -184,10 +192,11 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 		if (auto render = ark::meta::getService<void(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
 			ImGui::AlignTextToFramePadding();
 			if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
-				ark::AlignButtonToRight("remove script", [&]() {
+				bool deleted = ark::AlignButtonToRight("remove script", [&]() {
 					scriptingComp->removeScript(script->type);
 				});
-				render(widgetId, script.get());
+				if(!deleted)
+					render(widgetId, script.get());
 				ImGui::TreePop();
 			}
 		}
@@ -235,9 +244,11 @@ public:
 	{
 		auto& scriptComp = entity.getComponent<ScriptingComponent>();
 		scriptComp.mEntity = entity;
+		scriptComp.mScene = scene();
 		for (auto& script : scriptComp.mScripts) {
 			if (not script->mEntity.isValid()) {
 				script->mEntity = entity;
+				script->mScene = scene();
 				script->bind();
 			}
 		}

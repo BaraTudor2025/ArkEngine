@@ -148,7 +148,7 @@ namespace ark {
 	}
 #endif
 
-	void AlignButtonToRight(const char* str, std::function<void()> callback)
+	bool AlignButtonToRight(const char* str, std::function<void()> callback)
 	{
 		const ImVec2 typeNameSize = ImGui::GetItemRectSize();
 		const ImVec2 buttonTextSize = ImGui::CalcTextSize(str);
@@ -157,9 +157,11 @@ namespace ark {
 		ImGui::SameLine(0, width - typeNameSize.x - buttonTextSize.x + 20);
 
 		ImGui::PushID(&str);
-		if (ImGui::Button(str))
+		bool pressed;
+		if (pressed = ImGui::Button(str))
 			callback();
 		ImGui::PopID();
+		return pressed;
 	}
 
 	void SceneInspector::renderEntityEditor()
@@ -201,12 +203,12 @@ namespace ark {
 						const auto* mdata = ark::meta::getMetadata(compType);
 						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
-							AlignButtonToRight("remove component", [&]() {
+							bool deleted = AlignButtonToRight("remove component", [&]() {
 								Entity e = scene.entityFromId(selectedEntity);
 								e.removeComponent(compType);
 							});
-
-							render(&widgetId, compData.component);
+							if(!deleted)
+								render(&widgetId, compData.component);
 							ImGui::TreePop();
 						}
 					}

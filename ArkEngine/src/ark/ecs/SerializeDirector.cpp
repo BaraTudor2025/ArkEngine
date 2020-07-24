@@ -9,9 +9,9 @@ namespace ark
 {
 	static inline const std::string sEntityFolder = Resources::resourceFolder + "entities/";
 
-	std::string getEntityFilePath(Entity e)
+	std::string getEntityFilePath(std::string_view name)
 	{
-		return sEntityFolder + e.getName() + ".json";
+		return sEntityFolder + name.data() + ".json";
 	}
 
 	void SerializeDirector::serializeEntity(Entity& entity)
@@ -29,7 +29,7 @@ namespace ark
 			}
 		}
 
-		std::ofstream of(getEntityFilePath(entity));
+		std::ofstream of(getEntityFilePath(entity.getName()));
 		of << jsonEntity.dump(4, ' ', true);
 	}
 
@@ -37,7 +37,7 @@ namespace ark
 	{
 		auto& entityData = getEntityData(entity.getID());
 		json jsonEntity;
-		std::ifstream fin(getEntityFilePath(entity));
+		std::ifstream fin(getEntityFilePath(entity.getName()));
 		fin >> jsonEntity;
 
 		// allocate components and default construct
@@ -49,9 +49,9 @@ namespace ark
 		// then initialize
 		for (auto compData : entityData.components) {
 			const auto compType = scene.componentTypeFromId(compData.id);
-			if (auto deserialize = ark::meta::getService<void(const nlohmann::json&, void*)>(compType, serviceDeserializeName)) {
+			if (auto deserialize = ark::meta::getService<void(Scene&, Entity& e, const nlohmann::json&, void*)>(compType, serviceDeserializeName)) {
 				const auto* mdata = ark::meta::getMetadata(compType);
-				deserialize(jsonComps.at(mdata->name.data()), compData.component);
+				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), compData.component);
 			}
 		}
 	}

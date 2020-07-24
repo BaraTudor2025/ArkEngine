@@ -133,12 +133,14 @@ namespace ark {
 
 		json serializeComponent(int compId, void* pComp)
 		{
-			return pools[compId].metadata.serialize(pComp);
+			//return pools[compId].metadata.serialize(pComp);
+			return {};
 		}
 
 		void deserializeComponent(int compId, void* pComp, const json& jsonObj)
 		{
-			pools[compId].metadata.deserialize(jsonObj, pComp);
+			//Entity e;
+			//pools[compId].metadata.deserialize(e, jsonObj, pComp);
 		}
 
 	private:
@@ -150,8 +152,8 @@ namespace ark {
 				int size;
 				std::align_val_t alignment;
 
-				std::function<json(const void*)> serialize;
-				std::function<void(const json&, void*)> deserialize;
+				//std::function<json(const void*)> serialize;
+				//std::function<void(Entity, const json&, void*)> deserialize;
 			};
 
 			struct Chunk {
@@ -177,8 +179,8 @@ namespace ark {
 			{
 				metadata.name = Util::getNameOfType<T>();
 				metadata.size = sizeof(T);
-				metadata.serialize = serialize_value<T>;
-				metadata.deserialize = deserialize_value<T>;
+				//metadata.serialize = serialize_value<T>;
+				//metadata.deserialize = deserialize_value<T>;
 				metadata.alignment = std::align_val_t{ alignof(T) };
 				custom_delete_buffer = [alignment = metadata.alignment](void* ptr) { ::operator delete[](ptr, alignment); };
 

@@ -65,7 +65,7 @@ namespace ark
 {
 	void ArkSetFieldName(std::string_view name);
 	bool ArkSelectable(const char* label, bool selected); // forward to ImGui::Selectable
-	void AlignButtonToRight(const char* str, std::function<void()> callback);
+	bool AlignButtonToRight(const char* str, std::function<void()> callback);
 
 	template <typename TComp>
 	bool SceneInspector::renderPropertiesOfType(int* widgetId, void* pValue)

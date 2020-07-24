@@ -144,24 +144,26 @@ namespace ark {
 
 		json serializeScripts(int indexOfPool)
 		{
-			if (indexOfPool == ArkInvalidIndex)
-				return {};
-			auto& scripts = scriptPools[indexOfPool];
-			json jsonScripts;
-			for (const auto& script : scripts)
-				jsonScripts[script->name.data()] = metadata.at(script->mType).serialize(script.get());
-			return jsonScripts;
+			//if (indexOfPool == ArkInvalidIndex)
+			//	return {};
+			//auto& scripts = scriptPools[indexOfPool];
+			//json jsonScripts;
+			//for (const auto& script : scripts)
+			//	jsonScripts[script->name.data()] = metadata.at(script->mType).serialize(script.get());
+			//return jsonScripts;
+			return {};
 		}
 
 		void deserializeScripts(int indexOfPool, const json& jsonObj)
 		{
-			if (indexOfPool == ArkInvalidIndex)
-				return;
-			auto& scripts = scriptPools[indexOfPool];
-			for (const auto& script : scripts) {
-				const json& jsonScript = jsonObj.at(script->name.data());
-				metadata.at(script->mType).deserialize(jsonScript, script.get());
-			}
+			//if (indexOfPool == ArkInvalidIndex)
+			//	return;
+			//auto& scripts = scriptPools[indexOfPool];
+			//for (const auto& script : scripts) {
+			//	const json& jsonScript = jsonObj.at(script->name.data());
+			//	Entity e;
+			//	metadata.at(script->mType).deserialize(e, jsonScript, script.get());
+			//}
 		}
 
 		void setActive(int indexOfPool, bool active, std::type_index type)
@@ -270,8 +272,8 @@ namespace ark {
 
 		struct ScriptMetadata {
 			std::function<std::unique_ptr<Script>()> construct;
-			std::function<json(const void*)> serialize;
-			std::function<void(const json&, void*)> deserialize;
+			//std::function<json(const void*)> serialize;
+			//std::function<void(Entity&, const json&, void*)> deserialize;
 		};
 		static inline std::unordered_map<std::type_index, ScriptMetadata> metadata;
 
@@ -288,8 +290,8 @@ namespace ark {
 			ark::meta::services<T>(ARK_SERVICE_INSPECTOR, newService);
 
 			auto& metadata = ScriptManager::metadata[typeid(T)];
-			metadata.serialize = serialize_value<T>;
-			metadata.deserialize = deserialize_value<T>;
+			//metadata.serialize = serialize_value<T>;
+			//metadata.deserialize = deserialize_value<T>;
 			metadata.construct = []() -> std::unique_ptr<Script> {
 				return std::make_unique<T>();
 			};

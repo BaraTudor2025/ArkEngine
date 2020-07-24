@@ -6,7 +6,6 @@
 
 #include "ark/core/Core.hpp"
 #include "ark/ecs/Entity.hpp"
-#include "ark/ecs/Serialize.hpp"
 #include "ark/util/Util.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/DefaultServices.hpp"

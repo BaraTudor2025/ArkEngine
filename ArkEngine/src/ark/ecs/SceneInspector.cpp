@@ -198,7 +198,7 @@ namespace ark {
 
 					if (auto render = ark::meta::getService<void(int*, void*)>(compType, serviceName)) {
 						ImGui::AlignTextToFramePadding();
-						auto mdata = ark::meta::getMetadata(compType);
+						const auto* mdata = ark::meta::getMetadata(compType);
 						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
 							AlignButtonToRight("remove component", [&]() {

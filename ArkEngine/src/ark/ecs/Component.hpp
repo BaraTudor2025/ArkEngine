@@ -12,7 +12,7 @@
 #include "ark/core/Logger.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/SceneInspector.hpp"
-#include "ark/ecs/Serialize.hpp"
+#include "ark/ecs/SerializeDirector.hpp"
 #include "ark/util/Util.hpp"
 
 namespace ark {

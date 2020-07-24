@@ -75,6 +75,9 @@ auto registerMembers<YourClass>()
 #define ARK_REGISTER_MEMBERS(TYPE) \
 	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
 
+#define ARK_REGISTER_METADATA(TYPE, NAME) \
+	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
+
 // standard
 #define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
 	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
@@ -320,7 +323,7 @@ namespace ark::meta
 			detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata));
 	}
 
-	inline auto getMetadata(std::type_index type)  noexcept-> const Metadata*
+	inline auto getMetadata(std::type_index type) noexcept -> const Metadata*
 	{
 		if (detail::guard::sTypeTable.count(type))
 			return &detail::guard::sTypeTable.at(type);
@@ -328,6 +331,24 @@ namespace ark::meta
 			return nullptr;
 	}
 
+	inline auto getMetadata(std::string_view name) noexcept -> const Metadata*
+	{
+		for (const auto& [type, mdata] : detail::guard::sTypeTable) {
+			if (mdata.name == name)
+				return &mdata;
+		}
+		return nullptr;
+	}
+
+	/* services are type erased functions that operate on a specific type
+	* 
+	* to declare a service for a type T: services<T>(service("service_name", &function))
+	* TODO: ark::meta::service<T>("name", &func)
+	* 
+	* a service can be retrieved with: 
+	* auto func = ark::meta::getService<return_type(arguments_t, ...)>(typeid(T), "service_name");
+	* the template parameter on getService is the type of the function
+	*/
 	template <typename T, typename... Args>
 	inline void services(Args&&... args) noexcept
 	{

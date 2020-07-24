@@ -9,7 +9,32 @@
 #include <SFML/Graphics/Color.hpp>
 
 #include "ark/core/Core.hpp"
+#include "ark/ecs/Director.hpp"
 #include "ark/ecs/Meta.hpp"
+
+
+#define ARK_SERVICE_SERDE \
+	ark::meta::service(ark::SerializeDirector::serviceSerializeName, ark::serialize_value<Type>), \
+	ark::meta::service(ark::SerializeDirector::serviceDeserializeName, ark::deserialize_value<Type>)
+
+namespace ark
+{
+	class Entity;
+
+	class SerializeDirector : public Director {
+	public:
+		SerializeDirector() = default;
+
+		static inline std::string_view serviceSerializeName = "serialize";
+		static inline std::string_view serviceDeserializeName = "deserialize";
+
+		void init() override {}
+
+		void serializeEntity(Entity& e);
+
+		void deserializeEntity(Entity& e);
+	};
+}
 
 namespace sf {
 
@@ -102,4 +127,3 @@ namespace ark {
 		});
 	}
 }
-

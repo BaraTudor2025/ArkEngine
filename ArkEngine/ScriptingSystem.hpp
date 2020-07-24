@@ -33,6 +33,7 @@ private:
 
 	friend class ScriptingSystem;
 	friend struct ScriptingComponent;
+	friend void deserializeScriptComponents(const nlohmann::json& obj, void* p);
 };
 
 inline const std::string_view gScriptGroupName = "ark_scripts";
@@ -134,15 +135,51 @@ private:
 	std::vector<ScriptClass*> mToBeDeleted;
 
 	friend void renderScriptComponents(int* widgetId, void* pvScriptComponent);
+	friend nlohmann::json serializeScriptComponents(const void* p);
+	friend void deserializeScriptComponents(const nlohmann::json& obj, void* p);
 	friend class ScriptingSystem;
 };
 
+static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
+{
+	nlohmann::json jsonScripts;
+	const ScriptingComponent* scriptingComp = static_cast<const ScriptingComponent*>(pvScriptComponent);
+	for (const auto& script : scriptingComp->mScripts) {
+		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::SerializeDirector::serviceSerializeName)) {
+			const auto* mdata = ark::meta::getMetadata(script->type);
+			jsonScripts[mdata->name.data()] = serialize(script.get());
+		}
+	}
+	return jsonScripts;
+}
+
+static void deserializeScriptComponents(const nlohmann::json& jsonScripts, void* pvScriptComponent)
+{
+	// TODO: de luat ca parametru 'entity'
+	ark::Entity entity;
+	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
+	// allocate scripts and default construct
+	for (const auto& [scriptName, _] : jsonScripts.items()) {
+		const auto* mdata = ark::meta::getMetadata(scriptName);
+		auto* pScript = scriptingComp->addScript(mdata->type);
+	}
+	// then initialize
+	scriptingComp->mEntity = entity;
+	for(auto& script : scriptingComp->mScripts){
+		const auto* mdata = ark::meta::getMetadata(script->type);
+		script->mEntity = entity;
+		script->bind();
+		if (auto deserialize = ark::meta::getService<void(const nlohmann::json&, void*)>(mdata->type, ark::SerializeDirector::serviceDeserializeName )) {
+			deserialize(jsonScripts.at(mdata->name.data()), script.get());
+		}
+	}
+}
 
 static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 {
 	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
 	for (auto& script : scriptingComp->mScripts) {
-		auto* mdata = ark::meta::getMetadata(script->type);
+		const auto* mdata = ark::meta::getMetadata(script->type);
 
 		if (auto render = ark::meta::getService<void(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
 			ImGui::AlignTextToFramePadding();
@@ -174,7 +211,12 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 	}
 }
 
-ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", ark::meta::service(ark::SceneInspector::serviceName, renderScriptComponents))
+
+ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
+	ark::meta::service(ark::SceneInspector::serviceName, renderScriptComponents),
+	ark::meta::service(ark::SerializeDirector::serviceSerializeName, serializeScriptComponents),
+	ark::meta::service(ark::SerializeDirector::serviceDeserializeName, deserializeScriptComponents)
+	)
 {
 	return members();
 }

@@ -74,6 +74,9 @@
     <ClCompile Include="extlibs\imgui-sfml\imgui-SFML.cpp">
       <Filter>ark\extlibs\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="src\ark\ecs\SerializeDirector.cpp">
+      <Filter>ark\ecs</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ElipseShape.hpp">
@@ -199,9 +202,6 @@
     <ClInclude Include="extlibs\imgui\imconfig.h">
       <Filter>ark\extlibs\imgui</Filter>
     </ClInclude>
-    <ClInclude Include="src\ark\ecs\Serialize.hpp">
-      <Filter>ark\ecs</Filter>
-    </ClInclude>
     <ClInclude Include="ScriptingSystem.hpp">
       <Filter>Systems</Filter>
     </ClInclude>
@@ -212,6 +212,9 @@
       <Filter>ark\ecs</Filter>
     </ClInclude>
     <ClInclude Include="src\ark\ecs\Renderer.hpp">
+      <Filter>ark\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ark\ecs\SerializeDirector.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
   </ItemGroup>

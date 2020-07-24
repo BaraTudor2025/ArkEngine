@@ -14,7 +14,7 @@ namespace ark
 		return sEntityFolder + name.data() + ".json";
 	}
 
-	void SerializeDirector::serializeEntity(Entity& entity)
+	void SerdeJsonDirector::serializeEntity(Entity& entity)
 	{
 		auto& entityData = getEntityData(entity.getID());
 		json jsonEntity;
@@ -33,7 +33,7 @@ namespace ark
 		of << jsonEntity.dump(4, ' ', true);
 	}
 
-	void SerializeDirector::deserializeEntity(Entity& entity)
+	void SerdeJsonDirector::deserializeEntity(Entity& entity)
 	{
 		auto& entityData = getEntityData(entity.getID());
 		json jsonEntity;

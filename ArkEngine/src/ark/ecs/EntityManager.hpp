@@ -9,10 +9,8 @@
 #include <set>
 
 #include "ark/ecs/Component.hpp"
-#include "ark/ecs/Script.hpp"
 #include "ark/ecs/Entity.hpp"
 #include "ark/util/ResourceManager.hpp"
-
 
 namespace ark {
 
@@ -21,7 +19,7 @@ namespace ark {
 	class EntityManager final : public NonCopyable, public NonMovable {
 
 	public:
-		EntityManager(ComponentManager& cm, ScriptManager& sm) : componentManager(cm), scriptManager(sm) {}
+		EntityManager(ComponentManager& cm) : componentManager(cm) {}
 
 	public:
 
@@ -96,51 +94,6 @@ namespace ark {
 			return {};
 		}
 
-		void serializeEntity(Entity e)
-		{
-			auto& entity = getEntity(e);
-			json jsonEntity;
-
-			auto& jsonComps = jsonEntity["components"];
-			for (auto compData : entity.components) {
-				auto compName = componentManager.nameFromId(compData.id);
-				jsonComps[compName.data()] = componentManager.serializeComponent(compData.id, compData.component);
-			}
-
-			jsonEntity["scripts"] = scriptManager.serializeScripts(entity.scriptsIndex);
-
-			std::ofstream of(getEntityFilePath(e));
-			of << jsonEntity.dump(4, ' ', true);
-		}
-
-		void deserializeEntity(Entity e)
-		{
-			auto& entity = getEntity(e);
-			json jsonEntity;
-			std::ifstream fin(getEntityFilePath(e));
-			fin >> jsonEntity;
-
-			auto& jsonComps = jsonEntity.at("components");
-			for (const auto& [key, _] : jsonComps.items()) {
-				auto type = componentManager.typeFromName(key);
-				e.addComponent(type);
-			}
-			for (auto compData : entity.components) {
-				auto compName = componentManager.nameFromId(compData.id);
-				componentManager.deserializeComponent(compData.id, compData.component, jsonComps.at(compName.data()));
-			}
-
-			if (!jsonEntity.contains("scripts"))
-				return;
-			const auto& jsonScripts = jsonEntity.at("scripts");
-			for (const auto& [key, _] : jsonScripts.items()) {
-				auto type = scriptManager.getTypeFromName(key);
-				if (e.getScript(type) == nullptr)
-					e.addScript(type);
-			}
-			scriptManager.deserializeScripts(entity.scriptsIndex, jsonScripts);
-		}
-
 		void destroyEntity(Entity e)
 		{
 			freeEntities.push_back(e.id);
@@ -151,11 +104,8 @@ namespace ark {
 			for (auto compData : entity.components)
 				componentManager.removeComponent(compData.id, compData.index);
 
-			scriptManager.removeScripts(entity.scriptsIndex);
-
 			entity.name.clear();
 			entity.mask.reset();
-			entity.scriptsIndex = ArkInvalidIndex;
 			entity.components.clear();
 			entity.isFree = true;
 		}
@@ -199,7 +149,7 @@ namespace ark {
 				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType(type));
 				return nullptr;
 			}
-			return entity.getComponent(compId);
+			return entity.getComponentData(compId).component;
 		}
 
 		template <typename T>
@@ -214,68 +164,10 @@ namespace ark {
 			auto compId = componentManager.idFromType(type);
 			if (entity.mask.test(compId)) {
 				markAsModified(e);
-				componentManager.removeComponent(compId, entity.getComponentIndex(compId));
+				componentManager.removeComponent(compId, entity.getComponentData(compId).index);
 				entity.mask.set(compId, false);
 				Util::erase_if(entity.components, [compId](const auto& compData) { return compData.id == compId; });
 			}
-		}
-
-		template <typename T, typename... Args>
-		T* addScriptOnEntity(Entity e, Args&&... args)
-		{
-			auto& entity = getEntity(e);
-			auto script = scriptManager.addScript<T>(entity.scriptsIndex, std::forward<Args>(args)...);
-			script->m_entity = e;
-			script->init();
-			script->isInitialized = true;
-			return script;
-		}
-
-		Script* addScriptOnEntity(Entity e, std::type_index type)
-		{
-			auto& entity = getEntity(e);
-			auto script = scriptManager.addScript(entity.scriptsIndex, type);
-			script->m_entity = e;
-			script->init();
-			script->isInitialized = true;
-			return script;
-		}
-
-		template <typename T>
-		T* getScriptOfEntity(Entity e)
-		{
-			auto& entity = getEntity(e);
-			auto script = scriptManager.getScript<T>(entity.scriptsIndex);
-			if (script == nullptr)
-				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s) doesn't have (%s) script attached", entity.name.c_str(), Util::getNameOfType<T>());
-			return script;
-		}
-
-		Script* getScriptOfEntity(Entity e, std::type_index type)
-		{
-			auto& entity = getEntity(e);
-			auto script = scriptManager.getScript(entity.scriptsIndex, type);
-			if (script == nullptr)
-				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s) doesn't have (%s) script attached", entity.name.c_str(), Util::getNameOfType(type));
-			return script;
-		}
-
-		bool hasScript(Entity e, std::type_index type)
-		{
-			auto& entity = getEntity(e);
-			return scriptManager.hasScript(entity.scriptsIndex, type);
-		}
-
-		void removeScriptOfEntity(Entity e, std::type_index type)
-		{
-			auto& entity = getEntity(e);
-			scriptManager.removeScript(entity.scriptsIndex, type);
-		}
-
-		void setScriptActive(Entity e, bool active, std::type_index type)
-		{
-			auto& entity = getEntity(e);
-			scriptManager.setActive(entity.scriptsIndex, active, type);
 		}
 
 		const ComponentManager::ComponentMask& getComponentMaskOfEntity(Entity e)
@@ -396,27 +288,13 @@ namespace ark {
 			};
 			ComponentManager::ComponentMask mask;
 			std::vector<ComponentData> components;
-			int16_t scriptsIndex = ArkInvalidIndex;
 			int16_t id = ArkInvalidID;
 			bool isFree = false;
 			std::string name = "";
 
-			void* getComponent(int id)
+			ComponentData& getComponentData(int id)
 			{
-				auto compData = std::find_if(std::begin(components), std::end(components), [=](const auto& compData) { return compData.id == id; });
-				return compData->component;
-			}
-
-			template <typename T>
-			T* getComponent(int id)
-			{
-				return reinterpret_cast<T*>(getComponent(id));
-			}
-
-			int16_t getComponentIndex(int id)
-			{
-				auto compData = std::find_if(std::begin(components), std::end(components), [=](const auto& compData) { return compData.id == id; });
-				return compData->index;
+				return *std::find_if(std::begin(components), std::end(components), [=](const auto& compData) { return compData.id == id; });
 			}
 		};
 
@@ -430,7 +308,6 @@ namespace ark {
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;
 		ComponentManager& componentManager;
-		ScriptManager& scriptManager;
 		friend class Director;
 	};
 
@@ -491,66 +368,6 @@ namespace ark {
 	inline void Entity::removeComponent(std::type_index type)
 	{
 		manager->removeComponentOfEntity(*this, type);
-	}
-
-
-	template<typename T, typename ...Args>
-	inline T* Entity::addScript(Args&& ...args)
-	{
-		static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
-		return manager->addScriptOnEntity<T>(*this, std::forward<Args>(args)...);
-	}
-
-	inline Script* Entity::addScript(std::type_index type)
-	{
-		return manager->addScriptOnEntity(*this, type);
-	}
-
-	template<typename T>
-	inline T* Entity::getScript()
-	{
-		static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
-		return manager->getScriptOfEntity<T>(*this);
-	}
-
-	inline Script* Entity::getScript(std::type_index type)
-	{
-		return manager->getScriptOfEntity(*this, type);
-	}
-
-	template <typename T>
-	inline bool Entity::hasScript()
-	{
-		return this->hasScript(typeid(T));
-	}
-
-	inline bool Entity::hasScript(std::type_index type)
-	{
-		return manager->hasScript(*this, type);
-	}
-
-	template<typename T>
-	inline void Entity::setScriptActive(bool active)
-	{
-		static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
-		this->setScriptActive(typeid(T), active);
-	}
-
-	inline void Entity::setScriptActive(std::type_index type, bool active)
-	{
-		manager->setScriptActive(*this, active, type);
-	}
-
-	template<typename T>
-	inline void Entity::removeScript()
-	{
-		static_assert(std::is_base_of_v<Script, T>, " T is not a Script");
-		this->removeScript(typeid(T));
-	}
-
-	inline void Entity::removeScript(std::type_index type)
-	{
-		manager->removeScriptOfEntity(*this, type);
 	}
 
 }

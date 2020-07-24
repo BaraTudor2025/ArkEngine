@@ -6,6 +6,7 @@
 #include <ark/util/ResourceManager.hpp>
 
 #include <fstream>
+#include "ScriptingSystem.hpp"
 
 struct Text : ark::Component<Text>, sf::Text { 
 
@@ -241,8 +242,9 @@ namespace GuiScripts {
 
 	// component T must have getGlobalBounds() defined
 	// momentan nefunctional
+	// TODO: update to ScriptingSystem 
 	template <typename T>
-	class MoveWithMouse : public ark::ScriptT<MoveWithMouse<T>> {
+	class MoveWithMouse : public ScriptClassT<MoveWithMouse<T>> {
 		
 		static_assert(std::is_base_of_v<ark::Component, T>);
 		bool isLeftMouseButtonPressed = false;
@@ -255,13 +257,13 @@ namespace GuiScripts {
 		MoveWithMouse(sf::Mouse::Button mouseButton = sf::Mouse::Left) : mouseButton(mouseButton) {}
 
 	private:
-		void init() override
+		void bind() noexcept override
 		{
 			component = this->getComponent<T>();
 			transform = this->getComponent<ark::Transform>();
 		}
 
-		void handleEvent(sf::Event event) override
+		void handleEvent(sf::Event event) noexcept override
 		{
 			switch (event.type) 
 			{
@@ -302,29 +304,29 @@ namespace GuiScripts {
 		}
 	};
 
-	template<typename T>
-	class SaveGuiElementPosition : public ark::Script {
+	//template<typename T>
+	//class SaveGuiElementPosition : public Script {
 
-	public:
-		SaveGuiElementPosition(std::string file, sf::Keyboard::Key key): file(file), key(key) { }
+	//public:
+	//	SaveGuiElementPosition(std::string file, sf::Keyboard::Key key): file(file), key(key) { }
 
-	private:
-		void init() {
-			component = getComponent<T>();
-		}
-		void handleEvent(sf::Event event)
-		{
-			switch (event.type) {
-			case sf::Event::KeyPressed:
-				if (event.key.code == key)
-					component->savePosition(file);
-			}
-		}
+	//private:
+	//	void init() {
+	//		//component = getComponent<T>();
+	//	}
+	//	void handleEvent(sf::Event event)
+	//	{
+	//		switch (event.type) {
+	//		case sf::Event::KeyPressed:
+	//			if (event.key.code == key)
+	//				component->savePosition(file);
+	//		}
+	//	}
 
-	private:
-		std::string file;
-		sf::Keyboard::Key key;
-		T* component;
-	};
+	//private:
+	//	std::string file;
+	//	sf::Keyboard::Key key;
+	//	T* component;
+	//};
 }
 

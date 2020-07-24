@@ -7,9 +7,8 @@
 #include "ark/ecs/SceneInspector.hpp"
 #include "ark/ecs/components/Transform.hpp"
 
-#if 0
 template <typename T, typename F, typename F2>
-void treeWithSeparators(std::string_view label, T& range, F getLabel, F2 renderElem)
+void treeWithSeparators(std::string_view label, const T& range, F getLabel, F2 renderElem)
 {
 	static std::vector<bool> viewSeparators;
 
@@ -18,7 +17,7 @@ void treeWithSeparators(std::string_view label, T& range, F getLabel, F2 renderE
 			viewSeparators.resize(range.size());
 
 		int index = 0;
-		for (auto& element : range) {
+		for (const auto& element : range) {
 
 			if (index == 0 && viewSeparators.at(index)) {
 				ImGui::Separator();
@@ -48,30 +47,32 @@ void treeWithSeparators(std::string_view label, T& range, F getLabel, F2 renderE
 	}
 }
 
-void SceneInspector::renderSystemInspector()
-{
-	auto getLabel = [](auto& system) {
-		return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->entities.size(), system->componentNames.size());
-	};
-
-	auto renderElem = [](auto& system) {
-		ImGui::TextUnformatted("Components:");
-		for (std::string_view name : system->componentNames) {
-			ImGui::BulletText(name.data());
-		}
-
-		ImGui::TextUnformatted("Entities:");
-		for (Entity e : system->entities) {
-			ImGui::BulletText(e.getName().c_str());
-		}
-	};
-
-	treeWithSeparators("Systems:", mSystemManager.systems, getLabel, renderElem);
-}
-#endif
-
 namespace ark {
+	void SceneInspector::renderSystemInspector()
+	{
+		auto getLabel = [](const auto& usys) {
+			const System* system = usys.get();
+			//return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
+			return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
+		};
 
+		auto renderElem = [](const auto& usys) {
+			const System* system = usys.get();
+			ImGui::TextUnformatted("Components:");
+			for (std::string_view name : system->getComponentNames()) {
+				ImGui::BulletText(name.data());
+			}
+
+			ImGui::TextUnformatted("Entities:");
+			for (Entity e : system->getEntities()) {
+				ImGui::BulletText(e.getName().c_str());
+			}
+		};
+
+		treeWithSeparators("Systems:", scene.getSystems(), getLabel, renderElem);
+	}
+
+#if 0
 	void SceneInspector::renderSystemInspector()
 	{
 		if (ImGui::TreeNode("Systems:")) {
@@ -98,6 +99,7 @@ namespace ark {
 			ImGui::TreePop();
 		}
 	}
+#endif
 
 	void SceneInspector::init() { }
 
@@ -115,12 +117,7 @@ namespace ark {
 				}
 				ImGui::Separator();
 
-				const std::vector<std::unique_ptr<Script>>* scripts = nullptr;
-				if (entity.scriptsIndex != ArkInvalidIndex)
-					scripts = &(mScriptManager->getScripts(entity.scriptsIndex));
-				const int scriptNum = scripts ? scripts->size() : 0;
-
-				const std::string text = tfm::format("%s: C(%d) S(%d)", entity.name.c_str(), entity.components.size(), scriptNum);
+				const std::string text = tfm::format("%s: C(%d)", entity.name.c_str(), entity.components.size());
 				if (ImGui::TreeNode(text.c_str())) {
 					const float indent_w = 7;
 					ImGui::Indent(indent_w);
@@ -129,13 +126,6 @@ namespace ark {
 					for (const auto& compData : entity.components) {
 						const auto type = scene.componentTypeFromId(compData.id);
 						ImGui::BulletText(Util::getNameOfType(type));
-					}
-
-					if (scripts) {
-						ImGui::TextUnformatted("Scripts:");
-						for (const auto& script : *scripts) {
-							ImGui::BulletText(script->name.data());
-						}
 					}
 
 					ImGui::Unindent(indent_w);
@@ -152,7 +142,6 @@ namespace ark {
 	{
 		const ImVec2 typeNameSize = ImGui::GetItemRectSize();
 		const ImVec2 buttonTextSize = ImGui::CalcTextSize(str);
-		//const float width = ImGui::GetWindowContentRegionWidth();
 		const float width = ImGui::GetContentRegionAvailWidth();
 		ImGui::SameLine(0, width - typeNameSize.x - buttonTextSize.x + 20);
 
@@ -227,56 +216,6 @@ namespace ark {
 					Entity e = scene.entityFromId(selectedEntity);
 					e.addComponent(types.at(componentItemIndex));
 				}
-
-#if 0
-				// script editor
-				ImGui::NewLine();
-				ImGui::NewLine();
-				if (entity.scriptsIndex != ArkInvalidIndex) {
-					//int scriptWidgetId = 0;
-					ImGui::TextUnformatted("Scripts:");
-					auto& scripts = mScriptManager->getScripts(entity.scriptsIndex);
-					for (auto& script : scripts) {
-						ImGui::BulletText(script->name.data());
-						// remove script button
-						ImGui::PushID(&script->type);
-						if (ImGui::BeginPopupContextItem("remove_this_script_menu")) {
-							std::string label = tfm::format("remove %s", Util::getNameOfType(script->type));
-							if (ImGui::Button(label.c_str())) {
-								Entity e;
-								e.id = selectedEntity;
-								e.manager = mEntityManager;
-								e.removeScript(script->type);
-							}
-							ImGui::EndPopup();
-						}
-						ImGui::PopID();
-
-						if (auto render = ark::meta::getService<void(int*, void*)>(script->type, serviceName)) {
-							render(&widgetId, script.get());
-						}
-						ImGui::Separator();
-					}
-				}
-
-				// add scripts list
-				auto scriptGetter = [](void* data, int index, const char** out_text) mutable -> bool {
-					const auto& types = *static_cast<decltype(ScriptManager::metadata)*>(data);
-					auto it = types.begin();
-					std::advance(it, index);
-					*out_text = Util::getNameOfType(it->first);
-					return true;
-				};
-				int scriptItemIndex;
-				if (ImGui::Combo("add_script", &scriptItemIndex, scriptGetter, static_cast<void*>(&ScriptManager::metadata), ScriptManager::metadata.size())) {
-					Entity e;
-					e.id = selectedEntity;
-					e.manager = mEntityManager;
-					auto it = ScriptManager::metadata.begin();
-					std::advance(it, scriptItemIndex);
-					e.addScript(it->first);
-				}
-#endif
 			}
 			ImGui::EndChild();
 		}

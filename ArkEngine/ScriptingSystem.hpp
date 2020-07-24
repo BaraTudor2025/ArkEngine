@@ -154,7 +154,7 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	nlohmann::json jsonScripts;
 	const ScriptingComponent* scriptingComp = static_cast<const ScriptingComponent*>(pvScriptComponent);
 	for (const auto& script : scriptingComp->mScripts) {
-		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::SerializeDirector::serviceSerializeName)) {
+		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::SerdeJsonDirector::serviceSerializeName)) {
 			const auto* mdata = ark::meta::getMetadata(script->type);
 			jsonScripts[mdata->name.data()] = serialize(script.get());
 		}
@@ -177,7 +177,7 @@ static void deserializeScriptComponents(ark::Scene& scene, ark::Entity& entity, 
 		script->mEntity = entity;
 		script->mScene = &scene;
 		script->bind();
-		if (auto deserialize = ark::meta::getService<void(ark::Scene&, ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerializeDirector::serviceDeserializeName )) {
+		if (auto deserialize = ark::meta::getService<void(ark::Scene&, ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
 			deserialize(scene, entity, jsonScripts.at(mdata->name.data()), script.get());
 		}
 	}
@@ -223,8 +223,8 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 
 ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
 	ark::meta::service(ark::SceneInspector::serviceName, renderScriptComponents),
-	ark::meta::service(ark::SerializeDirector::serviceSerializeName, serializeScriptComponents),
-	ark::meta::service(ark::SerializeDirector::serviceDeserializeName, deserializeScriptComponents)
+	ark::meta::service(ark::SerdeJsonDirector::serviceSerializeName, serializeScriptComponents),
+	ark::meta::service(ark::SerdeJsonDirector::serviceDeserializeName, deserializeScriptComponents)
 	)
 {
 	return members();

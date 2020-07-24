@@ -131,18 +131,6 @@ namespace ark {
 			return this->componentIndexes;
 		}
 
-		json serializeComponent(int compId, void* pComp)
-		{
-			//return pools[compId].metadata.serialize(pComp);
-			return {};
-		}
-
-		void deserializeComponent(int compId, void* pComp, const json& jsonObj)
-		{
-			//Entity e;
-			//pools[compId].metadata.deserialize(e, jsonObj, pComp);
-		}
-
 	private:
 
 		struct ComponentPool {
@@ -151,9 +139,6 @@ namespace ark {
 				std::string_view name;
 				int size;
 				std::align_val_t alignment;
-
-				//std::function<json(const void*)> serialize;
-				//std::function<void(Entity, const json&, void*)> deserialize;
 			};
 
 			struct Chunk {
@@ -179,8 +164,6 @@ namespace ark {
 			{
 				metadata.name = Util::getNameOfType<T>();
 				metadata.size = sizeof(T);
-				//metadata.serialize = serialize_value<T>;
-				//metadata.deserialize = deserialize_value<T>;
 				metadata.alignment = std::align_val_t{ alignof(T) };
 				custom_delete_buffer = [alignment = metadata.alignment](void* ptr) { ::operator delete[](ptr, alignment); };
 
@@ -197,7 +180,7 @@ namespace ark {
 				return &chunks.at(chunkNum).buffer[componentNum * metadata.size];
 			}
 
-			// allocates a new chunk if enough space is not available
+			// allocates a new chunk if not enough space is available
 			auto getFreeSlot() -> std::pair<byte*, int>
 			{
 				if (freeComponents.empty()) {

@@ -6,48 +6,37 @@
 
 #include <ark/core/Engine.hpp>
 #include <ark/ecs/components/Transform.hpp>
-#include <ark/ecs/Script.hpp>
 
 #include "ParticleSystem.hpp"
-
-#if 0
-#define log_init() log("")
-#else
-#define log_init()
-#endif
+#include "ScriptingSystem.hpp"
 
 namespace ParticleScripts {
 
-	using ark::ScriptT;
-	using ark::Engine;
-
-	class EmittFromMouse : public ScriptT<EmittFromMouse> {
+	class EmittFromMouse : public ScriptClassT<EmittFromMouse> {
 		PointParticles* p;
 	public:
-		void init() override
+		void bind() noexcept override
 		{
-			log_init();
 			p = getComponent<PointParticles>();
 		}
-		void update() override
+		void update() noexcept override
 		{
-			p->emitter = Engine::mousePositon();
+			p->emitter = ark::Engine::mousePositon();
 		}
 	};
 
-	class TraillingEffect : public ScriptT<TraillingEffect> {
+	class TraillingEffect : public ScriptClassT<TraillingEffect> {
 		sf::Vector2f prevEmitter;
 		PointParticles* p;
 	public:
 		bool spawn = true;
 
-		void init() override
+		void bind() noexcept override
 		{
-			log_init();
 			p = getComponent<PointParticles>();
 		}
 
-		void update() override
+		void update() noexcept override
 		{
 			if (spawn) {
 				auto dv = p->emitter - prevEmitter;
@@ -66,7 +55,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class PlayModel : public ScriptT<PlayModel> {
+	class PlayModel : public ScriptClassT<PlayModel> {
 		std::vector<sf::Vector2f> model;
 		std::vector<sf::Vector2f>::iterator curr;
 		std::string file;
@@ -77,9 +66,8 @@ namespace ParticleScripts {
 		PlayModel() = default;
 		PlayModel(std::string file, sf::Vector2f offset = { 0.f, 0.f }) : file(file), offset(offset) { }
 
-		void init() override
+		void bind() noexcept override
 		{
-			log_init();
 			p = getComponent<PointParticles>();
 			std::ifstream fin(file);
 			if (!fin.is_open()) {
@@ -99,7 +87,7 @@ namespace ParticleScripts {
 			p->spawn = false;
 		}
 
-		void update() override
+		void update() noexcept override
 		{
 			if (curr == model.begin())
 				p->spawn = true;
@@ -138,7 +126,7 @@ namespace ParticleScripts {
 	};
 
 
-	class RotateEmitter : public ScriptT<RotateEmitter> {
+	class RotateEmitter : public ScriptClassT<RotateEmitter> {
 		sf::Transform t;
 		PointParticles* p;
 		//Transform* t;
@@ -152,7 +140,7 @@ namespace ParticleScripts {
 		RotateEmitter(float angle, sf::Vector2f around, float distance)
 			:angleSpeed(angle), around(around), distance(distance, 0) { }
 
-		void init() override
+		void bind() noexcept override
 		{
 			p = getComponent<PointParticles>();
 			//p->emitter = distance;
@@ -163,14 +151,14 @@ namespace ParticleScripts {
 			//offset =  p->emitter - around;
 		}
 
-		void update() override
+		void update() noexcept override
 		{
 			t.rotate(angleSpeed * ark::Engine::deltaTime().asSeconds(), around);
 			p->emitter = t.transformPoint(around + distance);
 		}
 	};
 
-	class Rotate : public ScriptT<Rotate> {
+	class Rotate : public ScriptClassT<Rotate> {
 		ark::Transform* t;
 		float angle;
 		sf::Vector2f around;
@@ -179,7 +167,7 @@ namespace ParticleScripts {
 		Rotate() = default;
 		Rotate(float angle, sf::Vector2f around) : angle(angle), around(around) { }
 
-		void init() override {
+		void bind() noexcept override {
 			t = getComponent<ark::Transform>();
 			t->setPosition(around);
 			t->setOrigin(around);
@@ -189,21 +177,20 @@ namespace ParticleScripts {
 			p->applyTransform = true;
 		}
 
-		void update() override {
-			t->rotate(angle * Engine::deltaTime().asSeconds());
+		void update() noexcept override {
+			t->rotate(angle * ark::Engine::deltaTime().asSeconds());
 		}
 	};
 
 
-	class SpawnOnRightClick : public ScriptT<SpawnOnRightClick> {
+	class SpawnOnRightClick : public ScriptClassT<SpawnOnRightClick> {
 		PointParticles* p;
 	public:
-		void init()
+		void bind() noexcept override
 		{
-			log_init();
 			p = getComponent<PointParticles>();
 		}
-		void handleEvent(const sf::Event& ev) override
+		void handleEvent(const sf::Event& ev) noexcept override
 		{
 			switch (ev.type)
 			{
@@ -223,15 +210,14 @@ namespace ParticleScripts {
 		}
 	};
 
-	class SpawnOnLeftClick : public ScriptT<SpawnOnLeftClick> {
+	class SpawnOnLeftClick : public ScriptClassT<SpawnOnLeftClick> {
 		PointParticles* p;
 	public:
-		void init() override
+		void bind() noexcept override
 		{
-			log_init();
 			p = getComponent<PointParticles>();
 		}
-		void handleEvent(const sf::Event& ev) override
+		void handleEvent(const sf::Event& ev) noexcept override
 		{
 			switch (ev.type)
 			{
@@ -250,21 +236,20 @@ namespace ParticleScripts {
 	};
 
 	template <typename T = PointParticles>
-	class DeSpawnOnMouseClick : public ScriptT<DeSpawnOnMouseClick<T>> {
+	class DeSpawnOnMouseClick : public ScriptClassT<DeSpawnOnMouseClick<T>> {
 		T* p = nullptr;
 	public:
-		void init() override
+		void bind() noexcept override
 		{
-			log_init();
-			if constexpr (std::is_base_of_v<ark::Script, T>)
-				p = this->getScript<T>();
-			if constexpr (std::is_same_v<PointParticles, T>)
+			if constexpr (std::is_base_of_v<ScriptClass, T>)
+				p = this->getComponent<ScriptingComponent>()->getScript<T>();
+				//p = this->getScript<T>();
+			else if constexpr (std::is_same_v<PointParticles, T>)
 				p = this->getComponent<T>();
 		}
-		void handleEvent(const sf::Event& event) override
+		void handleEvent(const sf::Event& event) noexcept override
 		{
 			switch (event.type) {
-			case sf::Event::MouseButtonPressed: p->spawn = false; break;
 			case sf::Event::MouseButtonReleased: p->spawn = true; break;
 			default:
 				break;

@@ -45,37 +45,6 @@ namespace ark {
 
 		void removeComponent(std::type_index type);
 
-
-		template <typename T, typename...Args>
-		T* addScript(Args&& ... args);
-
-		Script* addScript(std::type_index type);
-
-		// returns nullptr if script is not found
-		template <typename T>
-		T* getScript();
-
-		Script* getScript(std::type_index type);
-
-
-		template <typename T>
-		bool hasScript();
-
-		bool hasScript(std::type_index type);
-
-
-		template <typename T>
-		void setScriptActive(bool active);
-
-		void setScriptActive(std::type_index type, bool active);
-
-
-		template <typename T>
-		void removeScript();
-
-		void removeScript(std::type_index type);
-
-
 		const ComponentManager::ComponentMask& getComponentMask();
 
 		bool isValid() const { return manager != nullptr; }

@@ -355,14 +355,14 @@ public:
 ARK_REGISTER_TYPE(EmittFromMouseTest, "EmitterScriptYoy", ARK_DEFAULT_SERVICES) { return members(); }
 
 class SaveEntityScript : public ScriptClassT<SaveEntityScript> {
-	ark::SerializeDirector* serde;
+	ark::SerdeJsonDirector* serde;
 public:
 	SaveEntityScript() = default;
 
 	char key = 'k';
 
 	void bind() noexcept override {
-		serde = scene.getDirector<ark::SerializeDirector>();
+		serde = scene.getDirector<ark::SerdeJsonDirector>();
 	}
 
 	void handleEvent(const sf::Event& ev) noexcept override
@@ -409,7 +409,7 @@ private:
 		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
 
 		auto* inspector = scene.addDirector<SceneInspector>();
-		auto* serde = scene.addDirector<SerializeDirector>();
+		auto* serde = scene.addDirector<SerdeJsonDirector>();
 		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->renderSystemInspector(); } });
 		//scene.addSystem<TestMessageSystem>();
 
@@ -420,27 +420,14 @@ private:
 		firePointParticles = scene.createEntity("fire_ps");
 		rotatingParticles = scene.createEntity("rotating_ps");
 
-		//fireWorks.resize(0);
-		//createEntity(fireWorks);
-
-		//player = scene.loadEntity("player");
 		player = scene.createEntity("player2");
 		serde->deserializeEntity(player);
-		//auto& playerScripts = player.getComponent<ScriptingComponent>();
-		//playerScripts.addScript<SaveEntityScript>();
-
-		//player.addComponent<DelayedAction>(sf::seconds(3), [this, serde](Entity e) {
-		//	GameLog("just serialized entity %s", e.getName());
-		//	//scene.serializeEntity(e);
-		//	serde->serializeEntity(e);
-		//});
 		
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
 		/*player = scene.createEntity("player2");
 		auto& transform = player.addComponent<Transform>();
 		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		//auto moveScript = player.addScript<MovePlayer>(400, 180);
 		auto& playerScripting = player.addComponent<ScriptingComponent>(player);
 		auto moveScript = playerScripting.addScript<MovePlayer>(400, 180);
 
@@ -459,12 +446,10 @@ private:
 
 		player.addComponent<DelayedAction>(sf::seconds(4), [this, serde](Entity e) {
 			GameLog("just serialized entity %s", e.getName());
-			//scene.serializeEntity(e);
 			serde->serializeEntity(e);
 		});
 		/**/
 
-		//button.addScript<SaveGuiElementPosition<Button>>("mama"s, sf::Keyboard::S);
 		button.addComponent<Button>(sf::FloatRect{ 100, 100, 200, 100 });
 		auto& b = button.getComponent<Button>();
 		b.setFillColor(sf::Color(240, 240, 240));
@@ -481,36 +466,43 @@ private:
 		t.setFillColor(sf::Color::Black);
 
 		using namespace ParticleScripts;
-		//auto rainbowParticles = getRainbowParticles();
-		//auto fireParticles = getFireParticles();
-		//auto greenParticles = getGreenParticles();
 
 		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
-		rainbowPointParticles.addScript<SpawnOnRightClick>();
-		rainbowPointParticles.addScript(typeid(EmittFromMouse));
+		{
+			auto& scripts = rainbowPointParticles.addComponent<ScriptingComponent>(rainbowPointParticles);
+			scripts.addScript<SpawnOnRightClick>();
+			scripts.addScript(typeid(EmittFromMouse));
+		}
 
 		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
-		rainbowClone.addScript<SpawnOnRightClick>();
-		rainbowClone.removeScript(typeid(SpawnOnRightClick));
-		//rainbowClone.addScript<SpawnOnLeftClick>()->deactivate();
-		//rainbowClone.addScript<EmittFromMouse>();
+		{
+			auto& scripts = rainbowClone.addComponent<ScriptingComponent>(rainbowClone);
+			scripts.addScript<SpawnOnRightClick>();
+			scripts.removeScript(typeid(SpawnOnRightClick));
+			scripts.addScript<SpawnOnLeftClick>()->setActive(false);
+			scripts.addScript<EmittFromMouse>();
+		}
 		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](ark::Entity e) {
-			e.setScriptActive<SpawnOnLeftClick>(true);
-			//e.getComponent<ScriptingComponent>().getScript<SpawnOnLeftClick>().setActive(true);
+			e.getComponent<ScriptingComponent>().getScript<SpawnOnLeftClick>()->setActive(true);
 		});
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
-		firePointParticles.addScript<SpawnOnLeftClick>();
-		firePointParticles.addScript<EmittFromMouse>();
+		{
+			auto& scripts = firePointParticles.addComponent<ScriptingComponent>(firePointParticles);
+			scripts.addScript<SpawnOnLeftClick>();
+			scripts.addScript<EmittFromMouse>();
+		}
 		firePointParticles.addComponent<DelayedAction>(sf::seconds(5), [this](ark::Entity e) {
 			scene.destroyEntity(e);
 		});
 
 		auto& grassP = greenPointParticles.addComponent<PointParticles>(getGreenParticles());
 		grassP.spawn = true;
-		greenPointParticles.addScript<DeSpawnOnMouseClick<>>();
-		//grass.addScript<ReadColorFromConsole>();
-		greenPointParticles.addScript<EmittFromMouse>();
+		{
+			auto& scripts = greenPointParticles.addComponent<ScriptingComponent>(greenPointParticles);
+			scripts.addScript<DeSpawnOnMouseClick<>>();
+			scripts.addScript<EmittFromMouse>();
+		}
 
 		rotatingParticles.addComponent<Transform>();
 		auto& plimb = rotatingParticles.addComponent<PointParticles>(getRainbowParticles());
@@ -518,9 +510,11 @@ private:
 		//plimb->emitter = Engine::center();
 		//plimb->emitter.x += 100;
 		//plimbarica.addScript<Rotate>(360/2, Engine::center());
-		rotatingParticles.addScript<RotateEmitter>(180, Engine::center(), 100);
-		rotatingParticles.addScript<TraillingEffect>();
-		//plimbarica.addScript<ReadColorFromConsole>();
+		{
+			auto& scripts = rotatingParticles.addComponent<ScriptingComponent>();
+			scripts.addScript<RotateEmitter>(180, Engine::center(), 100);
+			scripts.addScript<TraillingEffect>();
+		}
 
 		//mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
 		mouseTrail.addComponent(typeid(PointParticles));
@@ -529,11 +523,12 @@ private:
 		mouseParticles.setLifeTime(sf::seconds(5), DistributionType::normal);
 		mouseParticles.speedDistribution = { 0.f, 2.f };
 		mouseParticles.angleDistribution = { 0.f, 0.f };
-		//mouseTrail.addScript<EmittFromMouse>();
-		auto& scriptComp = mouseTrail.addComponent<ScriptingComponent>();
-		scriptComp.addScript<EmittFromMouseTest>();
-		mouseTrail.addScript<TraillingEffect>();
-		mouseTrail.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
+		{
+			auto& scripts = mouseTrail.addComponent<ScriptingComponent>();
+			scripts.addScript<EmittFromMouseTest>();
+			scripts.addScript<TraillingEffect>();
+			scripts.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
+		}
 
 		//std::vector<PointParticles> fireWorksParticles(fireWorks.size(), fireParticles);
 		//for (auto& fw : fireWorksParticles) {
@@ -563,9 +558,6 @@ private:
 		PixelParticleSystem::gravityVector = { 0, 0 };
 		PixelParticleSystem::gravityMagnitude = 100;
 		PixelParticleSystem::gravityPoint = Engine::center();
-
-		//registerEntity(fireWorks);
-		//registerEntity(particleFountains);
 	}
 };
 

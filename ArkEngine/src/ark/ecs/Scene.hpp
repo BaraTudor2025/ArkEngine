@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Component.hpp"
-#include "Script.hpp"
 #include "System.hpp"
 #include "Entity.hpp"
 #include "EntityManager.hpp"
@@ -22,8 +21,7 @@ namespace ark {
 	public:
 		Scene(MessageBus& bus)
 			: componentManager(),
-			scriptManager(),
-			entityManager(componentManager, scriptManager),
+			entityManager(componentManager),
 			systemManager(bus, *this, componentManager),
 			mMessageBus(bus)
 		{}
@@ -44,28 +42,10 @@ namespace ark {
 			return e;
 		}
 
-		Entity loadEntity(std::string name)
-		{
-			Entity e = createEntity(name);
-			entityManager.deserializeEntity(e);
-			return e;
-		}
-
-		void createEntities(std::vector<Entity>& entities, int n)
-		{
-			for (int i = 0; i < n; i++)
-				entities.push_back(createEntity());
-		}
-
 		Entity cloneEntity(Entity e, std::string name = "")
 		{
 			createdEntities.push_back(entityManager.cloneEntity(e, name));
 			return createdEntities.back();
-		}
-
-		void serializeEntity(Entity e)
-		{
-			entityManager.serializeEntity(e);
 		}
 
 		void destroyEntity(Entity entity)
@@ -167,9 +147,6 @@ namespace ark {
 			systemManager.forEachSystem([&event](System* system){
 				system->handleEvent(event);
 			});
-			scriptManager.forEachScript([&event](Script* script) {
-				script->handleEvent(event);
-			});
 			for (auto& dir : mDirectors)
 				dir->handleEvent(event);
 		}
@@ -188,9 +165,6 @@ namespace ark {
 			processPendingData();
 			systemManager.forEachSystem([](System* system) {
 				system->update();
-			});
-			scriptManager.forEachScript([](Script* script) {
-				script->update();
 			});
 			for (auto& dir : mDirectors)
 				dir->update();
@@ -227,9 +201,7 @@ namespace ark {
 				}
 			}
 			createdEntities.clear();
-
-			scriptManager.processPendingScripts();
-
+			//scriptManager.processPendingScripts();
 			for (auto entity : destroyedEntities) {
 				systemManager.removeFromSystems(entity);
 				entityManager.destroyEntity(entity);
@@ -241,7 +213,6 @@ namespace ark {
 		friend class EntityManager;
 		friend class Director;
 		ComponentManager componentManager;
-		ScriptManager scriptManager;
 		EntityManager entityManager;
 		SystemManager systemManager;
 		MessageBus& mMessageBus;

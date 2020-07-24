@@ -359,6 +359,8 @@ class SaveEntityScript : public ScriptClassT<SaveEntityScript> {
 public:
 	SaveEntityScript() = default;
 
+	char key = 'k';
+
 	void bind() noexcept override {
 		serde = scene.getDirector<ark::SerializeDirector>();
 	}
@@ -366,7 +368,8 @@ public:
 	void handleEvent(const sf::Event& ev) noexcept override
 	{
 		if (ev.type == sf::Event::KeyPressed) {
-			if (ev.key.code == sf::Keyboard::K) {
+			//if (ev.key.code == sf::Keyboard::K) {
+			if (ev.key.code == std::tolower(key) - 'a'){
 				auto e = entity();
 				serde->serializeEntity(e);
 				GameLog("just serialized entity %s", e.getName());
@@ -374,6 +377,7 @@ public:
 		}
 	}
 };
+ARK_REGISTER_TYPE(SaveEntityScript, "SaveEntityScript", ARK_DEFAULT_SERVICES) { return members(member_property("key", &SaveEntityScript::key)); }
 
 class TestingState : public BasicState {
 	Entity player;
@@ -422,8 +426,8 @@ private:
 		//player = scene.loadEntity("player");
 		player = scene.createEntity("player2");
 		serde->deserializeEntity(player);
-		auto& playerScripts = player.getComponent<ScriptingComponent>();
-		playerScripts.addScript<SaveEntityScript>();
+		//auto& playerScripts = player.getComponent<ScriptingComponent>();
+		//playerScripts.addScript<SaveEntityScript>();
 
 		//player.addComponent<DelayedAction>(sf::seconds(3), [this, serde](Entity e) {
 		//	GameLog("just serialized entity %s", e.getName());

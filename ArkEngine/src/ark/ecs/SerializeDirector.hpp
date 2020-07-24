@@ -36,12 +36,13 @@ namespace ark
 	};
 }
 
-namespace sf {
+namespace sf
+{
 
 	template <typename T>
 	static void to_json(nlohmann::json& jsonObj, const Vector2<T>& vec)
 	{
-		jsonObj = nlohmann::json{{"x", vec.x,}, {"y", vec.y}};
+		jsonObj = nlohmann::json{ {"x", vec.x,}, {"y", vec.y} };
 	}
 
 	template <typename T>
@@ -63,7 +64,7 @@ namespace sf {
 
 	static void to_json(nlohmann::json& jsonObj, const Color& color)
 	{
-		jsonObj = nlohmann::json{{"r", color.r}, {"g", color.g}, {"b", color.b}, {"a", color.a}};
+		jsonObj = nlohmann::json{ {"r", color.r}, {"g", color.g}, {"b", color.b}, {"a", color.a} };
 	}
 
 	static void from_json(const nlohmann::json& jsonObj, Color& color)
@@ -75,7 +76,8 @@ namespace sf {
 	}
 }
 
-namespace ark {
+namespace ark
+{
 
 	using nlohmann::json;
 
@@ -91,12 +93,19 @@ namespace ark {
 			if constexpr (meta::isRegistered<PropType>()) {
 				auto local = property.getCopy(value);
 				jsonObj[property.getName()] = serialize_value<PropType>(&local);
-			} else if constexpr (std::is_enum_v<PropType> /*&& is registered */) {
+			}
+			else if constexpr (std::is_enum_v<PropType> /*&& is registered */) {
 				auto propValue = property.getCopy(value);
 				const auto& fields = meta::getEnumValues<PropType>();
 				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
 				jsonObj[property.getName()] = fieldName;
-			} else /* normal(convertible) value */ {
+			} 
+			else if constexpr (std::is_same_v<char, PropType>) {
+				std::string str;
+				str.push_back(property.getCopy(value));
+				jsonObj[property.getName()] = str;
+			}
+			else /* normal(convertible) value */ {
 				jsonObj[property.getName()] = property.getCopy(value);
 			}
 		});
@@ -115,11 +124,17 @@ namespace ark {
 				PropType propValue;
 				deserialize_value<PropType>(s, e, jsonObj.at(property.getName()), &propValue);
 				property.set(value, propValue);
-			} else if constexpr (std::is_enum_v<PropType>) {
+			}
+			else if constexpr (std::is_enum_v<PropType>) {
 				auto enumValueName = jsonObj.at(property.getName()).get<std::string>();
 				auto memberValue = meta::getValueOfEnumName<PropType>(enumValueName.c_str());
 				property.set(value, memberValue);
-			} else /* normal(convertible) value*/ {
+			}
+			else if constexpr (std::is_same_v<char, PropType>) {
+				auto&& memberValue = jsonObj.at(property.getName()).get<std::string>();
+				property.set(value, memberValue[0]);
+			}
+			else /* normal(convertible) value*/ {
 				auto&& memberValue = jsonObj.at(property.getName()).get<PropType>();
 				property.set(value, memberValue);
 			}

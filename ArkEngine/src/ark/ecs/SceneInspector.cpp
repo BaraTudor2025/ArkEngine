@@ -352,6 +352,17 @@ namespace ark {
 			return std::any{};
 		} },
 
+		{ typeid(char), [](std::string_view name, const void* pField) {
+			char field = *static_cast<const char*>(pField);
+			char buff[2] = { field, 0};
+			ArkSetFieldName(name);
+			if (ImGui::InputText("", buff, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
+				ArkFocusHere();
+				return std::any{buff[0]};
+			}
+			return std::any{};
+		} },
+
 		{ typeid(sf::Vector2f), [](std::string_view name, const void* pField) {
 			sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);
 			ArkSetFieldName(name);

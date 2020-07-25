@@ -165,10 +165,10 @@ namespace ark {
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			scene.forEachEntity([&](auto entity) {
+			for (const auto entity : scene.entitiesView()) {
 				if (ImGui::Selectable(entity.getName().c_str(), selectedEntity == entity.getID()))
 					selectedEntity = entity.getID();
-			});
+			}
 			ImGui::EndChild();
 			ImGui::SameLine();
 

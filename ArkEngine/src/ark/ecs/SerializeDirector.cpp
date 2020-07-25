@@ -20,7 +20,7 @@ namespace ark
 
 		auto& jsonComps = jsonEntity["components"];
 
-		for (auto component : entity.runtimeComponentView()) {
+		for (const auto component : entity.runtimeComponentView()) {
 			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(component.type, serviceSerializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
 				jsonComps[mdata->name.data()] = serialize(component.ptr);

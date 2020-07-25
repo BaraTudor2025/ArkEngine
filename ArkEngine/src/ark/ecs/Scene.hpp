@@ -69,6 +69,8 @@ namespace ark {
 			}
 		}
 
+		auto entitiesView();
+
 		template <typename T, typename...Args>
 		T* addSystem(Args&&... args)
 		{
@@ -214,9 +216,11 @@ namespace ark {
 			destroyedEntities.clear();
 		}
 
-	private:
+	private:		
+
 		friend class EntityManager;
 		friend class Director;
+		friend class EntityView;
 		ComponentManager componentManager;
 		EntityManager entityManager;
 		SystemManager systemManager;
@@ -226,5 +230,64 @@ namespace ark {
 		std::vector<Entity> createdEntities;
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
+
+		struct EntityIterator {
+			using InternalIter = decltype(EntityManager::entities)::iterator;
+			InternalIter mIter;
+			InternalIter mSentinel;
+			Scene* mScene;
+		public:
+			EntityIterator(InternalIter iter, InternalIter sent, Scene* scene) 
+				:mIter(iter), mSentinel(sent), mScene(scene) {}
+
+			EntityIterator& operator++()
+			{
+				++mIter;
+				while(mIter < mSentinel && mIter->isFree)
+					++mIter;
+				return *this;
+			}
+
+			Entity operator*()
+			{
+				return mScene->entityFromId(mIter->id);
+			}
+
+			const Entity operator*() const
+			{
+				return mScene->entityFromId(mIter->id);
+			}
+
+			friend bool operator==(const EntityIterator& a, const EntityIterator& b) noexcept
+			{
+				return a.mIter == b.mIter;
+			}
+
+			friend bool operator!=(const EntityIterator& a, const EntityIterator& b) noexcept
+			{
+				return a.mIter != b.mIter;
+			}
+		};
+
 	};
+
+	class EntityView {
+		friend class Scene;
+		Scene::EntityIterator mBegin;
+		Scene::EntityIterator mEnd;
+	public:
+		EntityView(Scene::EntityIterator a, Scene::EntityIterator b) :mBegin(a), mEnd(b) {};
+
+		auto begin() { return mBegin; }
+		auto end() { return mEnd; }
+		const auto begin() const { return mBegin; }
+		const auto end() const { return mEnd; }
+	};
+
+	inline auto Scene::entitiesView()
+	{
+		return EntityView{ 
+			{entityManager.entities.begin(), entityManager.entities.end(), this}, 
+			{entityManager.entities.end(), entityManager.entities.end(), this} };
+	}
 }

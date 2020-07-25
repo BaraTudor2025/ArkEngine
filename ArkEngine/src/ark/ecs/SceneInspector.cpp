@@ -182,6 +182,7 @@ namespace ark {
 				ImGui::Separator();
 
 				// component editor
+				std::vector<std::function<void()>> delayDelete;
 				ImGui::TextUnformatted("Components:");
 				int widgetId = 0;
 				for (ark::RuntimeComponent component : entity.runtimeComponentView()) {
@@ -191,8 +192,9 @@ namespace ark {
 						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
 							bool deleted = AlignButtonToRight("remove component", [&]() {
-								Entity e = scene.entityFromId(selectedEntity);
-								e.removeComponent(component.type);
+								delayDelete.push_back([=, e = scene.entityFromId(selectedEntity)]() mutable {
+									e.removeComponent(component.type);
+								});
 							});
 							if (!deleted)
 								render(&widgetId, component.ptr);
@@ -201,6 +203,8 @@ namespace ark {
 					}
 					ImGui::Separator();
 				}
+				for (auto& f : delayDelete)
+					f();
 
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {

@@ -222,13 +222,10 @@ namespace ark {
 	void Director::forEachEntity(F&& f)
 	{
 		for (auto& entityData : mScene->entityManager.entities) {
-			if(!entityData.isFree)
-				f(entityData);
+			if (!entityData.isFree) {
+				auto e = mScene->entityFromId(entityData.id);
+				f(e);
+			}
 		}
-	}
-
-	inline auto& Director::getEntityData(int id)
-	{
-		return mScene->entityManager.entities.at(id);
 	}
 }

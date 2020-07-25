@@ -8,6 +8,11 @@ namespace ark {
 	class EntityManager;
 	class Script;
 
+	struct RuntimeComponent {
+		std::type_index type = typeid(void);
+		void* ptr;
+	};
+
 	// this is more of a handle
 	// member function definitions are at the bottom of EntityManager.hpp
 	class Entity final {
@@ -25,7 +30,6 @@ namespace ark {
 
 		void addComponent(std::type_index type);
 
-
 		template <typename T>
 		T& getComponent();
 
@@ -38,6 +42,10 @@ namespace ark {
 
 		template <typename T>
 		const T* tryGetComponent() const;
+
+		// f takes as argument RuntimeComponent
+		template <typename F>
+		void forEachComponent(F&& f);
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		template <typename T>

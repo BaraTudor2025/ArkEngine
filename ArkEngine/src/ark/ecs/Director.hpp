@@ -34,8 +34,6 @@ namespace ark
 		template <typename F>
 		void forEachEntity(F&& f);
 
-		auto& getEntityData(int id);
-
 		ROPROPERTY(getScene) Scene scene;
 		ROPROPERTY(getType) std::type_index type;
 

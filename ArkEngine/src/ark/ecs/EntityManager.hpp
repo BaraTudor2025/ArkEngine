@@ -190,6 +190,18 @@ namespace ark {
 				return std::move(dirtyEntities);
 		}
 
+		template <typename F>
+		void forEachComponentOfEntity(Entity e, F&& f)
+		{
+			auto& entity = getEntity(e);
+			RuntimeComponent comp;
+			for (auto& compData : entity.components) {
+				comp.type = compData.type;
+				comp.ptr = compData.pComponent;
+				f(comp);
+			}
+		}
+
 #if 0 // disable entity children
 		void addChildTo(Entity p, Entity c)
 		{
@@ -331,10 +343,15 @@ namespace ark {
 		return *comp;
 	}
 
-
 	inline void Entity::addComponent(std::type_index type)
 	{
 		manager->addComponentOnEntity(*this, type);
+	}
+
+	template <typename F>
+	inline void Entity::forEachComponent(F&& f)
+	{
+		manager->forEachComponentOfEntity(*this, std::forward<F>(f));
 	}
 
 	template<typename T>

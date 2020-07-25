@@ -16,17 +16,16 @@ namespace ark
 
 	void SerdeJsonDirector::serializeEntity(Entity& entity)
 	{
-		auto& entityData = getEntityData(entity.getID());
 		json jsonEntity;
 
 		auto& jsonComps = jsonEntity["components"];
 
-		for (auto compData : entityData.components) {
-			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(compData.type, serviceSerializeName)) {
-				const auto* mdata = ark::meta::getMetadata(compData.type);
-				jsonComps[mdata->name.data()] = serialize(compData.pComponent);
+		entity.forEachComponent([&](ark::RuntimeComponent component) {
+			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(component.type, serviceSerializeName)) {
+				const auto* mdata = ark::meta::getMetadata(component.type);
+				jsonComps[mdata->name.data()] = serialize(component.ptr);
 			}
-		}
+		});
 
 		std::ofstream of(getEntityFilePath(entity.getName()));
 		of << jsonEntity.dump(4, ' ', true);
@@ -34,7 +33,6 @@ namespace ark
 
 	void SerdeJsonDirector::deserializeEntity(Entity& entity)
 	{
-		auto& entityData = getEntityData(entity.getID());
 		json jsonEntity;
 		std::ifstream fin(getEntityFilePath(entity.getName()));
 		fin >> jsonEntity;
@@ -46,11 +44,11 @@ namespace ark
 			entity.addComponent(mdata->type);
 		}
 		// then initialize
-		for (auto compData : entityData.components) {
-			if (auto deserialize = ark::meta::getService<void(Scene&, Entity& e, const nlohmann::json&, void*)>(compData.type, serviceDeserializeName)) {
-				const auto* mdata = ark::meta::getMetadata(compData.type);
-				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), compData.pComponent);
+		entity.forEachComponent([&](ark::RuntimeComponent component) {
+			if (auto deserialize = ark::meta::getService<void(Scene&, Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
+				const auto* mdata = ark::meta::getMetadata(component.type);
+				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), component.ptr);
 			}
-		}
+		});
 	}
 }

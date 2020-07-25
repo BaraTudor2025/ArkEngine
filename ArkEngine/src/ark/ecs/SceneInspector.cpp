@@ -165,9 +165,9 @@ namespace ark {
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			forEachEntity([&](const auto& entity) {
-				if (ImGui::Selectable(entity.name.c_str(), selectedEntity == entity.id))
-					selectedEntity = entity.id;
+			forEachEntity([&](auto entity) {
+				if (ImGui::Selectable(entity.getName().c_str(), selectedEntity == entity.getID()))
+					selectedEntity = entity.getID();
 			});
 			ImGui::EndChild();
 			ImGui::SameLine();
@@ -177,30 +177,30 @@ namespace ark {
 			if (selectedEntity != -1) {
 
 				// entity name at the top
-				auto& entity = getEntityData(selectedEntity);
-				ImGui::Text("Entity: %s", entity.name.c_str());
+				auto entity = scene.entityFromId(selectedEntity);
+				ImGui::Text("Entity: %s", entity.getName().c_str());
 				ImGui::Separator();
 
 				// component editor
 				ImGui::TextUnformatted("Components:");
 				int widgetId = 0;
-				for (auto& compData : entity.components) {
-					if (auto render = ark::meta::getService<void(int*, void*)>(compData.type, serviceName)) {
+				entity.forEachComponent([&](ark::RuntimeComponent component) {
+					if (auto render = ark::meta::getService<void(int*, void*)>(component.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
-						const auto* mdata = ark::meta::getMetadata(compData.type);
+						const auto* mdata = ark::meta::getMetadata(component.type);
 						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
 							bool deleted = AlignButtonToRight("remove component", [&]() {
 								Entity e = scene.entityFromId(selectedEntity);
-								e.removeComponent(compData.type);
+								e.removeComponent(component.type);
 							});
 							if(!deleted)
-								render(&widgetId, compData.pComponent);
+								render(&widgetId, component.ptr);
 							ImGui::TreePop();
 						}
 					}
 					ImGui::Separator();
-				}
+				});
 
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {

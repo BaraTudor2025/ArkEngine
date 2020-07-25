@@ -58,6 +58,16 @@ namespace ark {
 			return entityManager.getEntityByName(name);
 		}
 
+		template <typename F>
+		void forEachEntity(F&& f)
+		{
+			for (auto& entityData : entityManager.entities) {
+				if (!entityData.isFree) {
+					auto e = entityFromId(entityData.id);
+					f(e);
+				}
+			}
+		}
 
 		template <typename T, typename...Args>
 		T* addSystem(Args&&... args)
@@ -217,15 +227,4 @@ namespace ark {
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
 	};
-
-	template <typename F>
-	void Director::forEachEntity(F&& f)
-	{
-		for (auto& entityData : mScene->entityManager.entities) {
-			if (!entityData.isFree) {
-				auto e = mScene->entityFromId(entityData.id);
-				f(e);
-			}
-		}
-	}
 }

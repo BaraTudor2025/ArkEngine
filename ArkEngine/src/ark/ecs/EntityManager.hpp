@@ -202,6 +202,8 @@ namespace ark {
 			}
 		}
 
+		auto makeComponentView(Entity e);
+
 #if 0 // disable entity children
 		void addChildTo(Entity p, Entity c)
 		{
@@ -308,13 +310,59 @@ namespace ark {
 			return entities.at(e.id);
 		}
 
+		struct RuntimeComponentIterator {
+			using InternalIterator = std::vector<InternalEntityData::ComponentData>::iterator;
+			InternalIterator iter;
+		public:
+			RuntimeComponentIterator(InternalIterator iter) :iter(iter) {};
+
+			RuntimeComponentIterator& operator++()
+			{
+				++iter;
+				return *this;
+			}
+
+			RuntimeComponent operator*()
+			{
+				return { iter->type, iter->pComponent };
+			}
+
+			friend bool operator==(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
+			{
+				return a.iter == b.iter;
+			}
+
+			friend bool operator!=(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
+			{
+				return a.iter != b.iter;
+			}
+		};
+
 	private:
 		std::vector<InternalEntityData> entities;
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;
 		ComponentManager& componentManager;
-		friend class Director;
+		friend class RuntimeComponentView;
+		friend class Scene;
 	};
+
+	class RuntimeComponentView {
+		friend class EntityManager;
+		using Iter = EntityManager::RuntimeComponentIterator;
+		Iter iterBegin;
+		Iter iterEnd;
+	public:
+		RuntimeComponentView(Iter b, Iter e) : iterBegin(b), iterEnd(e) { }
+		auto begin() { return iterBegin; }
+		auto end() { return iterEnd; }
+	};
+
+	inline auto EntityManager::makeComponentView(Entity e)
+	{
+		auto& entity = getEntity(e);
+		return RuntimeComponentView{ entity.components.begin(), entity.components.end() };
+	}
 
 	template<typename T, typename ...Args>
 	inline T& Entity::addComponent(Args&& ...args)
@@ -380,4 +428,9 @@ namespace ark {
 		manager->removeComponentOfEntity(*this, type);
 	}
 
+
+	inline auto Entity::runtimeComponentView()
+	{
+		return manager->makeComponentView(*this);
+	}
 }

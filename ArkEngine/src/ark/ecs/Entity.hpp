@@ -47,6 +47,8 @@ namespace ark {
 		template <typename F>
 		void forEachComponent(F&& f);
 
+		auto runtimeComponentView();
+
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		template <typename T>
 		void removeComponent();

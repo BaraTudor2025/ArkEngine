@@ -165,7 +165,7 @@ namespace ark {
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			forEachEntity([&](auto entity) {
+			scene.forEachEntity([&](auto entity) {
 				if (ImGui::Selectable(entity.getName().c_str(), selectedEntity == entity.getID()))
 					selectedEntity = entity.getID();
 			});
@@ -184,7 +184,7 @@ namespace ark {
 				// component editor
 				ImGui::TextUnformatted("Components:");
 				int widgetId = 0;
-				entity.forEachComponent([&](ark::RuntimeComponent component) {
+				for (ark::RuntimeComponent component : entity.runtimeComponentView()) {
 					if (auto render = ark::meta::getService<void(int*, void*)>(component.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
 						const auto* mdata = ark::meta::getMetadata(component.type);
@@ -194,13 +194,13 @@ namespace ark {
 								Entity e = scene.entityFromId(selectedEntity);
 								e.removeComponent(component.type);
 							});
-							if(!deleted)
+							if (!deleted)
 								render(&widgetId, component.ptr);
 							ImGui::TreePop();
 						}
 					}
 					ImGui::Separator();
-				});
+				}
 
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {

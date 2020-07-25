@@ -20,12 +20,12 @@ namespace ark
 
 		auto& jsonComps = jsonEntity["components"];
 
-		entity.forEachComponent([&](ark::RuntimeComponent component) {
+		for (auto component : entity.runtimeComponentView()) {
 			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(component.type, serviceSerializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
 				jsonComps[mdata->name.data()] = serialize(component.ptr);
 			}
-		});
+		}
 
 		std::ofstream of(getEntityFilePath(entity.getName()));
 		of << jsonEntity.dump(4, ' ', true);
@@ -44,11 +44,11 @@ namespace ark
 			entity.addComponent(mdata->type);
 		}
 		// then initialize
-		entity.forEachComponent([&](ark::RuntimeComponent component) {
+		for (auto component : entity.runtimeComponentView()) {
 			if (auto deserialize = ark::meta::getService<void(Scene&, Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
 				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), component.ptr);
 			}
-		});
+		}
 	}
 }

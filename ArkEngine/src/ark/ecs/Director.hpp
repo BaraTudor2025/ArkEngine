@@ -31,15 +31,11 @@ namespace ark
 			return mMessageBus->post<T>(id);
 		}
 
-		template <typename F>
-		void forEachEntity(F&& f);
-
 		ROPROPERTY(getScene) Scene scene;
 		ROPROPERTY(getType) std::type_index type;
 
 		Scene& getScene() const { return *mScene; }
 		std::type_index getType() const { return mType; }
-
 
 	private:
 		MessageBus* mMessageBus;

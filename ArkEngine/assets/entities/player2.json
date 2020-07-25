@@ -54,14 +54,14 @@
             "speed": 400.0
         },
         "ScriptingComponent": {
-            "class MovePlayer": {
+            "MovePlayerScript": {
                 "scale": {
                     "x": 0.20000000298023224,
                     "y": 0.20000000298023224
                 },
                 "speed": 300.0
             },
-            "class SaveEntityScript": {
+            "SaveEntityScript": {
                 "key": "y"
             }
         },

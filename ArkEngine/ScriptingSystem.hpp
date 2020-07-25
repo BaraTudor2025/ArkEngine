@@ -45,18 +45,20 @@ private:
 inline const std::string_view gScriptGroupName = "ark_scripts";
 
 template <typename T>
-void registerScript()
+void registerScript(bool customRegistration)
 {
-	using Type = T;
-	ark::meta::constructMetadataFrom<T>(typeid(T).name());
-	ark::meta::services<T>(ARK_DEFAULT_SERVICES);
+	if (not customRegistration) {
+		using Type = T;
+		ark::meta::services<T>(ARK_DEFAULT_SERVICES);
+		ark::meta::constructMetadataFrom<T>();
+	}
 	ark::meta::services<T>(ark::meta::service("unique_ptr", []() -> std::unique_ptr<ScriptClass> { return std::make_unique<T>(); }));
 	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
 }
 
-template <typename T>
+template <typename T, bool CustomRegistration = false>
 class ScriptClassT : public ScriptClass {
-	static inline auto _ = (registerScript<T>(), 0);
+	static inline auto _ = (registerScript<T>(CustomRegistration), 0);
 public:
 	ScriptClassT() : ScriptClass(typeid(T)) {}
 };

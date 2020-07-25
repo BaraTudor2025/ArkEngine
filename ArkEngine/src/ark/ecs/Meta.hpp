@@ -139,6 +139,41 @@ namespace ark::meta
 			static const size_t size = sizeof...(Args);
 		};
 
+		inline std::string prettifyTypeName(std::string_view name) noexcept
+		{
+			// remove 'class' or 'struct'
+			if(auto pos = name.find_first_of(' '); pos != name.npos)
+				name.remove_prefix(pos + 1);
+
+			auto templateArgPos = name.find_first_of('<');
+			// remove namespace
+			if (templateArgPos == name.npos) {
+				auto pos = name.find_first_of("::");
+				while (pos != name.npos) {
+					name.remove_prefix(pos + 2);
+					pos = name.find_first_of("::");
+				}
+			}
+			else { // remove namespace until template argument
+				auto pos = name.find_first_of("::");
+				while (pos != name.npos && pos < templateArgPos) {
+					name.remove_prefix(pos + 2);
+					pos = name.find_first_of("::");
+					templateArgPos = name.find_first_of('<');
+				}
+			}
+			// make template argument pretty (if any)
+			if (templateArgPos != name.npos) {
+				auto begPos = name.find_first_of('<') + 1;
+				auto templateArg = prettifyTypeName(name.substr(begPos, name.size() - begPos - 1));
+				// remove template arg so the prettier version can be added;
+				name.remove_suffix(name.size() - name.find_first_of('<'));
+				return std::string(name) + '<' + templateArg + '>';
+			}
+			else
+				return std::string(name);
+		}
+
 		/* sMembers holds all Member objects constructed via meta::registerMembers<T> call.
 		 * If the class is not registered, sMembers is std::tuple<> */
 		template <typename T>
@@ -295,9 +330,12 @@ namespace ark::meta
 	} // end of namespace detail
 
 
+	// if no name is passed then prettifyTypeName will generate name from typeid(T).name()
 	template <typename T>
-	void constructMetadataFrom(std::string name) noexcept
+	void constructMetadataFrom(std::string name = "") noexcept
 	{
+		if (name.empty())
+			name = detail::prettifyTypeName(typeid(T).name());
 		Metadata metadata{ typeid(T), sizeof(T), alignof(T), std::move(name) };
 
 		if constexpr (std::is_default_constructible_v<T>)

@@ -45,7 +45,7 @@ class ColisionSystem : public System {
 #endif
 
 //class MovePlayer : public ark::ScriptT<MovePlayer> {
-class MovePlayer : public ScriptClassT<MovePlayer> {
+class MovePlayer : public ScriptClassT<MovePlayer, true> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
@@ -147,7 +147,7 @@ ARK_REGISTER_TYPE(MovePlayer, "MovePlayerScript", ARK_DEFAULT_SERVICES)
 	);
 }
 
-ARK_REGISTER_TYPE(ParticleScripts::RotateEmitter, "RotateEmitterScript", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_MEMBERS(ParticleScripts::RotateEmitter)
 {
 	using namespace ParticleScripts;
 	return members(
@@ -249,8 +249,6 @@ public:
 				pauseScene = !pauseScene;
 				takenSS = false;
 			}
-
-		//return false;
 	}
 
 	void handleMessage(const ark::Message& message) override
@@ -266,7 +264,6 @@ public:
 		}
 		else
 			scene.processPendingData();
-		//return false;
 	}
 
 	void render(sf::RenderTarget& target) override
@@ -287,8 +284,6 @@ public:
 		else if (takenSS) {
 			target.draw(screen);
 		}
-
-		//return false;
 	}
 };
 
@@ -352,8 +347,6 @@ public:
 	}
 };
 
-ARK_REGISTER_TYPE(EmittFromMouseTest, "EmitterScriptYoy", ARK_DEFAULT_SERVICES) { return members(); }
-
 class SaveEntityScript : public ScriptClassT<SaveEntityScript> {
 	ark::SerdeJsonDirector* serde;
 public:
@@ -368,7 +361,6 @@ public:
 	void handleEvent(const sf::Event& ev) noexcept override
 	{
 		if (ev.type == sf::Event::KeyPressed) {
-			//if (ev.key.code == sf::Keyboard::K) {
 			if (ev.key.code == std::tolower(key) - 'a'){
 				auto e = entity();
 				serde->serializeEntity(e);
@@ -377,7 +369,7 @@ public:
 		}
 	}
 };
-ARK_REGISTER_TYPE(SaveEntityScript, "SaveEntityScript", ARK_DEFAULT_SERVICES) { return members(member_property("key", &SaveEntityScript::key)); }
+ARK_REGISTER_MEMBERS(SaveEntityScript) { return members(member_property("key", &SaveEntityScript::key)); }
 
 class TestingState : public BasicState {
 	Entity player;

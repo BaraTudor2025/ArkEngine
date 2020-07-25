@@ -218,8 +218,6 @@ namespace ark {
 
 	private:		
 
-		friend class EntityManager;
-		friend class Director;
 		friend class EntityView;
 		ComponentManager componentManager;
 		EntityManager entityManager;

@@ -261,7 +261,7 @@ public:
 			// delete script from previous frame
 			if (not scriptComp.mToBeDeleted.empty()) {
 				for (ScriptClass* pScript : scriptComp.mToBeDeleted) {
-					Util::erase_if(scriptComp.mScripts, [pScript](const auto& script) { return script->mType == pScript->mType; });
+					Util::erase_if(scriptComp.mScripts, [type = pScript->mType](const auto& script) { return script->mType == type; });
 				}
 				scriptComp.mToBeDeleted.clear();
 			}

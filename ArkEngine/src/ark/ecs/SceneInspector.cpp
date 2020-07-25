@@ -185,19 +185,17 @@ namespace ark {
 				ImGui::TextUnformatted("Components:");
 				int widgetId = 0;
 				for (auto& compData : entity.components) {
-					const auto compType = scene.componentTypeFromId(compData.id);
-
-					if (auto render = ark::meta::getService<void(int*, void*)>(compType, serviceName)) {
+					if (auto render = ark::meta::getService<void(int*, void*)>(compData.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
-						const auto* mdata = ark::meta::getMetadata(compType);
+						const auto* mdata = ark::meta::getMetadata(compData.type);
 						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
 							bool deleted = AlignButtonToRight("remove component", [&]() {
 								Entity e = scene.entityFromId(selectedEntity);
-								e.removeComponent(compType);
+								e.removeComponent(compData.type);
 							});
 							if(!deleted)
-								render(&widgetId, compData.component);
+								render(&widgetId, compData.pComponent);
 							ImGui::TreePop();
 						}
 					}
@@ -207,7 +205,7 @@ namespace ark {
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
 					const auto& types = *static_cast<const std::vector<std::type_index>*> (data);
-					*out_text = Util::getNameOfType(types.at(index));
+					*out_text = ark::meta::getMetadata(types.at(index))->name.data();
 					return true;
 				};
 				int componentItemIndex;

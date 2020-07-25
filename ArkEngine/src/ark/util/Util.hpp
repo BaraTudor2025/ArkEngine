@@ -192,7 +192,7 @@ namespace Util
 		if (pos == std::end(range)) {
 			return ArkInvalidIndex;
 		}
-		return pos - std::begin(this->componentIndexes);
+		return pos - std::begin(range);
 	}
 
 	template <typename T, typename F>
@@ -202,7 +202,7 @@ namespace Util
 		if (pos == std::end(range)) {
 			return ArkInvalidIndex;
 		}
-		return pos - std::begin(this->componentIndexes);
+		return pos - std::begin(range);
 	}
 
 	struct PolarVector {

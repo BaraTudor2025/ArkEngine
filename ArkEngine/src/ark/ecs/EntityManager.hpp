@@ -58,12 +58,12 @@ namespace ark {
 			} 
 
 			for (auto compData : entity.components) {
-				auto [component, index] = componentManager.copyComponent(compData.id, compData.index);
-				clone.mask.set(compData.id);
+				auto [newComponent, newIndex] = componentManager.copyComponent(compData.type, compData.index);
+				clone.mask.set(componentManager.idFromType(compData.type));
 				auto& cloneCompData = clone.components.emplace_back();
-				cloneCompData.component = component;
-				cloneCompData.id = compData.id;
-				cloneCompData.index = index;
+				cloneCompData.pComponent = newComponent;
+				cloneCompData.index = newIndex;
+				cloneCompData.type = compData.type;
 			}
 			return hClone;
 		}
@@ -102,7 +102,7 @@ namespace ark {
 			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity (%s)", entity.name.c_str());
 
 			for (auto compData : entity.components)
-				componentManager.removeComponent(compData.id, compData.index);
+				componentManager.removeComponent(compData.type, compData.index);
 
 			entity.name.clear();
 			entity.mask.reset();
@@ -133,11 +133,11 @@ namespace ark {
 			markAsModified(e);
 			entity.mask.set(compId);
 
-			auto [comp, compIndex] = componentManager.addComponent(compId, defaultConstruct);
+			auto [comp, compIndex] = componentManager.addComponent(type, defaultConstruct);
 			auto& compData = entity.components.emplace_back();
-			compData.component = comp;
-			compData.id = compId;
+			compData.pComponent = comp;
 			compData.index = compIndex;
+			compData.type = type;
 			return comp;
 		}
 
@@ -149,7 +149,7 @@ namespace ark {
 				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType(type));
 				return nullptr;
 			}
-			return entity.getComponentData(compId).component;
+			return entity.getComponentData(type).pComponent;
 		}
 
 		template <typename T>
@@ -164,9 +164,10 @@ namespace ark {
 			auto compId = componentManager.idFromType(type);
 			if (entity.mask.test(compId)) {
 				markAsModified(e);
-				componentManager.removeComponent(compId, entity.getComponentData(compId).index);
+				auto& compData = entity.getComponentData(type);
+				componentManager.removeComponent(type, compData.index);
 				entity.mask.set(compId, false);
-				Util::erase_if(entity.components, [compId](const auto& compData) { return compData.id == compId; });
+				Util::erase_if(entity.components, [&](const auto& compData) { return compData.type == type; });
 			}
 		}
 
@@ -264,7 +265,7 @@ namespace ark {
 				// component is not destroyed
 				if (it == freeEntities.end()) {
 					for (auto compData : entity.components)
-						componentManager.removeComponent(compData.id, compData.index);
+						componentManager.removeComponent(compData.type, compData.index);
 				}
 				id += 1;
 			}
@@ -272,29 +273,21 @@ namespace ark {
 
 	private:
 
-		static inline const std::string entityFolder = Resources::resourceFolder + "entities/";
-
-		std::string getEntityFilePath(Entity e)
-		{
-			auto& entity = getEntity(e);
-			return entityFolder + entity.name + ".json";
-		}
-
 		struct InternalEntityData {
 			struct ComponentData {
-				int16_t id;
+				std::type_index type = typeid(void);
+				void* pComponent; // reference
 				int16_t index;
-				void* component; // reference
 			};
-			ComponentManager::ComponentMask mask;
 			std::vector<ComponentData> components;
+			ComponentManager::ComponentMask mask;
 			int16_t id = ArkInvalidID;
 			bool isFree = false;
 			std::string name = "";
 
-			ComponentData& getComponentData(int id)
+			ComponentData& getComponentData(std::type_index type)
 			{
-				return *std::find_if(std::begin(components), std::end(components), [=](const auto& compData) { return compData.id == id; });
+				return *std::find_if(std::begin(components), std::end(components), [&](const auto& compData) { return compData.type == type; });
 			}
 		};
 

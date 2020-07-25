@@ -209,7 +209,6 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 		const auto& types = *static_cast<std::remove_reference_t<decltype(typeList)>*>(data);
 		auto it = types.begin();
 		std::advance(it, index);
-		//*out_text = it->name();
 		*out_text = ark::meta::getMetadata(*it)->name.data();
 		return true;
 	};

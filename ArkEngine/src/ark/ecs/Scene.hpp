@@ -132,11 +132,6 @@ namespace ark {
 			return nullptr;
 		}
 
-		std::type_index componentTypeFromId(int id) const
-		{
-			return componentManager.typeFromId(id);
-		}
-
 		const auto& getComponentTypes() const
 		{
 			return componentManager.getTypes();

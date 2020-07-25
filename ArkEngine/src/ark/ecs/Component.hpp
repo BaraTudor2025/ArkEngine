@@ -34,62 +34,37 @@ namespace ark {
 
 		bool hasComponentType(std::type_index type)
 		{
-			auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
-			return pos != std::end(this->componentIndexes);
+			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);// [&type](const auto& data) { return data.type == type; });
+			return pos != std::end(componentIndexes);
 		}
 
 		int idFromType(std::type_index type)
 		{
-			auto pos = std::find(std::begin(this->componentIndexes), std::end(this->componentIndexes), type);
-			if (pos == std::end(this->componentIndexes)) {
+			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);//[&type](const auto& data) { return data.type == type; });
+			if (pos == std::end(componentIndexes)) {
 				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", Util::getNameOfType(type));
 				return ArkInvalidIndex;
 			}
 			else 
-				return pos - std::begin(this->componentIndexes);
+				return pos - std::begin(componentIndexes);
 		}
 
-		std::type_index typeFromId(int id) const
+		auto addComponent(std::type_index type, bool defaultConstruct) -> std::pair<byte*, int>
 		{
-			return componentIndexes.at(id);
-		}
-
-		std::type_index typeFromName(std::string_view name)
-		{
-			for (const auto& type : componentIndexes) {
-				if (name == Util::getNameOfType(type))
-					return type;
-			}
-			EngineLog(LogSource::ComponentM, LogLevel::Error, "getTypeFromName() didn't find (%s)", name.data());
-		}
-
-		std::string_view nameFromId(int id)
-		{
-			return pools[id].metadata.name;
-		}
-
-		template <typename T>
-		int idFromType()
-		{
-			return idFromType(typeid(T));
-		}
-
-		auto addComponent(int compId, bool defaultConstruct) -> std::pair<byte*, int>
-		{
-			auto& pool = pools.at(compId);
+			auto& pool = getPool(type);
 			auto [newComponent, newIndex] = pool.getFreeSlot();
-			auto metadata = meta::getMetadata(this->typeFromId(compId));
+			auto metadata = meta::getMetadata(type);
 			if(defaultConstruct)
 				metadata->default_constructor(newComponent);
 			return { newComponent, newIndex };
 		}
 
-		auto copyComponent(int compId, int index) -> std::pair<byte*, int>
+		auto copyComponent(std::type_index type, int index) -> std::pair<byte*, int>
 		{
-			auto& pool = pools.at(compId);
+			auto& pool = getPool(type);
 			auto [newComponent, newIndex] = pool.getFreeSlot();
 
-			auto metadata = meta::getMetadata(this->typeFromId(compId));
+			auto metadata = meta::getMetadata(type);
 			if (metadata->copy_constructor) {
 				byte* copiedComponent = pool.componentAt(index);
 				metadata->copy_constructor(newComponent, copiedComponent);
@@ -99,13 +74,13 @@ namespace ark {
 			return { newComponent, newIndex };
 		}
 
-		void removeComponent(int compId, int index)
+		void removeComponent(std::type_index type, int index)
 		{
-			auto& pool = pools.at(compId);
-			byte* component = pool.componentAt(index);
-			auto metadata = meta::getMetadata(this->typeFromId(compId));
+			auto& pool = getPool(type);
+			byte* pComponent = pool.componentAt(index);
+			auto metadata = meta::getMetadata(type);
 			if(metadata->destructor)
-				metadata->destructor(component);
+				metadata->destructor(pComponent);
 			pool.freeComponents.push_back(index);
 		}
 
@@ -136,7 +111,6 @@ namespace ark {
 		struct ComponentPool {
 
 			struct Metadata {
-				std::string_view name;
 				int size;
 				std::align_val_t alignment;
 			};
@@ -162,7 +136,6 @@ namespace ark {
 			template <typename T>
 			void constructPoolFrom()
 			{
-				metadata.name = Util::getNameOfType<T>();
 				metadata.size = sizeof(T);
 				metadata.alignment = std::align_val_t{ alignof(T) };
 				custom_delete_buffer = [alignment = metadata.alignment](void* ptr) { ::operator delete[](ptr, alignment); };
@@ -189,8 +162,8 @@ namespace ark {
 					auto& chunk = chunks.back();
 					int index = numberOfComponentsPerChunk * (chunks.size() - 1) + chunk.numberOfComponents;
 					chunk.numberOfComponents += 1;
-					byte* component = componentAt(index);
-					return { component, index };
+					byte* pComponent = componentAt(index);
+					return { pComponent, index };
 				}
 				else {
 					int index = freeComponents.back();
@@ -199,10 +172,14 @@ namespace ark {
 				}
 			}
 		};
-
 		friend class System;
-		//std::unordered_map<std::type_index, ComponentPool> pools;
 		std::vector<std::type_index> componentIndexes;
 		std::vector<ComponentPool> pools;
+
+		ComponentPool& getPool(std::type_index type)
+		{
+			return pools.at(idFromType(type));
+		}
+
 	};
 }

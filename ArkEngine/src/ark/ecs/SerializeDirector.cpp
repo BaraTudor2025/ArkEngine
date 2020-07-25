@@ -22,10 +22,9 @@ namespace ark
 		auto& jsonComps = jsonEntity["components"];
 
 		for (auto compData : entityData.components) {
-			auto compType = scene.componentTypeFromId(compData.id);
-			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(compType, serviceSerializeName)) {
-				const auto* mdata = ark::meta::getMetadata(compType);
-				jsonComps[mdata->name.data()] = serialize(compData.component);
+			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(compData.type, serviceSerializeName)) {
+				const auto* mdata = ark::meta::getMetadata(compData.type);
+				jsonComps[mdata->name.data()] = serialize(compData.pComponent);
 			}
 		}
 
@@ -48,10 +47,9 @@ namespace ark
 		}
 		// then initialize
 		for (auto compData : entityData.components) {
-			const auto compType = scene.componentTypeFromId(compData.id);
-			if (auto deserialize = ark::meta::getService<void(Scene&, Entity& e, const nlohmann::json&, void*)>(compType, serviceDeserializeName)) {
-				const auto* mdata = ark::meta::getMetadata(compType);
-				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), compData.component);
+			if (auto deserialize = ark::meta::getService<void(Scene&, Entity& e, const nlohmann::json&, void*)>(compData.type, serviceDeserializeName)) {
+				const auto* mdata = ark::meta::getMetadata(compData.type);
+				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), compData.pComponent);
 			}
 		}
 	}

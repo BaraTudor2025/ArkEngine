@@ -23,7 +23,7 @@ namespace ark
 		for (const auto component : entity.runtimeComponentView()) {
 			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(component.type, serviceSerializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
-				jsonComps[mdata->name.data()] = serialize(component.ptr);
+				jsonComps[mdata->name] = serialize(component.ptr);
 			}
 		}
 
@@ -47,7 +47,7 @@ namespace ark
 		for (auto component : entity.runtimeComponentView()) {
 			if (auto deserialize = ark::meta::getService<void(Scene&, Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
-				deserialize(this->scene, entity, jsonComps.at(mdata->name.data()), component.ptr);
+				deserialize(this->scene, entity, jsonComps.at(mdata->name), component.ptr);
 			}
 		}
 	}

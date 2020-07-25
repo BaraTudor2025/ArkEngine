@@ -189,7 +189,7 @@ namespace ark {
 					if (auto render = ark::meta::getService<void(int*, void*)>(component.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
 						const auto* mdata = ark::meta::getMetadata(component.type);
-						if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+						if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
 							bool deleted = AlignButtonToRight("remove component", [&]() {
 								delayDelete.push_back([=, e = scene.entityFromId(selectedEntity)]() mutable {
@@ -209,7 +209,7 @@ namespace ark {
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
 					const auto& types = *static_cast<const std::vector<std::type_index>*> (data);
-					*out_text = ark::meta::getMetadata(types.at(index))->name.data();
+					*out_text = ark::meta::getMetadata(types.at(index))->name.c_str();
 					return true;
 				};
 				int componentItemIndex;

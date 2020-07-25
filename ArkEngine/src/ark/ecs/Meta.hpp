@@ -103,7 +103,7 @@ namespace ark::meta
 
 	struct Metadata {
 	private:
-		Metadata(std::type_index type, std::size_t size, std::size_t align, std::string_view name)
+		Metadata(std::type_index type, std::size_t size, std::size_t align, std::string name)
 			: type(type), size(size), align(align), name(name)
 		{
 		}
@@ -111,7 +111,7 @@ namespace ark::meta
 		std::type_index type;
 		std::size_t size;
 		std::size_t align;
-		std::string_view name;
+		std::string name;
 
 		void(*default_constructor)(void*) = nullptr;
 		void(*destructor)(void*) = nullptr;
@@ -124,7 +124,7 @@ namespace ark::meta
 		void(*move_assign)(void*, void*) = nullptr;
 
 		template <typename T>
-		friend void constructMetadataFrom(std::string_view name) noexcept;
+		friend void constructMetadataFrom(std::string name) noexcept;
 	};
 
 
@@ -296,9 +296,9 @@ namespace ark::meta
 
 
 	template <typename T>
-	void constructMetadataFrom(std::string_view name) noexcept
+	void constructMetadataFrom(std::string name) noexcept
 	{
-		Metadata metadata{ typeid(T), sizeof(T), alignof(T), name };
+		Metadata metadata{ typeid(T), sizeof(T), alignof(T), std::move(name) };
 
 		if constexpr (std::is_default_constructible_v<T>)
 			metadata.default_constructor = [](void* This) { new(This)T{}; };

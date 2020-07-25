@@ -156,7 +156,7 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	for (const auto& script : scriptingComp->mScripts) {
 		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::SerdeJsonDirector::serviceSerializeName)) {
 			const auto* mdata = ark::meta::getMetadata(script->type);
-			jsonScripts[mdata->name.data()] = serialize(script.get());
+			jsonScripts[mdata->name] = serialize(script.get());
 		}
 	}
 	return jsonScripts;
@@ -178,7 +178,7 @@ static void deserializeScriptComponents(ark::Scene& scene, ark::Entity& entity, 
 		script->mScene = &scene;
 		script->bind();
 		if (auto deserialize = ark::meta::getService<void(ark::Scene&, ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
-			deserialize(scene, entity, jsonScripts.at(mdata->name.data()), script.get());
+			deserialize(scene, entity, jsonScripts.at(mdata->name), script.get());
 		}
 	}
 }
@@ -191,7 +191,7 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 
 		if (auto render = ark::meta::getService<void(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
 			ImGui::AlignTextToFramePadding();
-			if (ImGui::TreeNodeEx(mdata->name.data(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+			if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 				bool deleted = ark::AlignButtonToRight("remove script", [&]() {
 					scriptingComp->removeScript(script->type);
 				});
@@ -209,7 +209,7 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 		const auto& types = *static_cast<std::remove_reference_t<decltype(typeList)>*>(data);
 		auto it = types.begin();
 		std::advance(it, index);
-		*out_text = ark::meta::getMetadata(*it)->name.data();
+		*out_text = ark::meta::getMetadata(*it)->name.c_str();
 		return true;
 	};
 	int scriptItemIndex;

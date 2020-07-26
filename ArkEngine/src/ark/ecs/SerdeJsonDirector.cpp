@@ -4,6 +4,7 @@
 #include "ark/ecs/Scene.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/util/ResourceManager.hpp"
+#include "ark/ecs/components/Transform.hpp"
 
 namespace ark
 {
@@ -27,14 +28,14 @@ namespace ark
 			}
 		}
 
-		std::ofstream of(getEntityFilePath(entity.getName()));
+		std::ofstream of(getEntityFilePath(entity.getComponent<TagComponent>().name));
 		of << jsonEntity.dump(4, ' ', true);
 	}
 
 	void SerdeJsonDirector::deserializeEntity(Entity& entity)
 	{
 		json jsonEntity;
-		std::ifstream fin(getEntityFilePath(entity.getName()));
+		std::ifstream fin(getEntityFilePath(entity.getComponent<TagComponent>().name));
 		fin >> jsonEntity;
 
 		// allocate components and default construct
@@ -47,7 +48,11 @@ namespace ark
 		for (auto component : entity.runtimeComponentView()) {
 			if (auto deserialize = ark::meta::getService<void(Scene&, Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
-				deserialize(this->scene, entity, jsonComps.at(mdata->name), component.ptr);
+				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())
+					deserialize(this->scene, entity, *it, component.ptr);
+				else
+					EngineLog(LogSource::Scene, LogLevel::Error, "deser-ing entity (%s) without component (%s)", 
+						entity.getComponent<TagComponent>().name, mdata->name);
 			}
 		}
 	}

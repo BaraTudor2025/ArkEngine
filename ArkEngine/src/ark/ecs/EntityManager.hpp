@@ -10,7 +10,6 @@
 
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/Entity.hpp"
-#include "ark/util/ResourceManager.hpp"
 
 namespace ark {
 
@@ -23,7 +22,7 @@ namespace ark {
 
 	public:
 
-		Entity createEntity(std::string name)
+		Entity createEntity()
 		{
 			Entity e;
 			e.manager = this;
@@ -38,24 +37,15 @@ namespace ark {
 			entity.id = e.id;
 			entity.isFree = false;
 
-			if (name.empty())
-				entity.name = std::string("entity_") + std::to_string(e.id);
-			else
-				entity.name = name;
-
-			EngineLog(LogSource::EntityM, LogLevel::Info, "created (%s)", entity.name.c_str());
+			EngineLog(LogSource::EntityM, LogLevel::Info, "created entity with id(%d)", entity.id);
 			return e;
 		}
 
-		Entity cloneEntity(Entity e, std::string name)
+		Entity cloneEntity(Entity e)
 		{
-			Entity hClone = createEntity(name);
+			Entity hClone = createEntity();
 			auto& entity = getEntity(e);
 			auto& clone = getEntity(hClone);
-			if (name.empty()) {
-				clone.name.append("_cloneof_");
-				clone.name.append(entity.name);
-			} 
 
 			for (auto compData : entity.components) {
 				auto [newComponent, newIndex] = componentManager.copyComponent(compData.type, compData.index);
@@ -68,43 +58,16 @@ namespace ark {
 			return hClone;
 		}
 
-		const std::string& getNameOfEntity(Entity e)
-		{
-			auto& entity = getEntity(e);
-			return entity.name;
-		}
-
-		void setNameOfEntity(Entity e, std::string name)
-		{
-			auto& entity = getEntity(e);
-			entity.name = name;
-		}
-
-		Entity getEntityByName(std::string name)
-		{
-			for (int i = 0; i < entities.size(); i++) {
-				if (entities[i].name == name) {
-					Entity e;
-					e.id = i;
-					e.manager = this;
-					return e;
-				}
-			}
-			EngineLog(LogSource::EntityM, LogLevel::Warning, "getByName(): didn't find entity (%s)", name.c_str());
-			return {};
-		}
-
 		void destroyEntity(Entity e)
 		{
 			freeEntities.push_back(e.id);
 			auto& entity = getEntity(e);
 
-			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity (%s)", entity.name.c_str());
+			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
 
 			for (auto compData : entity.components)
 				componentManager.removeComponent(compData.type, compData.index);
 
-			entity.name.clear();
 			entity.mask.reset();
 			entity.components.clear();
 			entity.isFree = true;
@@ -113,6 +76,7 @@ namespace ark {
 		// if component already exists, then the existing component is returned
 		template <typename T, typename... Args>
 		T& addComponentOnEntity(Entity e, Args&&... args) {
+			componentManager.addComponentType<T>();
 			bool def = sizeof...(args) == 0 ? true : false;
 			void* comp = implAddComponentOnEntity(e, typeid(T), def);
 			if(not def)
@@ -146,7 +110,7 @@ namespace ark {
 			auto& entity = getEntity(e);
 			int compId = componentManager.idFromType(type);
 			if (!entity.mask.test(compId)) {
-				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%s), doesn't have component (%s)", entity.name.c_str(), Util::getNameOfType(type));
+				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entity.id, meta::getMetadata(type)->name);
 				return nullptr;
 			}
 			return entity.getComponentData(type).pComponent;
@@ -297,7 +261,6 @@ namespace ark {
 			ComponentManager::ComponentMask mask;
 			int16_t id = ArkInvalidID;
 			bool isFree = false;
-			std::string name = "";
 
 			ComponentData& getComponentData(std::type_index type)
 			{
@@ -428,8 +391,7 @@ namespace ark {
 		manager->removeComponentOfEntity(*this, type);
 	}
 
-
-	inline auto Entity::runtimeComponentView()
+	inline auto Entity::runtimeComponentView() -> RuntimeComponentView 
 	{
 		return manager->makeComponentView(*this);
 	}

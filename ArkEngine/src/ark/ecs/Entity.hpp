@@ -13,6 +13,8 @@ namespace ark {
 		void* ptr;
 	};
 
+	class RuntimeComponentView;
+
 	// this is more of a handle
 	// member function definitions are at the bottom of EntityManager.hpp
 	class Entity final {
@@ -47,7 +49,7 @@ namespace ark {
 		template <typename F>
 		void forEachComponent(F&& f);
 
-		auto runtimeComponentView();
+		auto runtimeComponentView() -> RuntimeComponentView;
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		template <typename T>
@@ -95,10 +97,6 @@ namespace ark {
 		}
 #endif
 		//disable entity children
-
-		const std::string& getName() const;
-
-		void setName(std::string name);
 
 		friend bool operator==(const Entity left, const Entity right)
 		{

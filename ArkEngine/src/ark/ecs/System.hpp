@@ -55,7 +55,6 @@ namespace ark {
 	private:
 		void addEntity(Entity e)
 		{
-			EngineLog(LogSource::SystemM, LogLevel::Info, "On (%s) added entity (%s)", Util::getNameOfType(type), e.getName().c_str());
 			entities.push_back(e);
 			onEntityAdded(e);
 		}

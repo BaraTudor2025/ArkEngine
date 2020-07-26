@@ -65,7 +65,7 @@ namespace ark {
 
 			ImGui::TextUnformatted("Entities:");
 			for (Entity e : system->getEntities()) {
-				ImGui::BulletText(e.getName().c_str());
+				ImGui::BulletText(e.getComponent<TagComponent>().name.c_str());
 			}
 		};
 
@@ -153,6 +153,14 @@ namespace ark {
 		return pressed;
 	}
 
+	std::string getNameOfEntity(ark::Entity entity)
+	{
+		if (auto tag = entity.tryGetComponent<TagComponent>())
+			return tag->name;
+		else
+			return std::string("entity_") + std::to_string(entity.getID());
+	}
+
 	void SceneInspector::renderEntityEditor()
 	{
 		const int windowHeight = 700;
@@ -166,7 +174,8 @@ namespace ark {
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
 			for (const auto entity : scene.entitiesView()) {
-				if (ImGui::Selectable(entity.getName().c_str(), selectedEntity == entity.getID()))
+				auto name = getNameOfEntity(entity);
+				if (ImGui::Selectable(name.c_str(), selectedEntity == entity.getID()))
 					selectedEntity = entity.getID();
 			}
 			ImGui::EndChild();
@@ -175,27 +184,27 @@ namespace ark {
 			// editor of selected entity
 			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
 			if (selectedEntity != -1) {
-
-				// entity name at the top
 				auto entity = scene.entityFromId(selectedEntity);
-				ImGui::Text("Entity: %s", entity.getName().c_str());
-				ImGui::Separator();
 
-				// component editor
-				std::vector<std::function<void()>> delayDelete;
-				ImGui::TextUnformatted("Components:");
+				std::function<void()> delayDelete;
 				int widgetId = 0;
+				ImGui::TextUnformatted("Components:");
+				// component editor
 				for (ark::RuntimeComponent component : entity.runtimeComponentView()) {
 					if (auto render = ark::meta::getService<void(int*, void*)>(component.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
 						const auto* mdata = ark::meta::getMetadata(component.type);
 						if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 
-							bool deleted = AlignButtonToRight("remove component", [&]() {
-								delayDelete.push_back([=, e = scene.entityFromId(selectedEntity)]() mutable {
-									e.removeComponent(component.type);
+							bool deleted = false;
+							// can't delete Tag or Transform
+							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
+								 deleted = AlignButtonToRight("remove component", [&]() {
+									delayDelete = [=]() mutable {
+										entity.removeComponent(component.type);
+									};
 								});
-							});
+							}
 							if (!deleted)
 								render(&widgetId, component.ptr);
 							ImGui::TreePop();
@@ -203,8 +212,8 @@ namespace ark {
 					}
 					ImGui::Separator();
 				}
-				for (auto& f : delayDelete)
-					f();
+				if(delayDelete)
+					delayDelete();
 
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
@@ -282,13 +291,12 @@ namespace ark {
 
 		{ typeid(std::string), [](std::string_view name, const void* pField) {
 			std::string field = *static_cast<const std::string*>(pField);
-			char buff[50];
-			field.copy(buff, field.size());
-			buff[field.size()] = '\0';
+			char buff[40];
+			std::memset(buff, 0, sizeof(buff));
+			strcpy_s(buff, field.c_str());
 			ArkSetFieldName(name);
-			if (ImGui::InputText("", buff, field.size() + 1, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
-				return std::any{std::string(buff, field.size())};
+			if (ImGui::InputText("", buff, sizeof(buff), ImGuiInputTextFlags_EnterReturnsTrue)) {
+				return std::any{std::string(buff, std::strlen(buff))};
 			}
 			return std::any{};
 		} },

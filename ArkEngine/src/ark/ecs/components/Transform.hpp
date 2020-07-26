@@ -12,6 +12,21 @@ namespace ark {
 
 	class Entity;
 
+	struct TagComponent final : public Component<TagComponent> {
+		TagComponent() = default;
+		~TagComponent() = default;
+
+		TagComponent(const TagComponent&) = default;
+		TagComponent& operator=(const TagComponent&) = default;
+
+		TagComponent(TagComponent&&) = default;
+		TagComponent& operator=(TagComponent&&) = default;
+
+		TagComponent(std::string name) : name(name) {}
+
+		std::string name;
+	};
+
 	struct ARK_ENGINE_API Transform final : public Component<Transform>, public sf::Transformable{
 
 		using sf::Transformable::Transformable;
@@ -129,4 +144,9 @@ ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
 		member_function<ark::Transform, void, float, float>("move", &ark::Transform::move),
 		member_function<ark::Transform>("getChildren", &ark::Transform::getChildren)
 	);
+}
+
+ARK_REGISTER_TYPE(ark::TagComponent, "Tag", ARK_DEFAULT_SERVICES)
+{
+	return members(member_property("name", &ark::TagComponent::name));
 }

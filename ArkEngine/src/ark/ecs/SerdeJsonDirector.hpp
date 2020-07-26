@@ -11,11 +11,7 @@
 #include "ark/core/Core.hpp"
 #include "ark/ecs/Director.hpp"
 #include "ark/ecs/Meta.hpp"
-
-
-#define ARK_SERVICE_SERDE \
-	ark::meta::service(ark::SerdeJsonDirector::serviceSerializeName, ark::serialize_value<Type>), \
-	ark::meta::service(ark::SerdeJsonDirector::serviceDeserializeName, ark::deserialize_value<Type>)
+#include "ark/ecs/Entity.hpp"
 
 namespace ark
 {
@@ -99,7 +95,7 @@ namespace ark
 				const auto& fields = meta::getEnumValues<PropType>();
 				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
 				jsonObj[property.getName()] = fieldName;
-			} 
+			}
 			else if constexpr (std::is_same_v<char, PropType>) {
 				std::string str;
 				str.push_back(property.getCopy(value));
@@ -118,25 +114,48 @@ namespace ark
 		Type& value = *static_cast<Type*>(pValue);
 		meta::doForAllProperties<Type>([&value, &jsonObj, &e, &s](auto& property) {
 			using PropType = meta::get_member_type<decltype(property)>;
+			bool failure = true;
 
 			if constexpr (meta::isRegistered<PropType>()) {
-				//const json& jsonMember = jsonObj.at(property.getName());
 				PropType propValue;
-				deserialize_value<PropType>(s, e, jsonObj.at(property.getName()), &propValue);
-				property.set(value, propValue);
+				if (auto it = jsonObj.find(property.getName()); it != jsonObj.end()) {
+					deserialize_value<PropType>(s, e, jsonObj.at(property.getName()), &propValue);
+					property.set(value, propValue);
+					failure = false;
+				}
 			}
 			else if constexpr (std::is_enum_v<PropType>) {
-				auto enumValueName = jsonObj.at(property.getName()).get<std::string>();
-				auto memberValue = meta::getValueOfEnumName<PropType>(enumValueName.c_str());
-				property.set(value, memberValue);
+				if (auto it = jsonObj.find(property.getName()); it != jsonObj.end()) {
+					auto enumValueName = it->get<std::string>();
+					auto memberValue = meta::getValueOfEnumName<PropType>(enumValueName.c_str());
+					property.set(value, memberValue);
+					failure = false;
+				}
 			}
 			else if constexpr (std::is_same_v<char, PropType>) {
-				auto&& memberValue = jsonObj.at(property.getName()).get<std::string>();
-				property.set(value, memberValue[0]);
+				if (auto it = jsonObj.find(property.getName()); it != jsonObj.end()) {
+					auto&& memberValue = it->get<std::string>();
+					property.set(value, memberValue[0]);
+					failure = false;
+				}
 			}
 			else /* normal(convertible) value*/ {
-				auto&& memberValue = jsonObj.at(property.getName()).get<PropType>();
-				property.set(value, memberValue);
+				if (auto it = jsonObj.find(property.getName()); it != jsonObj.end()) {
+					auto&& memberValue = it->get<PropType>();
+					property.set(value, memberValue);
+					failure = false;
+				}
+			}
+			if (failure) {
+				auto mdata = ark::meta::getMetadata(typeid(Type));
+				if (mdata)
+					EngineLog(LogSource::Scene, LogLevel::Error,
+						"failed to deser property (%s) on component (%s) on entity (%d)",
+						property.getName(), mdata->name, e.getID());
+				else
+					EngineLog(LogSource::Scene, LogLevel::Error,
+						"failed to deser property (%s) on entity (%s)",
+						property.getName(), e.getID());
 			}
 
 		});

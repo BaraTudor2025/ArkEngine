@@ -15,6 +15,7 @@
 namespace ark {
 
 	class MessageBus;
+	class EntityView;
 
 	class Scene final : public NonCopyable, public NonMovable {
 
@@ -28,9 +29,9 @@ namespace ark {
 
 		~Scene() = default;
 
-		Entity createEntity(std::string name = "")
+		Entity createEntity()
 		{
-			createdEntities.push_back(entityManager.createEntity(std::move(name)));
+			createdEntities.push_back(entityManager.createEntity());
 			return createdEntities.back();
 		}
 		
@@ -42,20 +43,15 @@ namespace ark {
 			return e;
 		}
 
-		Entity cloneEntity(Entity e, std::string name = "")
+		Entity cloneEntity(Entity e)
 		{
-			createdEntities.push_back(entityManager.cloneEntity(e, name));
+			createdEntities.push_back(entityManager.cloneEntity(e));
 			return createdEntities.back();
 		}
 
 		void destroyEntity(Entity entity)
 		{
 			destroyedEntities.push_back(entity);
-		}
-
-		Entity getEntityByName(std::string name)
-		{
-			return entityManager.getEntityByName(name);
 		}
 
 		template <typename F>
@@ -69,7 +65,7 @@ namespace ark {
 			}
 		}
 
-		auto entitiesView();
+		EntityView entitiesView();
 
 		template <typename T, typename...Args>
 		T* addSystem(Args&&... args)
@@ -202,7 +198,7 @@ namespace ark {
 				// modified entities that have not been created now (entites created this frame are also marked as 'modified')
 				std::vector<Entity> me = Util::set_difference(modifiedEntities.value(), createdEntities);
 				for (auto entity : me) {
-					EngineLog(LogSource::EntityM, LogLevel::Info, "modified (%s)", entity.getName().c_str());
+					//EngineLog(LogSource::EntityM, LogLevel::Info, "modified (%s)", entity.getName().c_str());
 					systemManager.removeFromSystems(entity);
 					systemManager.addToSystems(entity);
 				}
@@ -282,7 +278,7 @@ namespace ark {
 		const auto end() const { return mEnd; }
 	};
 
-	inline auto Scene::entitiesView()
+	inline EntityView Scene::entitiesView()
 	{
 		return EntityView{ 
 			{entityManager.entities.begin(), entityManager.entities.end(), this}, 

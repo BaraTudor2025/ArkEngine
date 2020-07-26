@@ -11,9 +11,9 @@
         },
         "PixelParticles": {
             "angle_dist": {
-                "lower": 0.0,
+                "lower": 3.926987648010254,
                 "type": "normal",
-                "upper": 6.283180236816406
+                "upper": 0.31415900588035583
             },
             "colors": {
                 "dominant": {
@@ -30,16 +30,16 @@
                 }
             },
             "emitter": {
-                "x": 1010.0,
-                "y": 580.0
+                "x": 1098.4312744140625,
+                "y": 567.8251953125
             },
             "gravity": {
                 "x": 0.0,
                 "y": 400.0
             },
             "life_time": 7.0,
-            "particle_number": 100,
-            "particles_per_second": 50.0,
+            "particle_number": 200,
+            "particles_per_second": 100.0,
             "platform": {
                 "height": 10.0,
                 "left": 0.0,
@@ -47,35 +47,41 @@
                 "width": 1920.0
             },
             "size": {
-                "x": 6.0,
-                "y": 3.0
+                "x": 12.0,
+                "y": 6.0
             },
             "spawn": false,
             "speed": 400.0
         },
-        "ark::Transform": {
+        "ScriptingComponent": {
+            "MovePlayerScript": {
+                "scale": {
+                    "x": 0.20000000298023224,
+                    "y": 0.20000000298023224
+                },
+                "speed": 600.0
+            },
+            "SaveEntityScript": {
+                "key": "m"
+            }
+        },
+        "Tag": {
+            "name": "player"
+        },
+        "Transform": {
             "origin": {
                 "x": 500.0,
                 "y": 500.0
             },
             "position": {
-                "x": 960.0,
-                "y": 540.0
+                "x": 1131.4312744140625,
+                "y": 510.8251953125
             },
-            "roatation": 0.0,
+            "roatation": 359.29473876953125,
             "scale": {
-                "x": 0.10000000149011612,
-                "y": 0.10000000149011612
+                "x": 0.20000000298023224,
+                "y": 0.20000000298023224
             }
-        }
-    },
-    "scripts": {
-        "MovePlayer": {
-            "scale": {
-                "x": 0.10000000149011612,
-                "y": 0.10000000149011612
-            },
-            "speed": 400.0
         }
     }
 }

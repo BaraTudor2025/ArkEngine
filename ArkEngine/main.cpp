@@ -364,7 +364,7 @@ public:
 			if (ev.key.code == std::tolower(key) - 'a'){
 				auto e = entity();
 				serde->serializeEntity(e);
-				GameLog("just serialized entity %s", e.getName());
+				GameLog("just serialized entity %s", e.getComponent<TagComponent>().name);
 			}
 		}
 	}
@@ -389,6 +389,14 @@ private:
 
 	int getStateId() override { return States::TestingState; }
 
+	ark::Entity makeEntity(std::string name)
+	{
+		Entity e = scene.createEntity();
+		e.addComponent<ark::TagComponent>(name);
+		e.addComponent<ark::Transform>();
+		return e;
+	}
+
 	void init() override
 	{
 		scene.addSystem<PointParticleSystem>();
@@ -405,14 +413,14 @@ private:
 		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->renderSystemInspector(); } });
 		//scene.addSystem<TestMessageSystem>();
 
-		button = scene.createEntity("button");
-		mouseTrail = scene.createEntity("mouse_trail");
-		rainbowPointParticles = scene.createEntity("rainbow_ps");
-		greenPointParticles = scene.createEntity("green_ps");
-		firePointParticles = scene.createEntity("fire_ps");
-		rotatingParticles = scene.createEntity("rotating_ps");
+		button = makeEntity("button");
+		mouseTrail = makeEntity("mouse_trail");
+		rainbowPointParticles = makeEntity("rainbow_ps");
+		greenPointParticles = makeEntity("green_ps");
+		firePointParticles = makeEntity("fire_ps");
+		rotatingParticles = makeEntity("rotating_ps");
 
-		player = scene.createEntity("player2");
+		player = makeEntity("player");
 		serde->deserializeEntity(player);
 		
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
@@ -469,6 +477,7 @@ private:
 
 
 		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
+		rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
 		{
 			auto& scripts = rainbowClone.addComponent<ScriptingComponent>(rainbowClone);
 			scripts.addScript<SpawnOnRightClick>();

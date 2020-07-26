@@ -10,11 +10,8 @@
 #include "ark/ecs/Director.hpp"
 #include "ark/ecs/Renderer.hpp"
 
-#define ARK_SERVICE_INSPECTOR ark::meta::service(ark::SceneInspector::serviceName, &ark::SceneInspector::renderPropertiesOfType<Type>)
-
 namespace ark
 {
-
 	class EntityManager;
 
 	class SceneInspector : public Director, public Renderer {

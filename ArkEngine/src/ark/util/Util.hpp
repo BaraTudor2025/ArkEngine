@@ -17,14 +17,6 @@
 #define UNIQUE_NAME(x) MACRO_CONCAT(x, __COUNTER__)
 
 
-#define log_impl(fmt, ...) printf(__FUNCTION__ ": " fmt "\n", __VA_ARGS__ )
-//#define log(fmt, ...)  log_impl(fmt, __VA_ARGS__)
-
-#define log_err_impl(fmt, ...) do { log(fmt, __VA_ARGS__); std::exit(EXIT_FAILURE); } while(false)
-#define log_err(fmt, ...) log_err_impl(fmt, __VA_ARGS__)
-
-#define INSTANCE(type) type type::instance;
-
 #define COPYABLE(type) \
 	type(const type&) = default; \
 	type& operator=(const type&) = default;

@@ -6,7 +6,6 @@
 namespace ark {
 
 	class EntityManager;
-	class Script;
 
 	struct RuntimeComponent {
 		std::type_index type = typeid(void);

@@ -45,7 +45,7 @@ class ColisionSystem : public System {
 #endif
 
 //class MovePlayer : public ark::ScriptT<MovePlayer> {
-class MovePlayer : public ScriptClassT<MovePlayer, true> {
+class MovePlayer : public ScriptT<MovePlayer, true> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
@@ -83,12 +83,12 @@ public:
 		return transform->getScale();
 	}
 
-	//void init() override
 	void bind() noexcept override
 	{
 		transform = getComponent<Transform>();
 		animation = getComponent<Animation>();
 		runningParticles = getComponent<PixelParticles>();
+		setScale(transform->getScale());
 	}
 
 	void update() noexcept override
@@ -334,7 +334,7 @@ public:
 	}
 };
 
-class EmittFromMouseTest : public ScriptClassT<EmittFromMouseTest> {
+class EmittFromMouseTest : public ScriptT<EmittFromMouseTest> {
 	PointParticles* p;
 public:
 	void bind() noexcept override
@@ -347,7 +347,7 @@ public:
 	}
 };
 
-class SaveEntityScript : public ScriptClassT<SaveEntityScript> {
+class SaveEntityScript : public ScriptT<SaveEntityScript> {
 	ark::SerdeJsonDirector* serde;
 public:
 	SaveEntityScript() = default;

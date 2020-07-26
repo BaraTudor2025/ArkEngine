@@ -6,11 +6,11 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/DefaultServices.hpp"
 
-class ScriptClass : public NonCopyable {
+class Script : public NonCopyable {
 
 public:
-	ScriptClass(std::type_index type) : mType(type) {}
-	virtual ~ScriptClass() = default;
+	Script(std::type_index type) : mType(type) {}
+	virtual ~Script() = default;
 
 	virtual void bind() noexcept = 0;
 	virtual void handleEvent(const sf::Event& ev) noexcept {}
@@ -53,15 +53,15 @@ void registerScript(bool customRegistration)
 		ark::meta::services<T>(ARK_DEFAULT_SERVICES);
 		ark::meta::constructMetadataFrom<T>();
 	}
-	ark::meta::services<T>(ark::meta::service("unique_ptr", []() -> std::unique_ptr<ScriptClass> { return std::make_unique<T>(); }));
+	ark::meta::services<T>(ark::meta::service("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); }));
 	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
 }
 
 template <typename T, bool CustomRegistration = false>
-class ScriptClassT : public ScriptClass {
+class ScriptT : public Script {
 	static inline auto _ = (registerScript<T>(CustomRegistration), 0);
 public:
-	ScriptClassT() : ScriptClass(typeid(T)) {}
+	ScriptT() : Script(typeid(T)) {}
 };
 
 
@@ -71,7 +71,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 
 	// if entity is provided then scripts will be binded immediatly,
 	// oherwise they will be binded next frame
-	// next frames, after the creation of the scripting component, scripts will be binded immediatly
+	// after the first frame, the entity is automatically supplied so scripts added after first frame will be binded immediatly
 	ScriptingComponent(ark::Entity e) : mEntity(e) {}
 
 	template <typename T, typename... Args>
@@ -81,30 +81,22 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 			return static_cast<T*>(s);
 		}
 		else {
-			static_assert(std::is_base_of_v<ScriptClass, T>);
-			auto& script = mScripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
-			if (mEntity.isValid()) {
-				script->mEntity = mEntity;
-				script->mScene = mScene;
-				script->bind();
-			}
-			return static_cast<T*>(script.get());
+			static_assert(std::is_base_of_v<Script, T>);
+			auto script = mScripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+			_initScript(script);
+			return static_cast<T*>(script);
 		}
 	}
 
-	ScriptClass* addScript(std::type_index type)
+	Script* addScript(std::type_index type)
 	{
 		if (auto s = getScript(type))
 			return s;
 		else {
-			auto create = ark::meta::getService<std::unique_ptr<ScriptClass>()>(type, "unique_ptr");
-			auto& script = mScripts.emplace_back(create());
-			if (mEntity.isValid()) {
-				script->mEntity = mEntity;
-				script->mScene = mScene;
-				script->bind();
-			}
-			return script.get();
+			auto create = ark::meta::getService<std::unique_ptr<Script>()>(type, "unique_ptr");
+			auto script = mScripts.emplace_back(create()).get();
+			_initScript(script);
+			return script;
 		}
 	}
 
@@ -114,7 +106,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		return dynamic_cast<T*>(getScript(typeid(T)));
 	}
 
-	ScriptClass* getScript(std::type_index type)
+	Script* getScript(std::type_index type)
 	{
 		for (auto& script : mScripts)
 			if (script->mType == type)
@@ -124,7 +116,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 
 	void setActive(std::type_index type, bool isActive)
 	{
-		ScriptClass* pScript = getScript(type);
+		Script* pScript = getScript(type);
 		pScript->mIsActive = isActive; // add buffering?
 	}
 
@@ -133,7 +125,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 
 	void removeScript(std::type_index type)
 	{
-		if (ScriptClass* p = getScript(type))
+		if (Script* p = getScript(type))
 			mToBeDeleted.push_back(p);
 	}
 
@@ -141,10 +133,20 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 	void removeScript() { removeScript(typeid(T)); }
 
 private:
+
+	void _initScript(Script* script)
+	{
+		if (mEntity.isValid()) {
+			script->mEntity = mEntity;
+			script->mScene = mScene;
+			script->bind();
+		}
+	}
+
 	ark::Entity mEntity;
 	ark::Scene* mScene;
-	std::vector<std::unique_ptr<ScriptClass>> mScripts;
-	std::vector<ScriptClass*> mToBeDeleted;
+	std::vector<std::unique_ptr<Script>> mScripts;
+	std::vector<Script*> mToBeDeleted;
 
 	friend void renderScriptComponents(int* widgetId, void* pvScriptComponent);
 	friend nlohmann::json serializeScriptComponents(const void* p);
@@ -200,7 +202,7 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 				});
 				if (!deleted) {
 					ImGui::PushID(*widgetId);
-					ark::ArkSetFieldName("is-script-active");
+					ark::ArkSetFieldName("is-active");
 					bool bIsActive = script->isActive();
 					if (ImGui::Checkbox("", &bIsActive))
 						script->setActive(bIsActive);
@@ -229,14 +231,13 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 	}
 }
 
-
 ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
 	ark::meta::service(ark::SceneInspector::serviceName, renderScriptComponents),
 	ark::meta::service(ark::SerdeJsonDirector::serviceSerializeName, serializeScriptComponents),
 	ark::meta::service(ark::SerdeJsonDirector::serviceDeserializeName, deserializeScriptComponents)
-	)
+)
 {
-	return members();
+	return members(); 
 }
 
 
@@ -270,7 +271,7 @@ public:
 
 			// delete script from previous frame
 			if (not scriptComp.mToBeDeleted.empty()) {
-				for (ScriptClass* pScript : scriptComp.mToBeDeleted) {
+				for (Script* pScript : scriptComp.mToBeDeleted) {
 					Util::erase_if(scriptComp.mScripts, [type = pScript->mType](const auto& script) { return script->mType == type; });
 				}
 				scriptComp.mToBeDeleted.clear();
@@ -300,7 +301,7 @@ private:
 	template <typename F>
 	void forEachScript(F f)
 	{
-		for (auto e : getEntities()) {
+		for (auto& e : getEntities()) {
 			auto& scriptComp = e.getComponent<ScriptingComponent>();
 			for (auto& script : scriptComp.mScripts) {
 				if (script->mIsActive)

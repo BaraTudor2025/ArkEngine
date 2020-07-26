@@ -244,7 +244,7 @@ namespace GuiScripts {
 	// momentan nefunctional
 	// TODO: update to ScriptingSystem 
 	template <typename T>
-	class MoveWithMouse : public ScriptClassT<MoveWithMouse<T>> {
+	class MoveWithMouse : public ScriptT<MoveWithMouse<T>> {
 		
 		static_assert(std::is_base_of_v<ark::Component, T>);
 		bool isLeftMouseButtonPressed = false;

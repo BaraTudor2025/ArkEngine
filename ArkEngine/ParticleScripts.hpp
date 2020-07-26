@@ -12,7 +12,7 @@
 
 namespace ParticleScripts {
 
-	class EmittFromMouse : public ScriptClassT<EmittFromMouse> {
+	class EmittFromMouse : public ScriptT<EmittFromMouse> {
 		PointParticles* p;
 	public:
 		void bind() noexcept override
@@ -25,7 +25,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class TraillingEffect : public ScriptClassT<TraillingEffect> {
+	class TraillingEffect : public ScriptT<TraillingEffect> {
 		sf::Vector2f prevEmitter;
 		PointParticles* p;
 	public:
@@ -55,7 +55,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class PlayModel : public ScriptClassT<PlayModel> {
+	class PlayModel : public ScriptT<PlayModel> {
 		std::vector<sf::Vector2f> model;
 		std::vector<sf::Vector2f>::iterator curr;
 		std::string file;
@@ -126,7 +126,7 @@ namespace ParticleScripts {
 	};
 
 
-	class RotateEmitter : public ScriptClassT<RotateEmitter> {
+	class RotateEmitter : public ScriptT<RotateEmitter> {
 		sf::Transform t;
 		PointParticles* p;
 		//Transform* t;
@@ -158,7 +158,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class Rotate : public ScriptClassT<Rotate> {
+	class Rotate : public ScriptT<Rotate> {
 		ark::Transform* t;
 		float angle;
 		sf::Vector2f around;
@@ -183,7 +183,7 @@ namespace ParticleScripts {
 	};
 
 
-	class SpawnOnRightClick : public ScriptClassT<SpawnOnRightClick> {
+	class SpawnOnRightClick : public ScriptT<SpawnOnRightClick> {
 		PointParticles* p;
 	public:
 		void bind() noexcept override
@@ -210,7 +210,7 @@ namespace ParticleScripts {
 		}
 	};
 
-	class SpawnOnLeftClick : public ScriptClassT<SpawnOnLeftClick> {
+	class SpawnOnLeftClick : public ScriptT<SpawnOnLeftClick> {
 		PointParticles* p;
 	public:
 		void bind() noexcept override
@@ -236,12 +236,12 @@ namespace ParticleScripts {
 	};
 
 	template <typename T = PointParticles>
-	class DeSpawnOnMouseClick : public ScriptClassT<DeSpawnOnMouseClick<T>> {
+	class DeSpawnOnMouseClick : public ScriptT<DeSpawnOnMouseClick<T>> {
 		T* p = nullptr;
 	public:
 		void bind() noexcept override
 		{
-			if constexpr (std::is_base_of_v<ScriptClass, T>)
+			if constexpr (std::is_base_of_v<Script, T>)
 				p = this->getComponent<ScriptingComponent>()->getScript<T>();
 			if constexpr (std::is_same_v<PointParticles, T>)
 				p = this->getComponent<T>();

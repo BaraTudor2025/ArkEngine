@@ -20,6 +20,7 @@ public:
 
 	ark::Entity entity() { return mEntity; }
 	void setActive(bool isActive) { mIsActive = isActive; }
+	bool isActive() const { return mIsActive; }
 
 	__declspec(property(get = getType))
 		std::type_index type;
@@ -197,8 +198,15 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 				bool deleted = ark::AlignButtonToRight("remove script", [&]() {
 					scriptingComp->removeScript(script->type);
 				});
-				if(!deleted)
+				if (!deleted) {
+					ImGui::PushID(*widgetId);
+					ark::ArkSetFieldName("is-script-active");
+					bool bIsActive = script->isActive();
+					if (ImGui::Checkbox("", &bIsActive))
+						script->setActive(bIsActive);
 					render(widgetId, script.get());
+					ImGui::PopID();
+				}
 				ImGui::TreePop();
 			}
 		}

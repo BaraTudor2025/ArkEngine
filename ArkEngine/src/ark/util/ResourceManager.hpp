@@ -42,13 +42,13 @@ namespace ark {
 			} else {
 				auto handlerIt = handlers.find(typeid(T));
 				if (handlerIt == handlers.end()) {
-					EngineLog(LogSource::ResourceM, LogLevel::Error, "aborting... handler for (%s) was not added", Util::getNameOfType<T>());
+					EngineLog(LogSource::ResourceM, LogLevel::Error, "aborting... handler for (%s) was not added", typeid(T).name());
 					std::abort();
 				} else {
 					auto& handler = handlerIt->second;
 					std::any resource = handler.load(resourceFolder + handler.folder + "/" + file);
 					if (!resource.has_value()) {
-						EngineLog(LogSource::ResourceM, LogLevel::Error, "aborting... handler for (%s) didn't return a value", Util::getNameOfType<T>());
+						EngineLog(LogSource::ResourceM, LogLevel::Error, "aborting... handler for (%s) didn't return a value", typeid(T).name());
 						std::abort();
 					}
 					cache[file] = std::any_cast<T&&>(std::move(resource));

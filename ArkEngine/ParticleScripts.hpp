@@ -243,14 +243,14 @@ namespace ParticleScripts {
 		{
 			if constexpr (std::is_base_of_v<ScriptClass, T>)
 				p = this->getComponent<ScriptingComponent>()->getScript<T>();
-				//p = this->getScript<T>();
-			else if constexpr (std::is_same_v<PointParticles, T>)
+			if constexpr (std::is_same_v<PointParticles, T>)
 				p = this->getComponent<T>();
 		}
 		void handleEvent(const sf::Event& event) noexcept override
 		{
 			switch (event.type) {
 			case sf::Event::MouseButtonReleased: p->spawn = true; break;
+			case sf::Event::MouseButtonPressed: p->spawn = false; break;
 			default:
 				break;
 			}

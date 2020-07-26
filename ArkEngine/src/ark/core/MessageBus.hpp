@@ -2,6 +2,7 @@
 
 #include "Core.hpp"
 #include "Message.hpp"
+#include "ark/util/Util.hpp"
 
 #include <vector>
 #include <functional>
@@ -31,11 +32,11 @@ namespace ark {
 		{
 			// TODO (message bus): assert ca nu am depasit nr max de bytes
 
-			Message* m = Util::construct_in_place<Message>(inPointer);
+			Message* m = new(inPointer)Message();
 			inPointer += sizeof(Message);
 			m->id = id;
 			m->m_size = sizeof(T);
-			m->m_data = Util::construct_in_place<T>(inPointer);
+			m->m_data = new(inPointer)T();
 			inPointer += sizeof(T);
 			pendingCount++;
 

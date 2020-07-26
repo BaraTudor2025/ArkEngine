@@ -31,15 +31,15 @@ namespace ark {
 
 		bool hasComponentType(std::type_index type)
 		{
-			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);// [&type](const auto& data) { return data.type == type; });
+			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);
 			return pos != std::end(componentIndexes);
 		}
 
 		int idFromType(std::type_index type)
 		{
-			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);//[&type](const auto& data) { return data.type == type; });
+			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);
 			if (pos == std::end(componentIndexes)) {
-				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", Util::getNameOfType(type));
+				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", meta::getMetadata(type)->name);
 				return ArkInvalidIndex;
 			}
 			else 
@@ -89,9 +89,10 @@ namespace ark {
 			if (hasComponentType(type))
 				return;
 
-			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", Util::getNameOfType(type));
+			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", meta::getMetadata(type)->name);
 			if (componentIndexes.size() == MaxComponentTypes) {
-				EngineLog(LogSource::ComponentM, LogLevel::Error, "aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, Util::getNameOfType(type));
+				EngineLog(LogSource::ComponentM, LogLevel::Error, 
+					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, meta::getMetadata(type)->name);
 				std::abort();
 			}
 			componentIndexes.push_back(type);
@@ -140,7 +141,9 @@ namespace ark {
 				int kiloByte = 2 * 1024;
 				numberOfComponentsPerChunk = kiloByte / metadata.size;
 				chunk_size = metadata.size * numberOfComponentsPerChunk;
-				EngineLog(LogSource::ComponentM, LogLevel::Info, "for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d) ", Util::getNameOfType<T>(), chunk_size, numberOfComponentsPerChunk, metadata.size);
+				EngineLog(LogSource::ComponentM, LogLevel::Info,
+					"for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d)",
+					meta::getMetadata(typeid(T))->name , chunk_size, numberOfComponentsPerChunk, metadata.size);
 			}
 
 			byte* componentAt(int index)

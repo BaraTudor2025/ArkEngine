@@ -77,10 +77,10 @@ namespace ark {
 		template <typename T, typename... Args>
 		T& addComponentOnEntity(Entity e, Args&&... args) {
 			componentManager.addComponentType<T>();
-			bool def = sizeof...(args) == 0 ? true : false;
-			void* comp = implAddComponentOnEntity(e, typeid(T), def);
-			if(not def)
-				Util::construct_in_place<T>(comp, std::forward<Args>(args)...);
+			bool bDefaultConstruct = sizeof...(args) == 0 ? true : false;
+			void* comp = implAddComponentOnEntity(e, typeid(T), bDefaultConstruct);
+			if (not bDefaultConstruct)
+				new(comp)T(std::forward<Args>(args)...);
 			return *static_cast<T*>(comp);
 		}
 

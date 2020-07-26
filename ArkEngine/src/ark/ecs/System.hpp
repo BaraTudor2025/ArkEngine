@@ -6,6 +6,7 @@
 
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/Component.hpp"
+#include "ark/ecs/Meta.hpp"
 #include "ark/core/Message.hpp"
 #include "ark/core/MessageBus.hpp"
 
@@ -16,7 +17,7 @@ namespace ark {
 	class ARK_ENGINE_API System : public NonCopyable {
 
 	public:
-		System(std::type_index type) : type(type), name(Util::getNameOfType(type)) {}
+		System(std::type_index type) : type(type), name(ark::meta::detail::prettifyTypeName(type.name())) {}
 		virtual ~System() = default;
 
 		virtual void init() {}
@@ -26,7 +27,8 @@ namespace ark {
 
 		bool isActive() { return active; }
 
-		const std::string_view name;
+		const std::string name;
+		const std::type_index type;
 		const std::vector<Entity>& getEntities() const { return entities; }
 		const std::vector<std::string_view>& getComponentNames() const { return componentNames; }
 
@@ -73,7 +75,7 @@ namespace ark {
 		void constructMask(ComponentManager& cm)
 		{
 			for (auto type : componentTypes)
-				componentNames.push_back(Util::getNameOfType(type));
+				componentNames.push_back(meta::getMetadata(type)->name);
 
 			for (auto type : componentTypes)
 				componentMask.set(cm.idFromType(type));
@@ -88,7 +90,6 @@ namespace ark {
 		ComponentManager::ComponentMask componentMask;
 		Scene* m_scene = nullptr;
 		MessageBus* messageBus = nullptr;
-		std::type_index type;
 		// used for inspection
 		std::vector<std::string_view> componentNames;
 		bool active = true;
@@ -120,7 +121,7 @@ namespace ark {
 			system->init();
 			system->constructMask(componentManager);
 			if (system->componentMask.none())
-				EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", Util::getNameOfType(system->type));
+				EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", system->name);
 
 			return dynamic_cast<T*>(system.get());
 		}

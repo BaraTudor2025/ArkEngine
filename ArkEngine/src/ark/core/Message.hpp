@@ -2,7 +2,6 @@
 
 #include "ark/core/Core.hpp"
 #include "ark/core/Logger.hpp"
-#include "ark/util/Util.hpp"
 
 #include <iostream>
 
@@ -17,7 +16,7 @@ namespace ark {
 		{
 			// TODO (message): assert(sizeof(T) == m_size)
 			if (sizeof(T) != m_size)
-				EngineLog(LogSource::Message, LogLevel::Warning, "Type (%s) with size %d doesn't have the message size of %d", Util::getNameOfType<T>(), sizeof(T), m_size);
+				EngineLog(LogSource::Message, LogLevel::Warning, "Type (%s) with size %d doesn't have the message size of %d", typeid(T).name(), sizeof(T), m_size);
 			return *static_cast<T*>(m_data);
 		}
 

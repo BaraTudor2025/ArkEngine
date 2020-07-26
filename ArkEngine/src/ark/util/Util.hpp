@@ -71,19 +71,6 @@ namespace Util
 
 	template <typename...Ts> overloaded(Ts...)->overloaded<Ts...>;
 
-
-	template <typename T, typename P>
-	inline T* construct_in_place(P p)
-	{
-		return new(p)T();
-	}
-
-	template <typename T, typename P, typename... Args>
-	inline T* construct_in_place(P p, Args&&... args)
-	{
-		return new(p)T(std::forward<Args>(args)...);
-	}
-
 	template <typename R, typename T>
 	inline R reinterpretCast(T in)
 	{
@@ -101,20 +88,6 @@ namespace Util
 		std::vector<typename T1::value_type> diff;
 		std::set_difference(range1.begin(), range1.end(), range2.begin(), range2.end(), std::back_inserter(diff));
 		return diff;
-	}
-
-	inline const char* getNameOfType(std::type_index type)
-	{
-		const char* p = type.name();
-		while (*p != ' ')
-			p++;
-		return ++p;
-	}
-
-	template <typename T>
-	const char* getNameOfType()
-	{
-		return getNameOfType(typeid(T));
 	}
 
 	template <typename T>

@@ -459,12 +459,14 @@ private:
 
 		using namespace ParticleScripts;
 
+
 		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
 		{
 			auto& scripts = rainbowPointParticles.addComponent<ScriptingComponent>(rainbowPointParticles);
 			scripts.addScript<SpawnOnRightClick>();
 			scripts.addScript(typeid(EmittFromMouse));
 		}
+
 
 		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
 		{
@@ -478,6 +480,7 @@ private:
 			e.getComponent<ScriptingComponent>().getScript<SpawnOnLeftClick>()->setActive(true);
 		});
 
+
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		{
 			auto& scripts = firePointParticles.addComponent<ScriptingComponent>(firePointParticles);
@@ -488,6 +491,7 @@ private:
 			scene.destroyEntity(e);
 		});
 
+
 		auto& grassP = greenPointParticles.addComponent<PointParticles>(getGreenParticles());
 		grassP.spawn = true;
 		{
@@ -495,6 +499,7 @@ private:
 			scripts.addScript<DeSpawnOnMouseClick<>>();
 			scripts.addScript<EmittFromMouse>();
 		}
+
 
 		rotatingParticles.addComponent<Transform>();
 		auto& plimb = rotatingParticles.addComponent<PointParticles>(getRainbowParticles());
@@ -507,6 +512,7 @@ private:
 			scripts.addScript<RotateEmitter>(180, Engine::center(), 100);
 			scripts.addScript<TraillingEffect>();
 		}
+
 
 		//mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
 		mouseTrail.addComponent(typeid(PointParticles));

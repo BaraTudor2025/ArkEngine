@@ -248,7 +248,7 @@
     <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="src\ark\core\Engine.cpp" />
     <ClCompile Include="src\ark\ecs\SceneInspector.cpp" />
-    <ClCompile Include="src\ark\ecs\SerializeDirector.cpp" />
+    <ClCompile Include="src\ark\ecs\SerdeJsonDirector.cpp" />
     <ClCompile Include="src\ark\gui\Gui.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -290,7 +290,7 @@
     <ClInclude Include="src\ark\ecs\Renderer.hpp" />
     <ClInclude Include="src\ark\ecs\Scene.hpp" />
     <ClInclude Include="src\ark\ecs\SceneInspector.hpp" />
-    <ClInclude Include="src\ark\ecs\SerializeDirector.hpp" />
+    <ClInclude Include="src\ark\ecs\SerdeJsonDirector.hpp" />
     <ClInclude Include="src\ark\ecs\System.hpp" />
     <ClInclude Include="src\ark\gui\Gui.hpp" />
     <ClInclude Include="src\ark\gui\ImGui.hpp" />

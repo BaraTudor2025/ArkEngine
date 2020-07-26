@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <bitset>
 #include <unordered_map>
 #include <vector>
@@ -11,8 +10,6 @@
 #include "ark/core/Core.hpp"
 #include "ark/core/Logger.hpp"
 #include "ark/ecs/Meta.hpp"
-#include "ark/ecs/SceneInspector.hpp"
-#include "ark/ecs/SerializeDirector.hpp"
 #include "ark/util/Util.hpp"
 
 namespace ark {

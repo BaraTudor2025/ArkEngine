@@ -73,6 +73,25 @@ namespace ark {
 			entity.isFree = true;
 		}
 
+
+		template <typename T>
+		using hasSetEntity = decltype(std::declval<T>()._setEntity(std::declval<Entity>()));
+
+		template <typename T>
+		void addSetEntity()
+		{
+			static_assert(Util::is_detected_v<hasSetEntity, T>, "tre sa aiba functia membru: void _setEntity(ark::Entity)");
+			onConstructionTable[typeid(T)].setEntity = [](void* ptr, Entity e) {
+				static_cast<T*>(ptr)->_setEntity(e);
+			};
+		}
+
+		template <typename T, typename F>
+		void callOnConstruction(F&& f)
+		{
+			onConstructionTable[typeid(T)].onConstruction = std::forward<F>(f);
+		}
+
 		// if component already exists, then the existing component is returned
 		template <typename T, typename... Args>
 		T& addComponentOnEntity(Entity e, Args&&... args) {
@@ -81,11 +100,14 @@ namespace ark {
 			void* comp = implAddComponentOnEntity(e, typeid(T), bDefaultConstruct);
 			if (not bDefaultConstruct)
 				new(comp)T(std::forward<Args>(args)...);
+			afterCompCtor(typeid(T), comp, e);
 			return *static_cast<T*>(comp);
 		}
 
 		void* addComponentOnEntity(Entity e, std::type_index type) {
-			return implAddComponentOnEntity(e, type, true);
+			void* comp = implAddComponentOnEntity(e, type, true);
+			afterCompCtor(type, comp, e);
+			return comp;
 		}
 
 		void* implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct)
@@ -251,6 +273,17 @@ namespace ark {
 
 	private:
 
+		void afterCompCtor(std::type_index type, void* ptr, Entity e)
+		{
+			if (auto it = onConstructionTable.find(type); it != onConstructionTable.end()) {
+				auto& [onCtor, setEntity] = it->second;
+				if (setEntity)
+					setEntity(ptr, e);
+				if (onCtor)
+					onCtor(ptr);
+			}
+		}
+
 		struct InternalEntityData {
 			struct ComponentData {
 				std::type_index type = typeid(void);
@@ -305,6 +338,11 @@ namespace ark {
 		std::vector<InternalEntityData> entities;
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;
+		struct OnConstructionFunctions {
+			std::function<void(void*)> onConstruction;
+			void(*setEntity)(void*, Entity) = nullptr;
+		};
+		std::unordered_map<std::type_index, OnConstructionFunctions> onConstructionTable;
 		ComponentManager& componentManager;
 		friend class RuntimeComponentView;
 		friend class Scene;

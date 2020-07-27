@@ -49,6 +49,19 @@ namespace ark {
 			return createdEntities.back();
 		}
 
+		// Component must have member: void _setEntity(ark::Entity);
+		template <typename TComponent>
+		void addSetEntityOnConstruction()
+		{
+			entityManager.addSetEntity<TComponent>();
+		}
+
+		template <typename TComponent, typename F>
+		void addCallOnConstruction(F&& f)
+		{
+			entityManager.callOnConstruction<TComponent>(std::forward<F>(f));
+		}
+
 		void destroyEntity(Entity entity)
 		{
 			destroyedEntities.push_back(entity);
@@ -243,11 +256,6 @@ namespace ark {
 			}
 
 			Entity operator*()
-			{
-				return mScene->entityFromId(mIter->id);
-			}
-
-			const Entity operator*() const
 			{
 				return mScene->entityFromId(mIter->id);
 			}

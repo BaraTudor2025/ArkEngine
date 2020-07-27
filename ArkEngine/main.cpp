@@ -406,7 +406,13 @@ private:
 		scene.addSystem<TextSystem>();
 		scene.addSystem<AnimationSystem>();
 		scene.addSystem<DelayedActionSystem>();
-		scene.addSystem<ScriptingSystem>(); // SCRIPTING SYSTEM
+
+		// setup for scripts
+		scene.addSystem<ScriptingSystem>();
+		scene.addSetEntityOnConstruction<ScriptingComponent>();
+		scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr) {
+			static_cast<ScriptingComponent*>(ptr)->_setScene(scene);
+		});
 
 		auto* inspector = scene.addDirector<SceneInspector>();
 		auto* serde = scene.addDirector<SerdeJsonDirector>();
@@ -470,7 +476,7 @@ private:
 
 		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
 		{
-			auto& scripts = rainbowPointParticles.addComponent<ScriptingComponent>(rainbowPointParticles);
+			auto& scripts = rainbowPointParticles.addComponent<ScriptingComponent>();
 			scripts.addScript<SpawnOnRightClick>();
 			scripts.addScript(typeid(EmittFromMouse));
 		}
@@ -479,7 +485,7 @@ private:
 		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
 		rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
 		{
-			auto& scripts = rainbowClone.addComponent<ScriptingComponent>(rainbowClone);
+			auto& scripts = rainbowClone.addComponent<ScriptingComponent>();
 			scripts.addScript<SpawnOnRightClick>();
 			scripts.removeScript(typeid(SpawnOnRightClick));
 			scripts.addScript<SpawnOnLeftClick>()->setActive(false);
@@ -492,7 +498,7 @@ private:
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		{
-			auto& scripts = firePointParticles.addComponent<ScriptingComponent>(firePointParticles);
+			auto& scripts = firePointParticles.addComponent<ScriptingComponent>();
 			scripts.addScript<SpawnOnLeftClick>();
 			scripts.addScript<EmittFromMouse>();
 		}
@@ -504,7 +510,7 @@ private:
 		auto& grassP = greenPointParticles.addComponent<PointParticles>(getGreenParticles());
 		grassP.spawn = true;
 		{
-			auto& scripts = greenPointParticles.addComponent<ScriptingComponent>(greenPointParticles);
+			auto& scripts = greenPointParticles.addComponent<ScriptingComponent>();
 			scripts.addScript<DeSpawnOnMouseClick<>>();
 			scripts.addScript<EmittFromMouse>();
 		}

@@ -12,6 +12,7 @@ public:
 	Script(std::type_index type) : mType(type) {}
 	virtual ~Script() = default;
 
+	// scripts are immediatly binded
 	virtual void bind() noexcept = 0;
 	virtual void handleEvent(const sf::Event& ev) noexcept {}
 	virtual void update() noexcept {}
@@ -40,7 +41,7 @@ private:
 
 	friend class ScriptingSystem;
 	friend struct ScriptingComponent;
-	friend void deserializeScriptComponents(ark::Scene&, ark::Entity&, const nlohmann::json& obj, void* p);
+	friend void deserializeScriptComponents(ark::Entity&, const nlohmann::json& obj, void* p);
 };
 
 inline const std::string_view gScriptGroupName = "ark_scripts";
@@ -69,11 +70,6 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 
 	ScriptingComponent() = default;
 
-	// if entity is provided then scripts will be binded immediatly,
-	// oherwise they will be binded next frame
-	// after the first frame, the entity is automatically supplied so scripts added after first frame will be binded immediatly
-	ScriptingComponent(ark::Entity e) : mEntity(e) {}
-
 	template <typename T, typename... Args>
 	T* addScript(Args&&... args)
 	{
@@ -83,7 +79,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		else {
 			static_assert(std::is_base_of_v<Script, T>);
 			auto script = mScripts.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
-			_initScript(script);
+			_bindScript(script);
 			return static_cast<T*>(script);
 		}
 	}
@@ -95,7 +91,7 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		else {
 			auto create = ark::meta::getService<std::unique_ptr<Script>()>(type, "unique_ptr");
 			auto script = mScripts.emplace_back(create()).get();
-			_initScript(script);
+			_bindScript(script);
 			return script;
 		}
 	}
@@ -132,15 +128,23 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 	template <typename T>
 	void removeScript() { removeScript(typeid(T)); }
 
+	void _setEntity(ark::Entity e)
+	{
+		mEntity = e;
+	}
+
+	void _setScene(ark::Scene* scene)
+	{
+		mScene = scene;
+	}
+
 private:
 
-	void _initScript(Script* script)
+	void _bindScript(Script* script)
 	{
-		if (mEntity.isValid()) {
-			script->mEntity = mEntity;
-			script->mScene = mScene;
-			script->bind();
-		}
+		script->mEntity = mEntity;
+		script->mScene = mScene;
+		script->bind();
 	}
 
 	ark::Entity mEntity;
@@ -150,7 +154,7 @@ private:
 
 	friend void renderScriptComponents(int* widgetId, void* pvScriptComponent);
 	friend nlohmann::json serializeScriptComponents(const void* p);
-	friend void deserializeScriptComponents(ark::Scene&, ark::Entity&, const nlohmann::json& obj, void* p);
+	friend void deserializeScriptComponents(ark::Entity&, const nlohmann::json& obj, void* p);
 	friend class ScriptingSystem;
 };
 
@@ -167,7 +171,7 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	return jsonScripts;
 }
 
-static void deserializeScriptComponents(ark::Scene& scene, ark::Entity& entity, const nlohmann::json& jsonScripts, void* pvScriptComponent)
+static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::json& jsonScripts, void* pvScriptComponent)
 {
 	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
 	// allocate scripts and default construct
@@ -179,11 +183,11 @@ static void deserializeScriptComponents(ark::Scene& scene, ark::Entity& entity, 
 	scriptingComp->mEntity = entity;
 	for(auto& script : scriptingComp->mScripts){
 		const auto* mdata = ark::meta::getMetadata(script->type);
-		script->mEntity = entity;
-		script->mScene = &scene;
+		script->mEntity = scriptingComp->mEntity;
+		script->mScene = scriptingComp->mScene;
 		script->bind();
-		if (auto deserialize = ark::meta::getService<void(ark::Scene&, ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
-			deserialize(scene, entity, jsonScripts.at(mdata->name), script.get());
+		if (auto deserialize = ark::meta::getService<void(ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
+			deserialize(entity, jsonScripts.at(mdata->name), script.get());
 		}
 	}
 }
@@ -241,6 +245,13 @@ ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent",
 }
 
 
+/* TODO when initializing scene/registry
+ * scene.addSystem<ScriptingSystem>();
+ * scene.addSetEntityOnConstruction<ScriptingComponent>();
+ * scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr) {
+ *     static_cast<ScriptingComponent*>(ptr)->_setScene(scene);
+ * });
+*/
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {
 public:
 	ScriptingSystem() = default;
@@ -248,20 +259,6 @@ public:
 	void init() override
 	{
 		requireComponent<ScriptingComponent>();
-	}
-
-	void onEntityAdded(ark::Entity entity) override
-	{
-		auto& scriptComp = entity.getComponent<ScriptingComponent>();
-		scriptComp.mEntity = entity;
-		scriptComp.mScene = scene();
-		for (auto& script : scriptComp.mScripts) {
-			if (not script->mEntity.isValid()) {
-				script->mEntity = entity;
-				script->mScene = scene();
-				script->bind();
-			}
-		}
 	}
 
 	void update() override

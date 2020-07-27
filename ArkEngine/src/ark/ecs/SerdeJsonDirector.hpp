@@ -109,17 +109,17 @@ namespace ark
 	}
 
 	template <typename Type>
-	static void deserialize_value(Scene& s, Entity& e, const json& jsonObj, void* pValue)
+	static void deserialize_value(Entity& entity, const json& jsonObj, void* pValue)
 	{
 		Type& value = *static_cast<Type*>(pValue);
-		meta::doForAllProperties<Type>([&value, &jsonObj, &e, &s](auto& property) {
+		meta::doForAllProperties<Type>([&value, &jsonObj, &entity](auto& property) {
 			using PropType = meta::get_member_type<decltype(property)>;
 			bool failure = true;
 
 			if constexpr (meta::isRegistered<PropType>()) {
 				PropType propValue;
 				if (auto it = jsonObj.find(property.getName()); it != jsonObj.end()) {
-					deserialize_value<PropType>(s, e, jsonObj.at(property.getName()), &propValue);
+					deserialize_value<PropType>(entity, jsonObj.at(property.getName()), &propValue);
 					property.set(value, propValue);
 					failure = false;
 				}
@@ -151,11 +151,11 @@ namespace ark
 				if (mdata)
 					EngineLog(LogSource::Scene, LogLevel::Error,
 						"failed to deser property (%s) on component (%s) on entity (%d)",
-						property.getName(), mdata->name, e.getID());
+						property.getName(), mdata->name, entity.getID());
 				else
 					EngineLog(LogSource::Scene, LogLevel::Error,
 						"failed to deser property (%s) on entity (%s)",
-						property.getName(), e.getID());
+						property.getName(), entity.getID());
 			}
 
 		});

@@ -46,10 +46,10 @@ namespace ark
 		}
 		// then initialize
 		for (auto component : entity.runtimeComponentView()) {
-			if (auto deserialize = ark::meta::getService<void(Scene&, Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
+			if (auto deserialize = ark::meta::getService<void(Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
 				const auto* mdata = ark::meta::getMetadata(component.type);
 				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())
-					deserialize(this->scene, entity, *it, component.ptr);
+					deserialize(entity, *it, component.ptr);
 				else
 					EngineLog(LogSource::Scene, LogLevel::Error, "deser-ing entity (%s) without component (%s)", 
 						entity.getComponent<TagComponent>().name, mdata->name);

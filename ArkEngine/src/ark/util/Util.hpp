@@ -56,6 +56,19 @@ sf::Vector2<T> operator/(sf::Vector2<T> v1, sf::Vector2<U> v2)
 namespace Util
 {
 
+	template <template <class...> class Trait, class Enabler, class... Args>
+	struct is_detected : std::false_type {};
+
+	template <template <class...> class Trait, class... Args>
+	struct is_detected<Trait, std::void_t<Trait<Args...>>, Args...> : std::true_type {};
+
+	template <template <class...> class Trait, class... Args>
+	using is_detected_t = typename is_detected<Trait, void, Args...>::type;
+
+	template <template <class...> class Trait, class... Args>
+	constexpr bool is_detected_v = is_detected_t<Trait, Args...>::value;
+
+
 	template <typename...Ts>
 	struct overloaded : Ts... {
 		using Ts::operator()...;

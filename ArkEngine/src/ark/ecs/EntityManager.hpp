@@ -54,6 +54,7 @@ namespace ark {
 				cloneCompData.pComponent = newComponent;
 				cloneCompData.index = newIndex;
 				cloneCompData.type = compData.type;
+				afterCompCtor(cloneCompData.type, cloneCompData.pComponent, hClone);
 			}
 			return hClone;
 		}
@@ -280,7 +281,7 @@ namespace ark {
 				if (setEntity)
 					setEntity(ptr, e);
 				if (onCtor)
-					onCtor(ptr);
+					onCtor(ptr, e);
 			}
 		}
 
@@ -339,7 +340,7 @@ namespace ark {
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;
 		struct OnConstructionFunctions {
-			std::function<void(void*)> onConstruction;
+			std::function<void(void*, Entity)> onConstruction;
 			void(*setEntity)(void*, Entity) = nullptr;
 		};
 		std::unordered_map<std::type_index, OnConstructionFunctions> onConstructionTable;

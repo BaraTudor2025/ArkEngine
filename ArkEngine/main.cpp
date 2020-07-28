@@ -407,10 +407,18 @@ private:
 		scene.addSystem<AnimationSystem>();
 		scene.addSystem<DelayedActionSystem>();
 
+		// setup for tags
+		scene.addSetEntityOnConstruction<TagComponent>();
+		scene.addCallOnConstruction<TagComponent>([&](void* ptr, Entity e) {
+			auto& tag = *static_cast<TagComponent*>(ptr);
+			if (tag.name.empty())
+				tag.name = std::string("entity_") + std::to_string(e.getID());
+		});
+
 		// setup for scripts
 		scene.addSystem<ScriptingSystem>();
 		scene.addSetEntityOnConstruction<ScriptingComponent>();
-		scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr) {
+		scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr, ark::Entity) {
 			static_cast<ScriptingComponent*>(ptr)->_setScene(scene);
 		});
 
@@ -482,8 +490,9 @@ private:
 		}
 
 
+#if 1
 		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
-		rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
+		//rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
 		{
 			auto& scripts = rainbowClone.addComponent<ScriptingComponent>();
 			scripts.addScript<SpawnOnRightClick>();
@@ -494,7 +503,7 @@ private:
 		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](ark::Entity e) {
 			e.getComponent<ScriptingComponent>().getScript<SpawnOnLeftClick>()->setActive(true);
 		});
-
+#endif
 
 		firePointParticles.addComponent<PointParticles>(getFireParticles(1'000));
 		{
@@ -607,6 +616,24 @@ class ChildTestScene : public TemplateScene {
 	Entity* grandson;
 };
 #endif
+
+struct erased_function {
+	template <typename T, typename F>
+	void ctor(F&& f)
+	{
+		fun = [](void* arg) {
+			f(*static_cast<T*>(arg));
+		};
+	}
+
+	template <typename T>
+	void call(T& arg)
+	{
+		fun(&arg);
+	}
+
+	void(*fun)(void*) = nullptr;
+};
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {

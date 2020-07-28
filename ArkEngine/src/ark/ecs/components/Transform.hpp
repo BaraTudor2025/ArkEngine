@@ -7,24 +7,54 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/DefaultServices.hpp"
+#include "ark/ecs/Entity.hpp"
 
-namespace ark {
+namespace ark
+{
 
-	class Entity;
 
 	struct TagComponent final : public Component<TagComponent> {
 		TagComponent() = default;
 		~TagComponent() = default;
 
-		TagComponent(const TagComponent&) = default;
-		TagComponent& operator=(const TagComponent&) = default;
+		TagComponent(const TagComponent&) = delete;
+		TagComponent& operator=(const TagComponent&) = delete;
 
 		TagComponent(TagComponent&&) = default;
 		TagComponent& operator=(TagComponent&&) = default;
 
-		TagComponent(std::string name) : name(name) {}
+		TagComponent(std::string name) : m_name(name) {}
 
-		std::string name;
+		__declspec(property(get = _getName, put = _setName))
+			std::string name;
+
+		const std::string& _getName() const
+		{
+			return m_name;
+		}
+
+		void _setName(const std::string& newName)
+		{
+			auto constexpr strEntity_ = std::string_view("entity_");
+			auto enttName = std::string_view(newName.c_str(), strEntity_.size());
+			if (enttName == "entity_" || newName.empty()) {
+				m_name.clear();
+				m_name.append("entity_");
+				m_name.append(std::to_string(m_entity.getID()));
+			}
+			else {
+				m_name = newName;
+			}
+		}
+
+		void _setEntity(ark::Entity e)
+		{
+			m_entity = e;
+		}
+
+	private:
+		ark::Entity m_entity;
+		mutable std::string m_name;
 	};
 
 	struct ARK_ENGINE_API Transform final : public Component<Transform>, public sf::Transformable{
@@ -148,5 +178,5 @@ ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
 
 ARK_REGISTER_TYPE(ark::TagComponent, "Tag", ARK_DEFAULT_SERVICES)
 {
-	return members(member_property("name", &ark::TagComponent::name));
+	return members(member_property("name", &ark::TagComponent::_getName, &ark::TagComponent::_setName));
 }

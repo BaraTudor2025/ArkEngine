@@ -51,6 +51,7 @@ namespace ark {
 		auto runtimeComponentView() -> RuntimeComponentView;
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
+		// TODO: remove on postUpdate?
 		template <typename T>
 		void removeComponent();
 

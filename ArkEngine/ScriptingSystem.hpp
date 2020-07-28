@@ -51,10 +51,10 @@ void registerScript(bool customRegistration)
 {
 	if (not customRegistration) {
 		using Type = T;
-		ark::meta::services<T>(ARK_DEFAULT_SERVICES);
+		ARK_DEFAULT_SERVICES;
 		ark::meta::constructMetadataFrom<T>();
 	}
-	ark::meta::services<T>(ark::meta::service("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); }));
+	ark::meta::service<T>("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
 	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
 }
 
@@ -236,9 +236,9 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 }
 
 ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
-	ark::meta::service(ark::SceneInspector::serviceName, renderScriptComponents),
-	ark::meta::service(ark::SerdeJsonDirector::serviceSerializeName, serializeScriptComponents),
-	ark::meta::service(ark::SerdeJsonDirector::serviceDeserializeName, deserializeScriptComponents)
+	ark::meta::service<ScriptingComponent>(ark::SceneInspector::serviceName, renderScriptComponents),
+	ark::meta::service<ScriptingComponent>(ark::SerdeJsonDirector::serviceSerializeName, serializeScriptComponents),
+	ark::meta::service<ScriptingComponent>(ark::SerdeJsonDirector::serviceDeserializeName, deserializeScriptComponents)
 )
 {
 	return members(); 

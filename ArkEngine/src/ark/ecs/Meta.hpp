@@ -66,21 +66,21 @@ auto registerMembers<YourClass>()
 // scope global, tre sa apara o singura data ca sa mearga
 // ori dai lista de servicii la REGISTER_TYPE ori la REGISTER_SERVICES dupa ce type-ul a fost inregistrat
 #define ARK_REGISTER_SERVICES(TYPE, GUARD, ...) \
-	RUN_CODE_NAMESPACE(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; services<TYPE>(__VA_ARGS__); )
+	RUN_CODE_NAMESPACE(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; (__VA_ARGS__); )
 
 // de pus intr o clasa, si dat un type unic ca 'GUARD'
 #define ARK_REGISTER_SERVICES_IN_CLASS(TYPE, GUARD, ...) \
-	RUN_CODE_QSTATIC(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; services<TYPE>(__VA_ARGS__); )
+	RUN_CODE_QSTATIC(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; (__VA_ARGS__); )
 
 #define ARK_REGISTER_MEMBERS(TYPE) \
 	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
 
 #define ARK_REGISTER_METADATA(TYPE, NAME) \
-	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
+	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);)
 
 // standard
 #define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
-	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);) \
+	ARK_REGISTER_METADATA(TYPE, NAME) \
 	ARK_REGISTER_SERVICES(TYPE, decltype(NAME), __VA_ARGS__) \
 	ARK_REGISTER_MEMBERS(TYPE)
 
@@ -184,7 +184,11 @@ namespace ark::meta
 		//struct/namespace bagamiaspula {
 		struct guard {
 			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
-			static inline std::map<std::pair<std::type_index, std::string_view>, void*> sServiceTable;
+			struct ServiceData {
+				std::type_index type = typeid(void);
+				void* func_ptr;
+			};
+			static inline std::map<std::pair<std::type_index, std::string_view>, ServiceData> sServiceTable;
 			static inline std::unordered_map<std::string_view, std::vector<std::type_index>> sTypeGroups;
 			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
 
@@ -345,7 +349,7 @@ namespace ark::meta
 			metadata.copy_constructor = [](void* This, const void* That) { new (This)T(*static_cast<const T*>(That)); };
 
 		if constexpr (std::is_copy_assignable_v<T>)
-			metadata.copy_assing = [](void* This, const void* That) { *static_cast<T*>(This) = *static_cast<const T*>(That);/* *(T*)This = *(const T*)That; */ };
+			metadata.copy_assing = [](void* This, const void* That) { *static_cast<T*>(This) = *static_cast<const T*>(That);};
 
 		if constexpr (std::is_move_constructible_v<T>)
 			metadata.move_constructor = [](void* This, void* That) { new(This)T(std::move(*static_cast<T*>(That))); };
@@ -353,7 +357,6 @@ namespace ark::meta
 		if constexpr (std::is_move_assignable_v<T>)
 			metadata.move_assign = [](void* This, void* That) { *static_cast<T*>(This) = std::move(*static_cast<T*>(That)); };
 
-		//if constexpr (not std::is_trivially_destructible_v<T> && std::is_destructible_v<T>)
 		if constexpr (std::is_destructible_v<T>)
 			metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
 
@@ -379,39 +382,31 @@ namespace ark::meta
 	}
 
 	/* services are type erased functions that operate on a specific type
-	* 
-	* to declare a service for a type T: services<T>(service("service_name", &function))
-	* TODO: ark::meta::service<T>("name", &func)
-	* 
+	* to declare a service for a type T: ark::meta::service<T>("name", &func)
 	* a service can be retrieved with: 
-	* auto func = ark::meta::getService<return_type(arguments_t, ...)>(typeid(T), "service_name");
+	* auto func = ark::meta::getService<return_type(arguments_types, ...)>(typeid(T), "service_name");
 	* the template parameter on getService is the type of the function
 	*/
-	template <typename T, typename... Args>
-	inline void services(Args&&... args) noexcept
-	{
-		if constexpr (sizeof...(Args) > 0) {
-			((detail::guard::sServiceTable[{typeid(T), args.first}] = args.second), ...);
-		}
-	}
-
-	template <typename F>
-	inline auto service(std::string_view name, F fun) noexcept -> std::pair<std::string_view, void*>
+	template <typename T, typename F>
+	inline auto service(std::string_view name, F fun) noexcept
 	{
 		static_assert(std::is_function_v<std::remove_pointer_t<F>>
 			|| (std::is_class_v<F> && std::is_empty_v<F>),
 			"F must be function non-capturing lambda");
 
-		return { name, static_cast<detail::make_func_ptr_t<F>>(fun) };
+		using func_ptr_t = detail::make_func_ptr_t<F>;
+		detail::guard::sServiceTable[{typeid(T), name}] = { typeid(func_ptr_t), static_cast<func_ptr_t>(std::forward<F>(fun)) };
+		return 0;
 	}
 
 	template <typename F>
 	inline auto getService(std::type_index type, std::string_view serviceName) noexcept -> detail::make_func_ptr_t<F>
 	{
-		using FP = detail::make_func_ptr_t<F>;
+		using func_ptr_t = detail::make_func_ptr_t<F>;
 		if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
 			it != detail::guard::sServiceTable.end()) {
-			return reinterpret_cast<FP>(it->second);
+			assert(typeid(func_ptr_t) == it->second.type);
+			return reinterpret_cast<func_ptr_t>(it->second.func_ptr);
 		}
 		else {
 			return nullptr;

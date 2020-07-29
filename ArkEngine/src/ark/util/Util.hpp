@@ -143,16 +143,6 @@ namespace Util
 		return std::end(range) != std::find(std::begin(range), std::end(range), elem);
 	}
 
-	template <typename T, typename F, typename U>
-	inline std::optional<U&> find_if(const T& range, F f)
-	{
-		auto it = std::find_if(std::begin(range), std::end(range), f);
-		if (it == std::end(range))
-			return {};
-		else
-			return *it;
-	}
-
 	// return index of the element, InvalidIndex if not found
 	template <typename T, typename U>
 	inline int get_index(const T& range, const U& elem)

@@ -5,27 +5,28 @@
 #include <ark/core/Engine.hpp>
 #include <ark/util/Util.hpp>
 #include <ark/util/ResourceManager.hpp>
-#include <ark/ecs/System.hpp>
+#include <ark/ecs/Director.hpp>
 
-class FpsCounterSystem : public ark::SystemT<FpsCounterSystem>, public ark::Renderer {
+class FpsCounterDirector final : public ark::Director, public ark::Renderer {
 	sf::Time updateElapsed;
 	sf::Text text;
 	int updateFPS = 0;
 
 public:
-	FpsCounterSystem() {
+	FpsCounterDirector() {
 		text.setFont(*ark::Resources::load<sf::Font>("KeepCalm-Medium.ttf"));
 		text.setCharacterSize(15);
 		text.setFillColor(sf::Color::White);
 	}
 
 private:
+	void init() override {}
+
 	void update() override {
 		updateElapsed += ark::Engine::deltaTime();
 		updateFPS += 1;
 		if (updateElapsed.asMilliseconds() >= 1000) {
 			updateElapsed -= sf::milliseconds(1000);
-			//log("fps: %d", updateFPS);
 			text.setString("FPS:" + std::to_string(updateFPS));
 			updateFPS = 0;
 		}

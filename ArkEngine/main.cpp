@@ -23,7 +23,7 @@
 #include "ParticleSystem.hpp"
 #include "ParticleScripts.hpp"
 #include "AnimationSystem.hpp"
-#include "FpsCounterSystem.hpp"
+#include "FpsCounterDirector.hpp"
 #include "GuiSystem.hpp"
 #include "ScriptingSystem.hpp"
 
@@ -401,7 +401,6 @@ private:
 	{
 		scene.addSystem<PointParticleSystem>();
 		scene.addSystem<PixelParticleSystem>();
-		scene.addSystem<FpsCounterSystem>();
 		scene.addSystem<ButtonSystem>();
 		scene.addSystem<TextSystem>();
 		scene.addSystem<AnimationSystem>();
@@ -424,6 +423,7 @@ private:
 
 		auto* inspector = scene.addDirector<SceneInspector>();
 		auto* serde = scene.addDirector<SerdeJsonDirector>();
+		scene.addDirector<FpsCounterDirector>();
 		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->renderSystemInspector(); } });
 		//scene.addSystem<TestMessageSystem>();
 

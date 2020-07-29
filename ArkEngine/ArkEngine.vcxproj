@@ -265,7 +265,7 @@
     <ClInclude Include="extlibs\imgui\imstb_rectpack.h" />
     <ClInclude Include="extlibs\imgui\imstb_textedit.h" />
     <ClInclude Include="extlibs\imgui\imstb_truetype.h" />
-    <ClInclude Include="FpsCounterSystem.hpp" />
+    <ClInclude Include="FpsCounterDirector.hpp" />
     <ClInclude Include="ElipseShape.hpp" />
     <ClInclude Include="GuiSystem.hpp" />
     <ClInclude Include="ScriptingSystem.hpp" />

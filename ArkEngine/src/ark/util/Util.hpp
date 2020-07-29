@@ -137,19 +137,10 @@ namespace Util
 
 	// return std::optional<U&> or std::optional<U> if U is pointer
 	template <typename T, typename U>
-	inline auto find(const T& range, const U& elem) -> std::optional<std::conditional_t<std::is_pointer_v<U>, U, U&>>
+	inline bool contains(const T& range, const U& elem)
 	{
 		static_assert(std::is_same_v<typename T::value_type, U>, "'elem' must have the same type as the range elements");
-		auto it = std::find(std::begin(range), std::end(range), elem);
-
-		if (it == std::end(range))
-			return std::nullopt;
-		else {
-			if constexpr (std::is_pointer_v<U>)
-				return std::optional<U>(*it);
-			else
-				return std::optional<U&>(*it);
-		}
+		return std::end(range) != std::find(std::begin(range), std::end(range), elem);
 	}
 
 	template <typename T, typename F, typename U>

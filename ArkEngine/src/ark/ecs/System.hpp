@@ -184,13 +184,13 @@ namespace ark
 			if (!system)
 				return;
 
-			auto activeSystem = Util::find(activeSystems, system);
+			auto isCurrentlyActive = Util::contains(activeSystems, system);
 
-			if (activeSystem && !active) {
+			if (isCurrentlyActive && !active) {
 				Util::erase(activeSystems, system);
 				system->active = false;
 			}
-			else if (!activeSystem && active) {
+			else if (!isCurrentlyActive && active) {
 				activeSystems.push_back(system);
 				system->active = true;
 			}

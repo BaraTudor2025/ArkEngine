@@ -31,8 +31,7 @@ namespace ark {
 
 		bool hasComponentType(std::type_index type)
 		{
-			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);
-			return pos != std::end(componentIndexes);
+			return Util::contains(componentIndexes, type);
 		}
 
 		int idFromType(std::type_index type)

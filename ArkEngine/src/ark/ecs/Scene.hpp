@@ -111,8 +111,7 @@ namespace ark {
 			if (std::is_base_of_v<Renderer, T>) {
 				auto system = systemManager.getSystem<T>();
 				if (active) {
-					auto found = Util::find(renderers, system);
-					if (!found)
+					if (!Util::contains(renderers, system))
 						renderers.push_back(system);
 				} else {
 					Util::erase(renderers, system);

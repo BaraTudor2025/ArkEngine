@@ -81,11 +81,8 @@ namespace ark {
 			pool.freeComponents.push_back(index);
 		}
 
-		template <typename T>
-		void addComponentType()
+		void addComponentType(std::type_index type)
 		{
-			static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-			const auto& type = typeid(T);
 			if (hasComponentType(type))
 				return;
 
@@ -96,7 +93,7 @@ namespace ark {
 				std::abort();
 			}
 			componentIndexes.push_back(type);
-			pools.emplace_back().constructPoolFrom<T>();
+			pools.emplace_back().constructPoolFrom(type);
 		}
 
 		const std::vector<std::type_index>& getTypes() const
@@ -108,15 +105,10 @@ namespace ark {
 
 		struct ComponentPool {
 
-			struct Metadata {
-				int size;
-				std::align_val_t alignment;
-			};
-
 			struct Chunk {
-				Chunk(int bytes_num, std::align_val_t alignment, const std::function<void(void*)>& delete_buffer)
+				Chunk(int bytes_num, std::align_val_t align, const std::function<void(void*)>& delete_buffer)
 					: numberOfComponents(0),
-					buffer((std::byte*)::operator new[](bytes_num, alignment), delete_buffer) 
+					buffer((std::byte*)::operator new[](bytes_num, align), delete_buffer) 
 				{ }
 				std::unique_ptr<byte[], const std::function<void(void*)>&> buffer;
 				int numberOfComponents;
@@ -124,33 +116,34 @@ namespace ark {
 
 		private:
 			int numberOfComponentsPerChunk;
-			int chunk_size;
+			int chunkSize;
 			std::function<void(void*)> custom_delete_buffer; // for chunk buffer
 			std::vector<Chunk> chunks;
+			int componentSize;
+			std::align_val_t align;
 		public:
 			std::vector<int> freeComponents;
-			Metadata metadata;
 
-			template <typename T>
-			void constructPoolFrom()
+			void constructPoolFrom(std::type_index type)
 			{
-				metadata.size = sizeof(T);
-				metadata.alignment = std::align_val_t{ alignof(T) };
-				custom_delete_buffer = [alignment = metadata.alignment](void* ptr) { ::operator delete[](ptr, alignment); };
+				auto mdata = meta::getMetadata(type);
+				componentSize = mdata->size;
+				align = std::align_val_t{ mdata->align };
+				custom_delete_buffer = [alignment = align](void* ptr) { ::operator delete[](ptr, alignment); };
 
 				int kiloByte = 2 * 1024;
-				numberOfComponentsPerChunk = kiloByte / metadata.size;
-				chunk_size = metadata.size * numberOfComponentsPerChunk;
+				numberOfComponentsPerChunk = kiloByte / componentSize;
+				chunkSize = componentSize * numberOfComponentsPerChunk;
 				EngineLog(LogSource::ComponentM, LogLevel::Info,
 					"for (%s), chunkSize (%d), compNumPerChunk(%d), compSize(%d)",
-					meta::getMetadata(typeid(T))->name , chunk_size, numberOfComponentsPerChunk, metadata.size);
+					mdata->name , chunkSize, numberOfComponentsPerChunk, componentSize);
 			}
 
 			byte* componentAt(int index)
 			{
 				int chunkNum = index / numberOfComponentsPerChunk;
 				int componentNum = index % numberOfComponentsPerChunk;
-				return &chunks.at(chunkNum).buffer[componentNum * metadata.size];
+				return &chunks.at(chunkNum).buffer[componentNum * componentSize];
 			}
 
 			// allocates a new chunk if not enough space is available
@@ -158,7 +151,7 @@ namespace ark {
 			{
 				if (freeComponents.empty()) {
 					if (chunks.empty() || chunks.back().numberOfComponents == numberOfComponentsPerChunk)
-						chunks.emplace_back(chunk_size, metadata.alignment, custom_delete_buffer);
+						chunks.emplace_back(chunkSize, align, custom_delete_buffer);
 					auto& chunk = chunks.back();
 					int index = numberOfComponentsPerChunk * (chunks.size() - 1) + chunk.numberOfComponents;
 					chunk.numberOfComponents += 1;
@@ -172,7 +165,6 @@ namespace ark {
 				}
 			}
 		};
-		friend class System;
 		std::vector<std::type_index> componentIndexes;
 		std::vector<ComponentPool> pools;
 

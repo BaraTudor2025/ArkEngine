@@ -96,7 +96,8 @@ namespace ark {
 		// if component already exists, then the existing component is returned
 		template <typename T, typename... Args>
 		T& addComponentOnEntity(Entity e, Args&&... args) {
-			componentManager.addComponentType<T>();
+			static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
+			componentManager.addComponentType(typeid(T));
 			bool bDefaultConstruct = sizeof...(args) == 0 ? true : false;
 			void* comp = implAddComponentOnEntity(e, typeid(T), bDefaultConstruct);
 			if (not bDefaultConstruct)
@@ -106,6 +107,7 @@ namespace ark {
 		}
 
 		void* addComponentOnEntity(Entity e, std::type_index type) {
+			componentManager.addComponentType(type);
 			void* comp = implAddComponentOnEntity(e, type, true);
 			afterCompCtor(type, comp, e);
 			return comp;

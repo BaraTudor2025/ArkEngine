@@ -481,14 +481,12 @@ private:
 
 		using namespace ParticleScripts;
 
-
 		rainbowPointParticles.addComponent<PointParticles>(getRainbowParticles());
 		{
 			auto& scripts = rainbowPointParticles.addComponent<ScriptingComponent>();
 			scripts.addScript<SpawnOnRightClick>();
 			scripts.addScript(typeid(EmittFromMouse));
 		}
-
 
 #if 1
 		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);

@@ -35,12 +35,11 @@ namespace ark
 
 		void _setName(const std::string& newName)
 		{
+			// if newName starts wiht 'entity_'
 			auto constexpr strEntity_ = std::string_view("entity_");
-			auto enttName = std::string_view(newName.c_str(), strEntity_.size());
-			if (enttName == "entity_" || newName.empty()) {
-				m_name.clear();
-				m_name.append("entity_");
-				m_name.append(std::to_string(m_entity.getID()));
+			if (newName.empty() || strEntity_ == std::string_view(newName.c_str(), strEntity_.size())) {
+				m_name = "entity_";
+				m_name += std::to_string(m_entity.getID());
 			}
 			else {
 				m_name = newName;

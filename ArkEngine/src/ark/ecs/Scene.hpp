@@ -106,7 +106,7 @@ namespace ark {
 		void setSystemActive(bool active)
 		{
 			static_assert(std::is_base_of_v<System, T>, " T not a system type");
-			systemManager.setSystemActive<T>(active);
+			systemManager.setSystemActive(typeid(T), active);
 
 			if (std::is_base_of_v<Renderer, T>) {
 				auto system = systemManager.getSystem<T>();
@@ -207,21 +207,19 @@ namespace ark {
 			for (auto entity : createdEntities)
 				systemManager.addToSystems(entity);
 
-			if (auto modifiedEntities = entityManager.getModifiedEntities(); modifiedEntities.has_value()) {
-				// modified entities that have not been created now (entites created this frame are also marked as 'modified')
-				std::vector<Entity> me = Util::set_difference(modifiedEntities.value(), createdEntities);
-				for (auto entity : me) {
-					//EngineLog(LogSource::EntityM, LogLevel::Info, "modified (%s)", entity.getName().c_str());
-					systemManager.removeFromSystems(entity);
-					systemManager.addToSystems(entity);
-				}
-			}
-			createdEntities.clear();
-			//scriptManager.processPendingScripts();
 			for (auto entity : destroyedEntities) {
 				systemManager.removeFromSystems(entity);
 				entityManager.destroyEntity(entity);
 			}
+
+			if (auto modifiedEntities = entityManager.getModifiedEntities(); modifiedEntities.has_value()) {
+				// modified entities that have not been created now (entites created this frame are also marked as 'modified')
+				std::vector<Entity> me = Util::set_difference(modifiedEntities.value(), createdEntities);
+				for (auto entity : me) {
+					systemManager.processModifiedEntityToSystems(entity);
+				}
+			}
+			createdEntities.clear();
 			destroyedEntities.clear();
 		}
 

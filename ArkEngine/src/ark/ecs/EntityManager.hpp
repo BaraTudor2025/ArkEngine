@@ -47,9 +47,9 @@ namespace ark {
 			auto& entity = getEntity(e);
 			auto& clone = getEntity(hClone);
 
+			clone.mask = entity.mask;
 			for (auto compData : entity.components) {
 				auto [newComponent, newIndex] = componentManager.copyComponent(compData.type, compData.index);
-				clone.mask.set(componentManager.idFromType(compData.type));
 				auto& cloneCompData = clone.components.emplace_back();
 				cloneCompData.pComponent = newComponent;
 				cloneCompData.index = newIndex;
@@ -72,6 +72,7 @@ namespace ark {
 			entity.mask.reset();
 			entity.components.clear();
 			entity.isFree = true;
+			dirtyEntities.erase(e);
 		}
 
 
@@ -152,10 +153,9 @@ namespace ark {
 			auto& entity = getEntity(e);
 			auto compId = componentManager.idFromType(type);
 			if (entity.mask.test(compId)) {
-				markAsModified(e);
-				auto& compData = entity.getComponentData(type);
-				componentManager.removeComponent(type, compData.index);
 				entity.mask.set(compId, false);
+				markAsModified(e);
+				componentManager.removeComponent(type, entity.getComponentData(type).index);
 				Util::erase_if(entity.components, [&](const auto& compData) { return compData.type == type; });
 			}
 		}

@@ -10,7 +10,8 @@
 #include "ark/core/Message.hpp"
 #include "ark/core/MessageBus.hpp"
 
-namespace ark {
+namespace ark
+{
 
 	class Scene;
 
@@ -177,12 +178,6 @@ namespace ark {
 				f(system);
 		}
 
-		template <typename T>
-		void setSystemActive(bool active)
-		{
-			setSystemActive(typeid(T), active);
-		}
-
 		void setSystemActive(std::type_index type, bool active)
 		{
 			System* system = getSystem(type);
@@ -194,9 +189,30 @@ namespace ark {
 			if (activeSystem && !active) {
 				Util::erase(activeSystems, system);
 				system->active = false;
-			} else if (!activeSystem && active) {
+			}
+			else if (!activeSystem && active) {
 				activeSystems.push_back(system);
 				system->active = true;
+			}
+		}
+
+		void processModifiedEntityToSystems(Entity entity)
+		{
+			const auto& entityMask = entity.getComponentMask();
+			for (auto& system : systems) {
+				if (system->componentMask.any()) {
+					if ((entityMask & system->componentMask) == system->componentMask) {
+						bool found = false;
+						for (auto& e : system->entities)
+							if (e == entity)
+								found = true;
+						if (!found)
+							system->addEntity(entity);
+					}
+					else {
+						system->removeEntity(entity);
+					}
+				}
 			}
 		}
 

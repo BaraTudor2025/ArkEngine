@@ -1,4 +1,3 @@
-#include <imgui.h>
 #include <libs/tinyformat.hpp>
 
 #include "ark/ecs/Entity.hpp"
@@ -6,6 +5,7 @@
 #include "ark/ecs/Scene.hpp"
 #include "ark/ecs/SceneInspector.hpp"
 #include "ark/ecs/components/Transform.hpp"
+#include "ark/gui/ImGui.hpp"
 
 template <typename T, typename F, typename F2>
 void treeWithSeparators(std::string_view label, const T& range, F getLabel, F2 renderElem)

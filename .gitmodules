@@ -1,9 +1,12 @@
 [submodule "ArkEngine/extlibs/json"]
 	path = ArkEngine/extlibs/json
 	url = https://github.com/nlohmann/json
-[submodule "ArkEngine/extlibs/imgui"]
-	path = ArkEngine/extlibs/imgui
-	url = https://github.com/ocornut/imgui
+	branch = master
 [submodule "ArkEngine/extlibs/imgui-sfml"]
 	path = ArkEngine/extlibs/imgui-sfml
 	url = https://github.com/eliasdaler/imgui-sfml
+	branch = master
+[submodule "ArkEngine/extlibs/imgui"]
+	path = ArkEngine/extlibs/imgui
+	url = https://github.com/Vector2025/imgui.git
+	branch = master

@@ -15,7 +15,7 @@
 namespace ark {
 
 	class MessageBus;
-	class EntityView;
+	class EntitiesView;
 
 	class Scene final : public NonCopyable, public NonMovable {
 
@@ -49,17 +49,10 @@ namespace ark {
 			return createdEntities.back();
 		}
 
-		// Component must have member: void _setEntity(ark::Entity);
-		template <typename TComponent>
-		void addSetEntityOnConstruction()
-		{
-			entityManager.addSetEntity<TComponent>();
-		}
-
 		template <typename TComponent, typename F>
-		void addCallOnConstruction(F&& f)
+		void onConstruction(F&& f)
 		{
-			entityManager.callOnConstruction<TComponent>(std::forward<F>(f));
+			entityManager.addOnConstruction<TComponent>(std::forward<F>(f));
 		}
 
 		void destroyEntity(Entity entity)
@@ -78,7 +71,7 @@ namespace ark {
 			}
 		}
 
-		EntityView entitiesView();
+		auto entitiesView() -> EntitiesView;
 
 		template <typename T, typename...Args>
 		T* addSystem(Args&&... args)
@@ -224,7 +217,7 @@ namespace ark {
 
 	private:		
 
-		friend class EntityView;
+		friend class EntitiesView;
 		SystemManager systemManager;
 		ComponentManager componentManager;
 		EntityManager entityManager;
@@ -267,15 +260,14 @@ namespace ark {
 				return a.mIter != b.mIter;
 			}
 		};
-
 	};
 
-	class EntityView {
+	class EntitiesView {
 		friend class Scene;
 		Scene::EntityIterator mBegin;
 		Scene::EntityIterator mEnd;
 	public:
-		EntityView(Scene::EntityIterator a, Scene::EntityIterator b) :mBegin(a), mEnd(b) {};
+		EntitiesView(Scene::EntityIterator a, Scene::EntityIterator b) :mBegin(a), mEnd(b) {};
 
 		auto begin() { return mBegin; }
 		auto end() { return mEnd; }
@@ -283,9 +275,9 @@ namespace ark {
 		const auto end() const { return mEnd; }
 	};
 
-	inline EntityView Scene::entitiesView()
+	inline EntitiesView Scene::entitiesView()
 	{
-		return EntityView{ 
+		return EntitiesView{ 
 			{entityManager.entities.begin(), entityManager.entities.end(), this}, 
 			{entityManager.entities.end(), entityManager.entities.end(), this} };
 	}

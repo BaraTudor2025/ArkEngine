@@ -245,14 +245,6 @@ ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent",
 	return members(); 
 }
 
-
-/* TODO when initializing scene/registry
- * scene.addSystem<ScriptingSystem>();
- * scene.addSetEntityOnConstruction<ScriptingComponent>();
- * scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr) {
- *     static_cast<ScriptingComponent*>(ptr)->_setScene(scene);
- * });
-*/
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {
 public:
 	ScriptingSystem() = default;

@@ -54,7 +54,7 @@ namespace ark {
 				cloneCompData.pComponent = newComponent;
 				cloneCompData.index = newIndex;
 				cloneCompData.type = compData.type;
-				afterCompCtor(cloneCompData.type, cloneCompData.pComponent, hClone);
+				onConstruction(cloneCompData.type, cloneCompData.pComponent, hClone);
 			}
 			return hClone;
 		}
@@ -79,19 +79,20 @@ namespace ark {
 		template <typename T>
 		using hasSetEntity = decltype(std::declval<T>()._setEntity(std::declval<Entity>()));
 
-		template <typename T>
-		void addSetEntity()
-		{
-			static_assert(Util::is_detected_v<hasSetEntity, T>, "tre sa aiba functia membru: void _setEntity(ark::Entity)");
-			onConstructionTable[typeid(T)].setEntity = [](void* ptr, Entity e) {
-				static_cast<T*>(ptr)->_setEntity(e);
-			};
-		}
-
 		template <typename T, typename F>
-		void callOnConstruction(F&& f)
+		void addOnConstruction(F&& f)
 		{
-			onConstructionTable[typeid(T)].onConstruction = std::forward<F>(f);
+			onConstructionTable[typeid(T)] = [f = std::forward<F>(f)](Entity e, void* ptr) {
+				using func_traits = meta::detail::function_traits<F>;
+				static_assert(std::is_same_v<func_traits::template arg<0>, ark::Entity>, "primu arg tre sa fie entity");
+				static_assert(std::is_same_v<std::decay_t<std::remove_pointer_t<func_traits::template arg<1>>>, T>, "al doilea arg tre sa fie componenta");
+				if constexpr (std::is_pointer_v<func_traits::template arg<1>>)
+					f(e, static_cast<T*>(ptr));
+				else if constexpr (std::is_reference_v<func_traits::template arg<1>>)
+					f(e, *static_cast<T*>(ptr));
+				else
+					static_assert(false, "argumetul componenta tre sa fie ori pointer ori referinta");
+			};
 		}
 
 		// if component already exists, then the existing component is returned
@@ -103,14 +104,14 @@ namespace ark {
 			void* comp = implAddComponentOnEntity(e, typeid(T), bDefaultConstruct);
 			if (not bDefaultConstruct)
 				new(comp)T(std::forward<Args>(args)...);
-			afterCompCtor(typeid(T), comp, e);
+			onConstruction(typeid(T), comp, e);
 			return *static_cast<T*>(comp);
 		}
 
 		void* addComponentOnEntity(Entity e, std::type_index type) {
 			componentManager.addComponentType(type);
 			void* comp = implAddComponentOnEntity(e, type, true);
-			afterCompCtor(type, comp, e);
+			onConstruction(type, comp, e);
 			return comp;
 		}
 
@@ -276,14 +277,12 @@ namespace ark {
 
 	private:
 
-		void afterCompCtor(std::type_index type, void* ptr, Entity e)
+		void onConstruction(std::type_index type, void* ptr, Entity e)
 		{
 			if (auto it = onConstructionTable.find(type); it != onConstructionTable.end()) {
-				auto& [onCtor, setEntity] = it->second;
-				if (setEntity)
-					setEntity(ptr, e);
+				auto& onCtor = it->second;
 				if (onCtor)
-					onCtor(ptr, e);
+					onCtor(e, ptr);
 			}
 		}
 
@@ -341,11 +340,7 @@ namespace ark {
 		std::vector<InternalEntityData> entities;
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;
-		struct OnConstructionFunctions {
-			std::function<void(void*, Entity)> onConstruction;
-			void(*setEntity)(void*, Entity) = nullptr;
-		};
-		std::unordered_map<std::type_index, OnConstructionFunctions> onConstructionTable;
+		std::unordered_map<std::type_index, std::function<void(Entity, void*)>> onConstructionTable;
 		ComponentManager& componentManager;
 		friend class RuntimeComponentView;
 		friend class Scene;

@@ -37,6 +37,8 @@ namespace ark {
 		template <typename T>
 		const T& getComponent() const;
 
+		void* getComponent(std::type_index type);
+
 		// returns nullptr if component is not found
 		template <typename T>
 		T* tryGetComponent();

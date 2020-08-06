@@ -214,5 +214,8 @@
     <ClInclude Include="FpsCounterDirector.hpp">
       <Filter>Systems</Filter>
     </ClInclude>
+    <ClInclude Include="LuaScriptingSystem.hpp">
+      <Filter>Systems</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

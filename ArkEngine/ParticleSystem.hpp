@@ -15,6 +15,7 @@
 #include <ark/ecs/DefaultServices.hpp>
 
 #include "Quad.hpp"
+#include "LuaScriptingSystem.hpp"
 
 static inline constexpr auto PI = 3.14159f;
 
@@ -107,7 +108,9 @@ private:
 	friend class PointParticleSystem;
 };
 
-ARK_REGISTER_TYPE(PointParticles, "PointParticles", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_TYPE(PointParticles, "PointParticles", ARK_DEFAULT_SERVICES, 
+	ark::meta::service<PointParticles>("export_to_lua", exportTypeToLua<PointParticles>), 
+	ark::meta::service<PointParticles>("lua_table_from_pointer", tableFromPointer<PointParticles>))
 {
 	using PP = PointParticles;
 	return members(

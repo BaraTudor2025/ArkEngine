@@ -152,7 +152,7 @@ private:
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 
-	friend void renderScriptComponents(int* widgetId, void* pvScriptComponent);
+	friend bool renderScriptComponents(int* widgetId, void* pvScriptComponent);
 	friend nlohmann::json serializeScriptComponents(const void* p);
 	friend void deserializeScriptComponents(ark::Entity&, const nlohmann::json& obj, void* p);
 	friend class ScriptingSystem;
@@ -192,13 +192,13 @@ static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::jso
 	}
 }
 
-static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
+static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 {
 	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
 	for (auto& script : scriptingComp->mScripts) {
 		const auto* mdata = ark::meta::getMetadata(script->type);
 
-		if (auto render = ark::meta::getService<void(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
+		if (auto render = ark::meta::getService<bool(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
 			ImGui::AlignTextToFramePadding();
 			if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
 				bool deleted = ark::AlignButtonToRight("remove script", [&]() {
@@ -233,6 +233,7 @@ static void renderScriptComponents(int* widgetId, void* pvScriptComponent)
 		auto it = typeList.begin() + scriptItemIndex;
 		scriptingComp->addScript(*it);
 	}
+	return false;
 }
 
 ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 

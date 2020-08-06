@@ -405,7 +405,8 @@ namespace ark::meta
 		using func_ptr_t = detail::make_func_ptr_t<F>;
 		if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
 			it != detail::guard::sServiceTable.end()) {
-			assert(typeid(func_ptr_t) == it->second.type);
+			auto func_type = std::type_index(typeid(func_ptr_t));
+			assert(func_type == it->second.type);
 			return reinterpret_cast<func_ptr_t>(it->second.func_ptr);
 		}
 		else {

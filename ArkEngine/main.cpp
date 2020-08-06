@@ -26,6 +26,7 @@
 #include "FpsCounterDirector.hpp"
 #include "GuiSystem.hpp"
 #include "ScriptingSystem.hpp"
+#include "LuaScriptingSystem.hpp"
 
 using namespace std::literals;
 using namespace ark;
@@ -407,18 +408,28 @@ private:
 		scene.addSystem<DelayedActionSystem>();
 
 		// setup for tags
-		scene.addSetEntityOnConstruction<TagComponent>();
+		//scene.addSetEntityOnConstruction<TagComponent>();
 		scene.addCallOnConstruction<TagComponent>([&](void* ptr, Entity e) {
 			auto& tag = *static_cast<TagComponent*>(ptr);
+			tag._setEntity(e);
 			if (tag.name.empty())
 				tag.name = std::string("entity_") + std::to_string(e.getID());
 		});
 
 		// setup for scripts
 		scene.addSystem<ScriptingSystem>();
-		scene.addSetEntityOnConstruction<ScriptingComponent>();
-		scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr, ark::Entity) {
+		//scene.addSetEntityOnConstruction<ScriptingComponent>();
+		scene.addCallOnConstruction<ScriptingComponent>([scene = &this->scene](void* ptr, ark::Entity e) {
 			static_cast<ScriptingComponent*>(ptr)->_setScene(scene);
+			static_cast<ScriptingComponent*>(ptr)->_setEntity(e);
+		});
+
+		// setup for lua scripts
+		auto pLuaScriptingSystem = scene.addSystem<LuaScriptingSystem>();
+		scene.addCallOnConstruction<LuaScriptingComponent>([pLuaScriptingSystem](void* ptr, ark::Entity entity) {
+			auto comp = static_cast<LuaScriptingComponent*>(ptr);
+			comp->_setEntity(entity);
+			comp->_setSystem(pLuaScriptingSystem);
 		});
 
 		auto* inspector = scene.addDirector<SceneInspector>();
@@ -520,6 +531,8 @@ private:
 			auto& scripts = greenPointParticles.addComponent<ScriptingComponent>();
 			scripts.addScript<DeSpawnOnMouseClick<>>();
 			scripts.addScript<EmittFromMouse>();
+			auto& luaScripts = greenPointParticles.addComponent<LuaScriptingComponent>();
+			luaScripts.addScript("test.lua");
 		}
 
 

@@ -225,9 +225,9 @@ namespace ark {
 	private:		
 
 		friend class EntityView;
+		SystemManager systemManager;
 		ComponentManager componentManager;
 		EntityManager entityManager;
-		SystemManager systemManager;
 		MessageBus& mMessageBus;
 
 		std::vector<std::unique_ptr<Director>> mDirectors;

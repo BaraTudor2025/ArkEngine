@@ -191,7 +191,7 @@ namespace ark {
 				ImGui::TextUnformatted("Components:");
 				// component editor
 				for (ark::RuntimeComponent component : entity.runtimeComponentView()) {
-					if (auto render = ark::meta::getService<void(int*, void*)>(component.type, serviceName)) {
+					if (auto render = ark::meta::getService<bool(int*, void*)>(component.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
 						const auto* mdata = ark::meta::getMetadata(component.type);
 						if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {

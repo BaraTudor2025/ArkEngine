@@ -395,6 +395,14 @@ namespace ark {
 		return *comp;
 	}
 
+	inline void* Entity::getComponent(std::type_index type)
+	{
+		auto comp = manager->getComponentOfEntity(*this, type);
+		if(!comp)
+			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
+		return comp;
+	}
+
 	inline void Entity::addComponent(std::type_index type)
 	{
 		manager->addComponentOnEntity(*this, type);

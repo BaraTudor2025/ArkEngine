@@ -10,3 +10,7 @@
 	path = ArkEngine/extlibs/imgui
 	url = https://github.com/Vector2025/imgui.git
 	branch = master
+[submodule "ArkEngine/extlibs/sol2"]
+	path = ArkEngine/extlibs/sol2
+	url = https://github.com/ThePhD/sol2.git
+	branch = develop

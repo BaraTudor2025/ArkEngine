@@ -4,7 +4,7 @@
 #include <libs/tinyformat.hpp>
 
 // else use ImGui logger
-#define USE_NATIVE_CONSOLE 0
+#define USE_NATIVE_CONSOLE 1
 
 namespace ark {
 

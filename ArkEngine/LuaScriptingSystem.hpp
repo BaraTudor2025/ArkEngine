@@ -50,7 +50,7 @@ public:
 	constexpr static inline bool dynamicLoading = true;
 
 	sol::state* getState() { return &lua; }
-	
+
 	void init() override
 	{
 		requireComponent<LuaScriptingComponent>();

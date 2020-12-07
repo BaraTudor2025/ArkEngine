@@ -228,26 +228,27 @@ namespace ark {
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
 
+		using EntityVector = decltype(EntityManager::entities);
 		struct EntityIterator {
-			using InternalIter = decltype(EntityManager::entities)::iterator;
+			using InternalIter = EntityVector::iterator;
 			InternalIter mIter;
-			InternalIter mSentinel;
-			Scene* mScene;
+			InternalIter mEnd;
+			Scene& mScene;
 		public:
-			EntityIterator(InternalIter iter, InternalIter sent, Scene* scene) 
-				:mIter(iter), mSentinel(sent), mScene(scene) {}
+			EntityIterator(InternalIter iter, InternalIter end, Scene& scene) 
+				:mIter(iter), mEnd(end), mScene(scene) {}
 
 			EntityIterator& operator++()
 			{
 				++mIter;
-				while(mIter < mSentinel && mIter->isFree)
+				while(mIter < mEnd && mIter->isFree)
 					++mIter;
 				return *this;
 			}
 
 			Entity operator*()
 			{
-				return mScene->entityFromId(mIter->id);
+				return mScene.entityFromId(mIter->id);
 			}
 
 			friend bool operator==(const EntityIterator& a, const EntityIterator& b) noexcept
@@ -260,25 +261,23 @@ namespace ark {
 				return a.mIter != b.mIter;
 			}
 		};
-	};
+	}; // class Scene
 
+	// live view
 	class EntitiesView {
-		friend class Scene;
-		Scene::EntityIterator mBegin;
-		Scene::EntityIterator mEnd;
+		Scene::EntityVector& mEntityVector;
+		Scene& mScene;
 	public:
-		EntitiesView(Scene::EntityIterator a, Scene::EntityIterator b) :mBegin(a), mEnd(b) {};
+		EntitiesView(Scene::EntityVector& v, Scene& s) : mEntityVector(v), mScene(s) {}
 
-		auto begin() { return mBegin; }
-		auto end() { return mEnd; }
-		const auto begin() const { return mBegin; }
-		const auto end() const { return mEnd; }
+		Scene::EntityIterator begin() { return {mEntityVector.begin(), mEntityVector.end(), mScene}; }
+		Scene::EntityIterator end() { return {mEntityVector.end(), mEntityVector.end(), mScene}; }
+		const Scene::EntityIterator begin() const { return {mEntityVector.begin(), mEntityVector.end(), mScene}; }
+		const Scene::EntityIterator end() const { return {mEntityVector.end(), mEntityVector.end(), mScene}; }
 	};
 
 	inline EntitiesView Scene::entitiesView()
 	{
-		return EntitiesView{ 
-			{entityManager.entities.begin(), entityManager.entities.end(), this}, 
-			{entityManager.entities.end(), entityManager.entities.end(), this} };
+		return EntitiesView{this->entityManager.entities, *this};
 	}
 }

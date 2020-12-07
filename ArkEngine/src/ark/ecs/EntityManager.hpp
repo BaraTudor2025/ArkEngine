@@ -264,11 +264,11 @@ namespace ark {
 		~EntityManager()
 		{
 			int id = 0;
-			for (auto& entity : entities) {
+			for (const auto& entity : entities) {
 				auto it = std::find(freeEntities.begin(), freeEntities.end(), id);
-				// component is not destroyed
+				// components of entity need to be destroyed
 				if (it == freeEntities.end()) {
-					for (auto compData : entity.components)
+					for (const auto& compData : entity.components)
 						componentManager.removeComponent(compData.type, compData.index);
 				}
 				id += 1;

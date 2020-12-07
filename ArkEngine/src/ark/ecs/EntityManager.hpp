@@ -308,11 +308,12 @@ namespace ark {
 			return entities.at(e.id);
 		}
 
+		using ComponentVector = decltype(InternalEntityData::components);
+
 		struct RuntimeComponentIterator {
-			using InternalIterator = std::vector<InternalEntityData::ComponentData>::iterator;
-			InternalIterator iter;
+			ComponentVector::iterator iter;
 		public:
-			RuntimeComponentIterator(InternalIterator iter) :iter(iter) {};
+			RuntimeComponentIterator(ComponentVector::iterator iter) :iter(iter) {};
 
 			RuntimeComponentIterator& operator++()
 			{
@@ -346,21 +347,18 @@ namespace ark {
 		friend class Scene;
 	};
 
+	// live view
 	class RuntimeComponentView {
-		friend class EntityManager;
-		using Iter = EntityManager::RuntimeComponentIterator;
-		Iter iterBegin;
-		Iter iterEnd;
+		EntityManager::ComponentVector& mComps;
 	public:
-		RuntimeComponentView(Iter b, Iter e) : iterBegin(b), iterEnd(e) { }
-		auto begin() { return iterBegin; }
-		auto end() { return iterEnd; }
+		RuntimeComponentView(EntityManager::ComponentVector& comps) : mComps(comps) {}
+		EntityManager::RuntimeComponentIterator begin() { return mComps.begin(); }
+		EntityManager::RuntimeComponentIterator end() { return mComps.end(); }
 	};
 
 	inline auto EntityManager::makeComponentView(Entity e)
 	{
-		auto& entity = getEntity(e);
-		return RuntimeComponentView{ entity.components.begin(), entity.components.end() };
+		return RuntimeComponentView{getEntity(e).components};
 	}
 
 	template<typename T, typename ...Args>

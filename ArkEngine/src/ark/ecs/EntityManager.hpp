@@ -18,11 +18,15 @@ namespace ark {
 	class EntityManager final : public NonCopyable, public NonMovable {
 
 	public:
-		EntityManager(ComponentManager& cm) : componentManager(cm) {}
+		EntityManager(ComponentManager& cm, std::pmr::memory_resource* upstreamComponent)
+			: componentManager(cm), 
+			componentPool(
+				std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
+				upstreamComponent) { }
 
 	public:
 
-		Entity createEntity()
+		auto createEntity() -> Entity
 		{
 			Entity e;
 			e.manager = this;
@@ -41,7 +45,7 @@ namespace ark {
 			return e;
 		}
 
-		Entity cloneEntity(Entity e)
+		auto cloneEntity(Entity e) -> Entity
 		{
 			Entity hClone = createEntity();
 			auto& entity = getEntity(e);
@@ -49,12 +53,16 @@ namespace ark {
 
 			clone.mask = entity.mask;
 			for (const auto& compData : entity.components) {
-				auto [newComponent, newIndex] = componentManager.copyComponent(compData.type, compData.index);
-				auto& cloneCompData = clone.components.emplace_back();
-				cloneCompData.pComponent = newComponent;
-				cloneCompData.index = newIndex;
-				cloneCompData.type = compData.type;
-				onConstruction(cloneCompData.type, cloneCompData.pComponent, hClone);
+				auto metadata = meta::getMetadata(compData.type);
+				void* newComponent = componentPool.allocate(metadata->size, metadata->align);
+				if (metadata->copy_constructor) {
+					metadata->copy_constructor(newComponent, compData.pComponent);
+				}
+				else
+					metadata->default_constructor(newComponent);
+
+				clone.components.push_back({compData.type, newComponent});
+				onConstruction(compData.type, newComponent, hClone);
 			}
 			return hClone;
 		}
@@ -67,7 +75,7 @@ namespace ark {
 			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
 
 			for (const auto& compData : entity.components)
-				componentManager.removeComponent(compData.type, compData.index);
+				destroyComponent(compData.type, compData.pComponent);
 
 			entity.mask.reset();
 			entity.components.clear();
@@ -95,8 +103,10 @@ namespace ark {
 		}
 
 		// if component already exists, then the existing component is returned
+		// if no ctor-args are provided then it's default constructed
 		template <typename T, typename... Args>
-		T& addComponentOnEntity(Entity e, Args&&... args) {
+		T& addComponentOnEntity(Entity e, Args&&... args)
+		{
 			static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 			componentManager.addComponentType(typeid(T));
 			bool bDefaultConstruct = sizeof...(args) == 0 ? true : false;
@@ -107,7 +117,8 @@ namespace ark {
 			return *static_cast<T*>(comp);
 		}
 
-		void* addComponentOnEntity(Entity e, std::type_index type) {
+		void* addComponentOnEntity(Entity e, std::type_index type)
+		{
 			componentManager.addComponentType(type);
 			void* comp = implAddComponentOnEntity(e, type, true);
 			onConstruction(type, comp, e);
@@ -120,15 +131,16 @@ namespace ark {
 			auto& entity = getEntity(e);
 			if (entity.mask.test(compId))
 				return getComponentOfEntity(e, type);
-			markAsModified(e);
 			entity.mask.set(compId);
+			markAsModified(e);
 
-			auto [comp, compIndex] = componentManager.addComponent(type, defaultConstruct);
-			auto& compData = entity.components.emplace_back();
-			compData.pComponent = comp;
-			compData.index = compIndex;
-			compData.type = type;
-			return comp;
+			auto metadata = meta::getMetadata(type);
+			void* newComponent = componentPool.allocate(metadata->size, metadata->align);
+			if(defaultConstruct)
+				metadata->default_constructor(newComponent);
+
+			entity.components.push_back({ type, newComponent });
+			return newComponent;
 		}
 
 		void* getComponentOfEntity(Entity e, std::type_index type)
@@ -155,7 +167,7 @@ namespace ark {
 			if (entity.mask.test(compId)) {
 				entity.mask.set(compId, false);
 				markAsModified(e);
-				componentManager.removeComponent(type, entity.getComponentData(type).index);
+				destroyComponent(type, entity.getComponentData(type).pComponent);
 				Util::erase_if(entity.components, [&](const auto& compData) { return compData.type == type; });
 			}
 		}
@@ -171,7 +183,7 @@ namespace ark {
 			dirtyEntities.insert(e);
 		}
 
-		std::optional<std::set<Entity>> getModifiedEntities()
+		auto getModifiedEntities() -> std::optional<std::set<Entity>>
 		{
 			if (dirtyEntities.empty())
 				return std::nullopt;
@@ -191,7 +203,15 @@ namespace ark {
 			}
 		}
 
-		auto makeComponentView(Entity e);
+		auto makeComponentView(Entity e); // -> RuntimeComponentView
+
+		void destroyComponent(std::type_index type, void* component)
+		{
+			auto metadata = meta::getMetadata(type);
+			if(metadata->destructor)
+				metadata->destructor(component);
+			componentPool.deallocate(component, metadata->size, metadata->align);
+		}
 
 #if 0 // disable entity children
 		void addChildTo(Entity p, Entity c)
@@ -267,8 +287,11 @@ namespace ark {
 				auto it = std::find(freeEntities.begin(), freeEntities.end(), id);
 				// components of entity need to be destroyed
 				if (it == freeEntities.end()) {
-					for (const auto& compData : entity.components)
-						componentManager.removeComponent(compData.type, compData.index);
+					for (const auto& compData : entity.components) {
+						auto metadata = meta::getMetadata(compData.type);
+						if(metadata->destructor)
+							metadata->destructor(compData.pComponent);
+					}
 				}
 				id += 1;
 			}
@@ -289,7 +312,6 @@ namespace ark {
 			struct ComponentData {
 				std::type_index type = typeid(void);
 				void* pComponent; // reference
-				int16_t index;
 			};
 			std::vector<ComponentData> components;
 			ComponentManager::ComponentMask mask;
@@ -337,6 +359,7 @@ namespace ark {
 		};
 
 	private:
+		std::pmr::unsynchronized_pool_resource componentPool;		
 		std::vector<InternalEntityData> entities;
 		std::set<Entity> dirtyEntities;
 		std::vector<int> freeEntities;

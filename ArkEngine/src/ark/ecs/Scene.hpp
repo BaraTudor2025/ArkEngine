@@ -19,9 +19,9 @@ namespace ark {
 	class Scene final : public NonCopyable, public NonMovable {
 
 	public:
-		Scene(MessageBus& bus)
+		Scene(MessageBus& bus, std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
 			: componentManager(),
-			entityManager(componentManager),
+			entityManager(componentManager, upstreamComponent),
 			systemManager(bus, *this, componentManager),
 			mMessageBus(bus)
 		{}
@@ -29,14 +29,14 @@ namespace ark {
 		~Scene() = default;
 
 		[[nodiscard]]
-		Entity createEntity()
+		auto createEntity() -> Entity
 		{
 			createdEntities.push_back(entityManager.createEntity());
 			return createdEntities.back();
 		}
 		
 		[[nodiscard]]
-		Entity entityFromId(int id)
+		auto entityFromId(int id) -> Entity
 		{
 			Entity e;
 			e.id = id;
@@ -45,7 +45,7 @@ namespace ark {
 		}
 
 		[[nodiscard]]
-		Entity cloneEntity(Entity e)
+		auto cloneEntity(Entity e) -> Entity
 		{
 			createdEntities.push_back(entityManager.cloneEntity(e));
 			return createdEntities.back();
@@ -76,7 +76,7 @@ namespace ark {
 		auto entitiesView() -> EntitiesView;
 
 		template <typename T, typename...Args>
-		T* addSystem(Args&&... args)
+		auto addSystem(Args&&... args) -> T*
 		{
 			static_assert(std::is_base_of_v<System, T>, " T not a system type");
 			auto system = systemManager.addSystem<T>(std::forward<T>(args)...);
@@ -87,7 +87,7 @@ namespace ark {
 
 		template <typename T>
 		[[nodiscard]]
-		T* getSystem()
+		auto getSystem() -> T*
 		{
 			static_assert(std::is_base_of_v<System, T>, " T not a system type");
 			return systemManager.getSystem<T>();
@@ -126,7 +126,7 @@ namespace ark {
 		}
 
 		template <typename T, typename...Args>
-		T* addDirector(Args&&... args)
+		auto addDirector(Args&&... args) -> T*
 		{
 			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
 			auto& director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
@@ -141,7 +141,7 @@ namespace ark {
 
 		template <typename T>
 		[[nodiscard]]
-		T* getDirector()
+		auto getDirector() -> T*
 		{
 			static_assert(std::is_base_of_v<Director, T>, " T not a director type");
 			for (auto& dir : mDirectors)

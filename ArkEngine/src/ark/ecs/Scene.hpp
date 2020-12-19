@@ -10,7 +10,6 @@
 #include <SFML/Graphics/Drawable.hpp>
 #include <memory>
 
-// TODO (Scene): add Directors?
 
 namespace ark {
 
@@ -29,12 +28,14 @@ namespace ark {
 
 		~Scene() = default;
 
+		[[nodiscard]]
 		Entity createEntity()
 		{
 			createdEntities.push_back(entityManager.createEntity());
 			return createdEntities.back();
 		}
 		
+		[[nodiscard]]
 		Entity entityFromId(int id)
 		{
 			Entity e;
@@ -43,6 +44,7 @@ namespace ark {
 			return e;
 		}
 
+		[[nodiscard]]
 		Entity cloneEntity(Entity e)
 		{
 			createdEntities.push_back(entityManager.cloneEntity(e));
@@ -84,12 +86,14 @@ namespace ark {
 		}
 
 		template <typename T>
+		[[nodiscard]]
 		T* getSystem()
 		{
 			static_assert(std::is_base_of_v<System, T>, " T not a system type");
 			return systemManager.getSystem<T>();
 		}
 
+		[[nodiscard]]
 		const auto& getSystems()
 		{
 			return systemManager.getSystems();
@@ -136,6 +140,7 @@ namespace ark {
 		}
 
 		template <typename T>
+		[[nodiscard]]
 		T* getDirector()
 		{
 			static_assert(std::is_base_of_v<Director, T>, " T not a director type");
@@ -145,6 +150,7 @@ namespace ark {
 			return nullptr;
 		}
 
+		[[nodiscard]]
 		const auto& getComponentTypes() const
 		{
 			return componentManager.getTypes();
@@ -215,7 +221,7 @@ namespace ark {
 			destroyedEntities.clear();
 		}
 
-	private:		
+	private:
 
 		friend class EntitiesView;
 		SystemManager systemManager;

@@ -32,24 +32,30 @@ namespace ark {
 		void addComponent(std::type_index type);
 
 		template <typename T>
+		[[nodiscard]]
 		T& getComponent();
 
 		template <typename T>
+		[[nodiscard]]
 		const T& getComponent() const;
 
+		[[nodiscard]]
 		void* getComponent(std::type_index type);
 
 		// returns nullptr if component is not found
 		template <typename T>
+		[[nodiscard]]
 		T* tryGetComponent();
 
 		template <typename T>
+		[[nodiscard]]
 		const T* tryGetComponent() const;
 
 		// f takes as argument RuntimeComponent
 		template <typename F>
 		void forEachComponent(F&& f);
 
+		[[nodiscard]]
 		auto runtimeComponentView() -> RuntimeComponentView;
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
@@ -59,8 +65,10 @@ namespace ark {
 
 		void removeComponent(std::type_index type);
 
+		[[nodiscard]]
 		const ComponentManager::ComponentMask& getComponentMask();
 
+		[[nodiscard]]
 		bool isValid() const { return manager != nullptr; }
 
 #if 0 //disable entity children

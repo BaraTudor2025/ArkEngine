@@ -48,7 +48,7 @@ namespace ark {
 			auto& clone = getEntity(hClone);
 
 			clone.mask = entity.mask;
-			for (auto compData : entity.components) {
+			for (const auto& compData : entity.components) {
 				auto [newComponent, newIndex] = componentManager.copyComponent(compData.type, compData.index);
 				auto& cloneCompData = clone.components.emplace_back();
 				cloneCompData.pComponent = newComponent;
@@ -66,7 +66,7 @@ namespace ark {
 
 			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
 
-			for (auto compData : entity.components)
+			for (const auto& compData : entity.components)
 				componentManager.removeComponent(compData.type, compData.index);
 
 			entity.mask.reset();
@@ -75,9 +75,8 @@ namespace ark {
 			dirtyEntities.erase(e);
 		}
 
-
-		template <typename T>
-		using hasSetEntity = decltype(std::declval<T>()._setEntity(std::declval<Entity>()));
+		//template <typename T>
+		//using hasSetEntity = decltype(std::declval<T>()._setEntity(std::declval<Entity>()));
 
 		template <typename T, typename F>
 		void addOnConstruction(F&& f)
@@ -161,7 +160,7 @@ namespace ark {
 			}
 		}
 
-		const ComponentManager::ComponentMask& getComponentMaskOfEntity(Entity e)
+		auto getComponentMaskOfEntity(Entity e) -> const ComponentManager::ComponentMask&
 		{
 			auto& entity = getEntity(e);
 			return entity.mask;
@@ -303,7 +302,7 @@ namespace ark {
 			}
 		};
 
-		InternalEntityData& getEntity(Entity e)
+		auto getEntity(Entity e) -> InternalEntityData&
 		{
 			return entities.at(e.id);
 		}

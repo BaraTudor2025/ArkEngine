@@ -14,6 +14,8 @@
 namespace ark {
 
 	class Scene;
+	class EntitiesView;
+	class RuntimeComponentView;
 
 	class EntityManager final : public NonCopyable, public NonMovable {
 
@@ -203,7 +205,9 @@ namespace ark {
 			}
 		}
 
-		auto makeComponentView(Entity e); // -> RuntimeComponentView
+		auto makeComponentView(Entity e) -> RuntimeComponentView;
+
+		auto entitiesView() -> EntitiesView;
 
 		void destroyComponent(std::type_index type, void* component)
 		{
@@ -331,33 +335,6 @@ namespace ark {
 
 		using ComponentVector = decltype(InternalEntityData::components);
 
-		struct RuntimeComponentIterator {
-			ComponentVector::iterator iter;
-		public:
-			RuntimeComponentIterator(ComponentVector::iterator iter) :iter(iter) {};
-
-			RuntimeComponentIterator& operator++()
-			{
-				++iter;
-				return *this;
-			}
-
-			RuntimeComponent operator*()
-			{
-				return { iter->type, iter->pComponent };
-			}
-
-			friend bool operator==(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
-			{
-				return a.iter == b.iter;
-			}
-
-			friend bool operator!=(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
-			{
-				return a.iter != b.iter;
-			}
-		};
-
 	private:
 		std::pmr::unsynchronized_pool_resource componentPool;		
 		std::vector<InternalEntityData> entities;
@@ -365,8 +342,39 @@ namespace ark {
 		std::vector<int> freeEntities;
 		std::unordered_map<std::type_index, std::function<void(Entity, void*)>> onConstructionTable;
 		ComponentManager& componentManager;
+		friend struct RuntimeComponentIterator;
+		friend struct EntityIterator;
 		friend class RuntimeComponentView;
+		friend class EntitiesView;
 		friend class Scene;
+	};
+
+	struct RuntimeComponentIterator {
+		using InternalIterator = decltype(EntityManager::InternalEntityData::components)::iterator;
+		InternalIterator iter;
+	public:
+		RuntimeComponentIterator(InternalIterator iter) :iter(iter) {};
+
+		RuntimeComponentIterator& operator++()
+		{
+			++iter;
+			return *this;
+		}
+
+		RuntimeComponent operator*()
+		{
+			return { iter->type, iter->pComponent };
+		}
+
+		friend bool operator==(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
+		{
+			return a.iter == b.iter;
+		}
+
+		friend bool operator!=(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
+		{
+			return a.iter != b.iter;
+		}
 	};
 
 	// live view
@@ -374,14 +382,80 @@ namespace ark {
 		EntityManager::ComponentVector& mComps;
 	public:
 		RuntimeComponentView(EntityManager::ComponentVector& comps) : mComps(comps) {}
-		EntityManager::RuntimeComponentIterator begin() { return mComps.begin(); }
-		EntityManager::RuntimeComponentIterator end() { return mComps.end(); }
+		auto begin() -> RuntimeComponentIterator{ return mComps.begin(); }
+		auto end() -> RuntimeComponentIterator { return mComps.end(); }
 	};
 
-	inline auto EntityManager::makeComponentView(Entity e)
+
+	struct EntityIterator {
+		using InternalIter = decltype(EntityManager::entities)::iterator;
+		mutable InternalIter mIter;
+		mutable InternalIter mEnd;
+		EntityManager& mManager;
+	public:
+		EntityIterator(InternalIter iter, InternalIter end, EntityManager& manager) 
+			:mIter(iter), mEnd(end), mManager(manager) {}
+
+		EntityIterator& operator++() noexcept
+		{
+			++mIter;
+			while(mIter < mEnd && mIter->isFree)
+				++mIter;
+			return *this;
+		}
+
+		const EntityIterator& operator++() const noexcept
+		{
+			++mIter;
+			while(mIter < mEnd && mIter->isFree)
+				++mIter;
+			return *this;
+		}
+
+		Entity operator*() noexcept
+		{
+			return { mIter->id, &mManager };
+		}
+
+		const Entity operator*() const noexcept
+		{
+			return { mIter->id, &mManager };
+		}
+
+		friend bool operator==(const EntityIterator& a, const EntityIterator& b) noexcept
+		{
+			return a.mIter == b.mIter;
+		}
+
+		friend bool operator!=(const EntityIterator& a, const EntityIterator& b) noexcept
+		{
+			return a.mIter != b.mIter;
+		}
+	};
+
+	class EntitiesView {
+		EntityManager& mManager;
+	public:
+		EntitiesView(EntityManager& m) : mManager(m) {}
+
+		auto begin() -> EntityIterator { return {mManager.entities.begin(), mManager.entities.end(), mManager}; }
+		auto end() -> EntityIterator { return {mManager.entities.end(), mManager.entities.end(), mManager}; }
+		auto begin() const -> const EntityIterator { return {mManager.entities.begin(), mManager.entities.end(), mManager}; }
+		auto end() const -> const EntityIterator { return {mManager.entities.end(), mManager.entities.end(), mManager}; }
+	};
+
+	inline auto EntityManager::makeComponentView(Entity e) -> RuntimeComponentView
 	{
 		return RuntimeComponentView{getEntity(e).components};
 	}
+
+	inline auto EntityManager::entitiesView() -> EntitiesView
+	{
+		return EntitiesView{*this};
+	}
+
+
+	/* Entity handle definitions */
 
 	template<typename T, typename ...Args>
 	inline T& Entity::addComponent(Args&& ...args)

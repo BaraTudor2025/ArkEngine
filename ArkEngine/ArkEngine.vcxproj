@@ -159,7 +159,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\SFML-2.5.1\include</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -176,7 +176,7 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\SFML-2.5.1\include</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -193,7 +193,7 @@
       <PreprocessorDefinitions>_DEBUG;LUA_BUILD_AS_DLL;luajit_c;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)extlibs\moonjit-master\src;$(ProjectDir)extlibs\sol2\include;$(ProjectDir)extlibs\imgui;$(ProjectDir)extlibs\imgui-sfml;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\include;$(ProjectDir)src</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await /bigobj %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4244; 4267; </DisableSpecificWarnings>
@@ -213,7 +213,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;SFML_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)extlibs\imgui;$(ProjectDir)extlibs\imgui-sfml;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\include;$(ProjectDir)src</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4244; 4267; </DisableSpecificWarnings>
@@ -237,7 +237,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\SFML-2.5.1\include</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -258,7 +258,7 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\SFML-2.5.1\include</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -279,7 +279,7 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;SFML_STATIC;LUA_BUILD_AS_DLL;luajit_c;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)extlibs\moonjit-master\src;$(ProjectDir)extlibs\sol2\include;$(ProjectDir)extlibs\imgui;$(ProjectDir)extlibs\imgui-sfml;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\include;$(ProjectDir)src</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4244; 4267;</DisableSpecificWarnings>
@@ -303,7 +303,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;SFML_STATIC;LUA_BUILD_AS_DLL;luajit_c;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)extlibs\moonjit-master\src;$(ProjectDir)extlibs\sol2\include;$(ProjectDir)extlibs\imgui;$(ProjectDir)extlibs\imgui-sfml;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\include;$(ProjectDir)src</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4244; 4267;</DisableSpecificWarnings>

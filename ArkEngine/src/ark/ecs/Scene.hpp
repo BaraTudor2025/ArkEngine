@@ -73,7 +73,9 @@ namespace ark {
 			}
 		}
 
-		auto entitiesView() -> EntitiesView;
+		auto entitiesView() -> EntitiesView {
+			return this->entityManager.entitiesView();
+		}
 
 		template <typename T, typename...Args>
 		auto addSystem(Args&&... args) -> T*
@@ -234,56 +236,5 @@ namespace ark {
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
 
-		using EntityVector = decltype(EntityManager::entities);
-		struct EntityIterator {
-			using InternalIter = EntityVector::iterator;
-			InternalIter mIter;
-			InternalIter mEnd;
-			Scene& mScene;
-		public:
-			EntityIterator(InternalIter iter, InternalIter end, Scene& scene) 
-				:mIter(iter), mEnd(end), mScene(scene) {}
-
-			EntityIterator& operator++()
-			{
-				++mIter;
-				while(mIter < mEnd && mIter->isFree)
-					++mIter;
-				return *this;
-			}
-
-			Entity operator*()
-			{
-				return mScene.entityFromId(mIter->id);
-			}
-
-			friend bool operator==(const EntityIterator& a, const EntityIterator& b) noexcept
-			{
-				return a.mIter == b.mIter;
-			}
-
-			friend bool operator!=(const EntityIterator& a, const EntityIterator& b) noexcept
-			{
-				return a.mIter != b.mIter;
-			}
-		};
 	}; // class Scene
-
-	// live view
-	class EntitiesView {
-		Scene::EntityVector& mEntityVector;
-		Scene& mScene;
-	public:
-		EntitiesView(Scene::EntityVector& v, Scene& s) : mEntityVector(v), mScene(s) {}
-
-		Scene::EntityIterator begin() { return {mEntityVector.begin(), mEntityVector.end(), mScene}; }
-		Scene::EntityIterator end() { return {mEntityVector.end(), mEntityVector.end(), mScene}; }
-		const Scene::EntityIterator begin() const { return {mEntityVector.begin(), mEntityVector.end(), mScene}; }
-		const Scene::EntityIterator end() const { return {mEntityVector.end(), mEntityVector.end(), mScene}; }
-	};
-
-	inline EntitiesView Scene::entitiesView()
-	{
-		return EntitiesView{this->entityManager.entities, *this};
-	}
 }

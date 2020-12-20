@@ -16,13 +16,13 @@ namespace ark {
 
 	// this is more of a handle
 	// member function definitions are at the bottom of EntityManager.hpp
-	class Entity final {
+	class [[nodiscard]] Entity final {
 
 	public:
+		using ID = int;
 		Entity() = default;
 		~Entity() = default;
-
-		using ID = int;
+		Entity(ID id, EntityManager* m) : id(id), manager(m) {}
 
 		ID getID() const { return id; }
 

@@ -7,12 +7,12 @@
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/Meta.hpp"
+#include "ark/ecs/Querry.hpp"
 #include "ark/core/Message.hpp"
 #include "ark/core/MessageBus.hpp"
 
 namespace ark
 {
-
 	class Scene;
 
 	class ARK_ENGINE_API System : public NonCopyable {
@@ -30,8 +30,8 @@ namespace ark
 
 		const std::string name;
 		const std::type_index type;
-		const std::vector<Entity>& getEntities() const { return entities; }
-		const std::vector<std::string_view>& getComponentNames() const { return componentNames; }
+		auto getEntities() const -> const std::vector<Entity>& { return querry.getEntities(); }
+		auto getComponentNames() const -> const std::vector<std::string_view>& { return componentNames; }
 
 	protected:
 		template <typename T>
@@ -48,45 +48,17 @@ namespace ark
 			return messageBus->post<T>(id);
 		}
 
-		std::vector<Entity>& getEntities() { return entities; }
-
 		Scene* scene() { return m_scene; }
 
 		virtual void onEntityAdded(Entity) {}
 		virtual void onEntityRemoved(Entity) {}
 
 	private:
-		void addEntity(Entity e)
-		{
-			entities.push_back(e);
-			onEntityAdded(e);
-		}
+		void constructQuerry();
 
-		void removeEntity(Entity entity)
-		{
-			Util::erase_if(entities, [&entity, this](Entity e) {
-				if (entity == e) {
-					onEntityRemoved(e);
-					return true;
-				}
-				return false;
-			});
-		}
-
-		void constructMask(ComponentManager& cm)
-		{
-			for (auto type : componentTypes)
-				componentNames.push_back(meta::getMetadata(type)->name);
-
-			for (auto type : componentTypes)
-				componentMask.set(cm.idFromType(type));
-			componentTypes.clear();
-		}
-
-	private:
 		friend class SystemManager;
 		ComponentManager* componentManager = nullptr;
-		std::vector<Entity> entities;
+		EntityQuerry querry;
 		std::vector<std::type_index> componentTypes;
 		ComponentManager::ComponentMask componentMask;
 		Scene* m_scene = nullptr;
@@ -114,17 +86,17 @@ namespace ark
 			if (hasSystem<T>())
 				return getSystem<T>();
 
-			auto& system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
-			activeSystems.push_back(system.get());
+			System* system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+			activeSystems.push_back(system);
 			system->m_scene = &scene;
 			system->componentManager = &componentManager;
 			system->messageBus = &messageBus;
 			system->init();
-			system->constructMask(componentManager);
+			system->constructQuerry();
 			if (system->componentMask.none())
 				EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", system->name);
 
-			return dynamic_cast<T*>(system.get());
+			return dynamic_cast<T*>(system);
 		}
 
 		template <typename T>
@@ -194,41 +166,6 @@ namespace ark
 				activeSystems.push_back(system);
 				system->active = true;
 			}
-		}
-
-		void processModifiedEntityToSystems(Entity entity)
-		{
-			const auto& entityMask = entity.getComponentMask();
-			for (auto& system : systems) {
-				if (system->componentMask.any()) {
-					if ((entityMask & system->componentMask) == system->componentMask) {
-						bool found = false;
-						for (auto& e : system->entities)
-							if (e == entity)
-								found = true;
-						if (!found)
-							system->addEntity(entity);
-					}
-					else {
-						system->removeEntity(entity);
-					}
-				}
-			}
-		}
-
-		void addToSystems(Entity entity)
-		{
-			const auto& entityMask = entity.getComponentMask();
-			for (auto& system : systems)
-				if (system->componentMask.any())
-					if ((entityMask & system->componentMask) == system->componentMask)
-						system->addEntity(entity);
-		}
-
-		void removeFromSystems(Entity entity)
-		{
-			for (auto& system : systems)
-				system->removeEntity(entity);
 		}
 
 	private:

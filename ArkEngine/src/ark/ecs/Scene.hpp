@@ -6,6 +6,7 @@
 #include "EntityManager.hpp"
 #include "Director.hpp"
 #include "Renderer.hpp"
+#include "Querry.hpp"
 
 #include <SFML/Graphics/Drawable.hpp>
 #include <memory>
@@ -35,7 +36,6 @@ namespace ark {
 			return createdEntities.back();
 		}
 		
-		[[nodiscard]]
 		auto entityFromId(int id) -> Entity
 		{
 			Entity e;
@@ -57,6 +57,12 @@ namespace ark {
 			entityManager.addOnConstruction<TComponent>(std::forward<F>(f));
 		}
 
+		// removes next frame after other pending updates
+		void safeRemoveComponent(Entity e, std::type_index type) {
+			// TODO(querry): adauga optimizare pentru querry remove, poate un vector<bitmask> ca parcurgerea sa fie liniara
+			this->mComponentsToRemove.emplace_back(e, type);
+		}
+
 		void destroyEntity(Entity entity)
 		{
 			destroyedEntities.push_back(entity);
@@ -75,6 +81,43 @@ namespace ark {
 
 		auto entitiesView() -> EntitiesView {
 			return this->entityManager.entitiesView();
+		}
+
+		auto makeQuerry(ComponentManager::ComponentMask mask) -> EntityQuerry 
+		{
+			assert(("empty component mask", !mask.none()));
+			int cleanup = 0;
+			// search for existing/cached querries
+			for (auto& querry : querries) {
+				if (querry.expired()) {
+					cleanup += 1;
+				}
+				else if (auto data = querry.lock(); data->componentMask == mask) {
+					return EntityQuerry{std::move(data)};
+				}
+			}
+			for (int i = 0; i < cleanup; i++)
+				Util::erase_if(querries, [](auto& q) { return q.expired(); });
+
+			// if no querry already exists then make a new one
+			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>());
+			querry.data->componentMask = mask;
+			for (auto entity : entitiesView()) {
+				if ((entity.getComponentMask() & mask) == mask) {
+					querry.data->entities.push_back({ entity.id, &this->entityManager });
+				}
+			}
+			this->querries.push_back(querry.data);
+			return querry;
+		}
+
+		auto makeQuerry(const std::vector<std::type_index>& types) -> EntityQuerry 
+		{
+			auto mask = ComponentManager::ComponentMask();
+			for (auto type : types) {
+				mask.set(componentManager.idFromType(type));
+			}
+			return makeQuerry(mask);
 		}
 
 		template <typename T, typename...Args>
@@ -176,12 +219,20 @@ namespace ark {
 				dir->handleMessage(message);
 		}
 
+		/* Order of operations:
+		* remove components with 'safe' operation
+		* update querries with entities: created, destroyed, modified
+		* update systems and then directors
+		*/
 		void update()
 		{
+			for (auto& [e, type] : mComponentsToRemove)
+				e.removeComponent(type);
 			processPendingData();
 			systemManager.forEachSystem([](System* system) {
 				system->update();
 			});
+
 			for (auto& dir : mDirectors)
 				dir->update();
 		}
@@ -205,10 +256,10 @@ namespace ark {
 		void processPendingData()
 		{
 			for (auto entity : createdEntities)
-				systemManager.addToSystems(entity);
+				addToQuerries(entity);
 
 			for (auto entity : destroyedEntities) {
-				systemManager.removeFromSystems(entity);
+				removeFromQuerries(entity);
 				entityManager.destroyEntity(entity);
 			}
 
@@ -216,7 +267,7 @@ namespace ark {
 				// modified entities that have not been created now (entites created this frame are also marked as 'modified')
 				std::vector<Entity> me = Util::set_difference(modifiedEntities.value(), createdEntities);
 				for (auto entity : me) {
-					systemManager.processModifiedEntityToSystems(entity);
+					processModifiedEntityToQuerries(entity);
 				}
 			}
 			createdEntities.clear();
@@ -225,16 +276,91 @@ namespace ark {
 
 	private:
 
+		void processModifiedEntityToQuerries(Entity entity)
+		{
+			auto entityMask = entity.getComponentMask();
+			for (auto& querry : querries) {
+				auto data = querry.lock();
+				if (!data)
+					continue;
+				if ((entityMask & data->componentMask) == data->componentMask) {
+					bool found = false;
+					for (auto& e : data->entities)
+						if (e == entity)
+							found = true;
+					if (!found) {
+						addToQuerry(data.get(), entity);
+					}
+				}
+				else {
+					removeFromQuerry(data.get(), entity);
+				}
+			}
+		}
+
+		void addToQuerry(EntityQuerry::SharedData* data, Entity entity) {
+			data->entities.push_back(entity);
+			for (auto& f : data->addEntityCallbacks) {
+				f(entity);
+			}
+		}
+
+		void removeFromQuerry(EntityQuerry::SharedData* data, Entity entity) {
+			Util::erase_if(data->entities, [&](Entity e) {
+				if (entity == e) {
+					for (auto& f : data->removeEntityCallbacks)
+						f(entity);
+					return true;
+				}
+				return false;
+			});
+		}
+
+		void addToQuerries(Entity entity)
+		{
+			auto entityMask = entity.getComponentMask();
+			for (auto& querry : querries) {
+				auto data = querry.lock();
+				if (data && ((entity.getComponentMask() & data->componentMask) == data->componentMask)) {
+					addToQuerry(data.get(), entity);
+				}
+			}
+		}
+
+		void removeFromQuerries(Entity entity)
+		{
+			for (auto& querry : querries) {
+				auto data = querry.lock();
+				if (!data)
+					continue;
+				removeFromQuerry(data.get(), entity);
+			}
+		}
+
 		friend class EntitiesView;
 		SystemManager systemManager;
 		ComponentManager componentManager;
 		EntityManager entityManager;
 		MessageBus& mMessageBus;
 
+		//std::vector<ComponentManager::ComponentMask> querryMasks;
+		std::vector<std::weak_ptr<EntityQuerry::SharedData>> querries;
+		std::vector<std::pair<Entity, std::type_index>> mComponentsToRemove;
 		std::vector<std::unique_ptr<Director>> mDirectors;
 		std::vector<Entity> createdEntities;
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
-
 	}; // class Scene
+
+	inline void System::constructQuerry()
+	{
+		for (auto type : componentTypes)
+			componentNames.push_back(meta::getMetadata(type)->name);
+		querry = m_scene->makeQuerry(componentTypes);
+
+		//for (auto type : componentTypes)
+		//	componentMask.set(cm.idFromType(type));
+		componentTypes.clear();
+	}
+
 }

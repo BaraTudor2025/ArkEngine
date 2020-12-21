@@ -217,5 +217,8 @@
     <ClInclude Include="LuaScriptingSystem.hpp">
       <Filter>Systems</Filter>
     </ClInclude>
+    <ClInclude Include="src\ark\ecs\Querry.hpp">
+      <Filter>ark\ecs</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

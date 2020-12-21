@@ -8,7 +8,7 @@
 
 namespace ark {
 
-	const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
+	const ComponentManager::ComponentMask& Entity::getComponentMask() const { return manager->getComponentMaskOfEntity(*this); }
 
 	void State::requestStackPush(int stateId)
 	{

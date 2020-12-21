@@ -9,20 +9,11 @@
 
 namespace ark {
 
+	// created with Scene::makeQuerry({typeid(Component)...});
 	class EntityQuerry {
-		friend class Scene;
-		struct SharedData {
-			ComponentManager::ComponentMask componentMask;
-			std::vector<Entity> entities;
-			std::vector<std::function<void(Entity)>> addEntityCallbacks;
-			std::vector<std::function<void(Entity)>> removeEntityCallbacks;
-
-		};
-		std::shared_ptr<SharedData> data;
-
 	public:
+
 		EntityQuerry() = default;
-		EntityQuerry(std::shared_ptr<SharedData> data) : data(std::move(data)) {}
 
 		auto getEntities() const -> const std::vector<Entity>& { return data->entities; }
 
@@ -43,5 +34,18 @@ namespace ark {
 				f(entity);
 			}
 		}
+
+	private:
+		friend class Scene;
+		struct SharedData {
+			ComponentManager::ComponentMask componentMask;
+			std::vector<Entity> entities;
+			std::vector<std::function<void(Entity)>> addEntityCallbacks;
+			std::vector<std::function<void(Entity)>> removeEntityCallbacks;
+
+		};
+		std::shared_ptr<SharedData> data;
+		EntityQuerry(std::shared_ptr<SharedData> data) : data(std::move(data)) {}
+
 	};
 }

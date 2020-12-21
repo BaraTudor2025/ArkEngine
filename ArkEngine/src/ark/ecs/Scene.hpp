@@ -60,7 +60,8 @@ namespace ark {
 		// is removed in Scene::update()
 		void safeRemoveComponent(Entity e, std::type_index type) {
 			// TODO (querry): adauga optimizare pentru querry remove, poate un vector<bitmask> ca parcurgerea sa fie liniara
-			this->mComponentsToRemove.emplace_back(e, type);
+
+			this->mComponentsToRemove.push_back({ e, type });
 		}
 
 		// is destroyed in Scene::update()
@@ -84,21 +85,38 @@ namespace ark {
 			return this->entityManager.entitiesView();
 		}
 
+		[[nodiscard]]
+		auto makeQuerry(const std::vector<std::type_index>& types) -> EntityQuerry 
+		{
+			auto mask = ComponentManager::ComponentMask();
+			for (auto type : types) {
+				mask.set(componentManager.idFromType(type));
+			}
+			return makeQuerry(mask);
+		}
+
+		[[nodiscard]]
 		auto makeQuerry(ComponentManager::ComponentMask mask) -> EntityQuerry 
 		{
 			assert(("empty component mask", !mask.none()));
 			int cleanup = 0;
-			// search for existing/cached querries
+			auto pos = std::vector<int>();
+			int index = 0;
+			// search for existing/cached querry
 			for (auto& querry : querries) {
 				if (querry.expired()) {
 					cleanup += 1;
+					pos.push_back(index);
 				}
 				else if (auto data = querry.lock(); data->componentMask == mask) {
 					return EntityQuerry{std::move(data)};
 				}
+				index++;
 			}
-			for (int i = 0; i < cleanup; i++)
+			for (int i = 0; i < cleanup; i++) {
 				Util::erase_if(querries, [](auto& q) { return q.expired(); });
+				Util::erase(querryMasks, querryMasks[pos[i]]);
+			}
 
 			// if no querry already exists then make a new one
 			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>());
@@ -109,16 +127,8 @@ namespace ark {
 				}
 			}
 			this->querries.push_back(querry.data);
+			this->querryMasks.push_back(querry.data->componentMask);
 			return querry;
-		}
-
-		auto makeQuerry(const std::vector<std::type_index>& types) -> EntityQuerry 
-		{
-			auto mask = ComponentManager::ComponentMask();
-			for (auto type : types) {
-				mask.set(componentManager.idFromType(type));
-			}
-			return makeQuerry(mask);
 		}
 
 		template <typename T, typename...Args>
@@ -139,7 +149,6 @@ namespace ark {
 			return systemManager.getSystem<T>();
 		}
 
-		[[nodiscard]]
 		const auto& getSystems()
 		{
 			return systemManager.getSystems();
@@ -221,14 +230,13 @@ namespace ark {
 		}
 
 		/* Order of operations:
+		* update querries with destroied entities
 		* remove components with 'safe' operation
-		* update querries with entities: created, destroyed, modified
+		* update querries with entities: created, modified (added/removed components)
 		* update systems and then directors
 		*/
 		void update()
 		{
-			for (auto& [e, type] : mComponentsToRemove)
-				e.removeComponent(type);
 			processPendingData();
 			systemManager.forEachSystem([](System* system) {
 				system->update();
@@ -256,46 +264,62 @@ namespace ark {
 
 		void processPendingData()
 		{
-			for (auto entity : createdEntities)
-				addToQuerries(entity);
-
 			for (auto entity : destroyedEntities) {
-				removeFromQuerries(entity);
+				auto entityMask = entity.getComponentMask();
+				if (entityMask.none())
+					return;
+				forQuerries(entity, entityMask, 
+					[this](auto* data, auto e) mutable { this->removeFromQuerry(data, e); });
 				entityManager.destroyEntity(entity);
 			}
+			
+			for (auto& [e, type] : mComponentsToRemove)
+				if (e.isValid())
+					e.removeComponent(type);
 
+			for (auto entity : createdEntities)
+				forQuerries(entity, entity.getComponentMask(), 
+					[this](auto* data, auto e) mutable { this->addToQuerry(data, e); });
+
+			// modified == entity had added or removed components
 			if (auto modifiedEntities = entityManager.getModifiedEntities(); modifiedEntities.has_value()) {
-				// modified entities that have not been created now (entites created this frame are also marked as 'modified')
-				std::vector<Entity> me = Util::set_difference(modifiedEntities.value(), createdEntities);
-				for (auto entity : me) {
+				// modified entities that have not been created this frame
+				std::vector<Entity> ent_mod = Util::set_difference(modifiedEntities.value(), createdEntities);
+				for (Entity entity : ent_mod) {
 					processModifiedEntityToQuerries(entity);
 				}
 			}
 			createdEntities.clear();
 			destroyedEntities.clear();
+			mComponentsToRemove.clear();
 		}
 
 	private:
 
+		// TODO (querry): optimizat mizeria asta
 		void processModifiedEntityToQuerries(Entity entity)
 		{
 			auto entityMask = entity.getComponentMask();
-			for (auto& querry : querries) {
-				auto data = querry.lock();
-				if (!data)
-					continue;
-				if ((entityMask & data->componentMask) == data->componentMask) {
-					bool found = false;
-					for (auto& e : data->entities)
-						if (e == entity)
-							found = true;
-					if (!found) {
-						addToQuerry(data.get(), entity);
+
+			int index = 0;
+			for (auto qmask : querryMasks) {
+				auto data = querries[index].lock();
+				if ((entityMask & qmask) == qmask) {
+					if (data) {
+						// adauga daca nu este
+						bool found = false;
+						for (Entity e : data->entities)
+							if (e == entity)
+								found = true;
+						if (!found) {
+							addToQuerry(data.get(), entity);
+						}
 					}
 				}
 				else {
 					removeFromQuerry(data.get(), entity);
 				}
+				index++;
 			}
 		}
 
@@ -317,24 +341,17 @@ namespace ark {
 			});
 		}
 
-		void addToQuerries(Entity entity)
-		{
-			auto entityMask = entity.getComponentMask();
-			for (auto& querry : querries) {
-				auto data = querry.lock();
-				if (data && ((entity.getComponentMask() & data->componentMask) == data->componentMask)) {
-					addToQuerry(data.get(), entity);
+		template <typename F>
+		requires std::invocable<F, EntityQuerry::SharedData*, Entity>
+		void forQuerries(Entity entity, auto entityMask, F f) {
+			int index = 0;
+			for (auto qmask : querryMasks) {
+				if ((entityMask & qmask) == qmask) {
+					auto data = querries[index].lock();
+					if (data)
+						f(data.get(), entity);
 				}
-			}
-		}
-
-		void removeFromQuerries(Entity entity)
-		{
-			for (auto& querry : querries) {
-				auto data = querry.lock();
-				if (!data)
-					continue;
-				removeFromQuerry(data.get(), entity);
+				index++;
 			}
 		}
 
@@ -351,6 +368,11 @@ namespace ark {
 		std::vector<Entity> createdEntities;
 		std::vector<Entity> destroyedEntities;
 		std::vector<Renderer*> renderers;
+		struct ModifiedData {
+			Entity::ID id;
+			ComponentManager::ComponentMask mask;
+		};
+		//std::vector<ModifiedData> mEntitiesModified;
 	}; // class Scene
 
 	inline void System::constructQuerry()

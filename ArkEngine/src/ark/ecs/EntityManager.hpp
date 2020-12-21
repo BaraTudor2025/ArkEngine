@@ -17,6 +17,7 @@ namespace ark {
 	class EntitiesView;
 	class RuntimeComponentView;
 
+
 	class EntityManager final : public NonCopyable, public NonMovable {
 
 	public:
@@ -26,7 +27,6 @@ namespace ark {
 				std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
 				upstreamComponent) { }
 
-	public:
 
 		auto createEntity() -> Entity
 		{
@@ -209,14 +209,6 @@ namespace ark {
 
 		auto entitiesView() -> EntitiesView;
 
-		void destroyComponent(std::type_index type, void* component)
-		{
-			auto metadata = meta::getMetadata(type);
-			if(metadata->destructor)
-				metadata->destructor(component);
-			componentPool.deallocate(component, metadata->size, metadata->align);
-		}
-
 #if 0 // disable entity children
 		void addChildTo(Entity p, Entity c)
 		{
@@ -289,7 +281,7 @@ namespace ark {
 			int id = 0;
 			for (const auto& entity : entities) {
 				auto it = std::find(freeEntities.begin(), freeEntities.end(), id);
-				// components of entity need to be destroyed
+				// destroy components only for live entities
 				if (it == freeEntities.end()) {
 					for (const auto& compData : entity.components) {
 						auto metadata = meta::getMetadata(compData.type);
@@ -302,6 +294,13 @@ namespace ark {
 		}
 
 	private:
+		void destroyComponent(std::type_index type, void* component)
+		{
+			auto metadata = meta::getMetadata(type);
+			if(metadata->destructor)
+				metadata->destructor(component);
+			componentPool.deallocate(component, metadata->size, metadata->align);
+		}
 
 		void onConstruction(std::type_index type, void* ptr, Entity e)
 		{
@@ -347,6 +346,7 @@ namespace ark {
 		friend class RuntimeComponentView;
 		friend class EntitiesView;
 		friend class Scene;
+		friend class Entity;
 	};
 
 	struct RuntimeComponentIterator {
@@ -456,6 +456,15 @@ namespace ark {
 
 
 	/* Entity handle definitions */
+
+	inline bool Entity::isValid() const {
+		if (manager == nullptr)
+			return false;
+		for (int id : manager->freeEntities)
+			if (id == this->id)
+				return false;
+		return /*probably*/ true; 
+	}
 
 	template<typename T, typename ...Args>
 	inline T& Entity::addComponent(Args&& ...args)

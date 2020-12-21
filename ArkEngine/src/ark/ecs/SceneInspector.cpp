@@ -200,8 +200,8 @@ namespace ark {
 							// can't delete Tag or Transform
 							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
 								 deleted = AlignButtonToRight("remove component", [&]() {
-									delayDelete = [=]() mutable {
-										entity.removeComponent(component.type);
+									delayDelete = [entity, type = component.type, this]() mutable {
+										scene.safeRemoveComponent(entity, type);
 									};
 								});
 							}

@@ -22,7 +22,7 @@ namespace ark
 		virtual ~System() = default;
 
 		virtual void init() {}
-		virtual void update() {}
+		virtual void update() = 0;
 		virtual void handleEvent(sf::Event) {}
 		virtual void handleMessage(const Message&) {}
 
@@ -59,8 +59,7 @@ namespace ark
 		friend class SystemManager;
 		ComponentManager* componentManager = nullptr;
 		EntityQuerry querry;
-		std::vector<std::type_index> componentTypes;
-		ComponentManager::ComponentMask componentMask;
+		std::vector<std::type_index> componentTypes; // folosit temporar doar pentru construcita lui querry
 		Scene* m_scene = nullptr;
 		MessageBus* messageBus = nullptr;
 		// used for inspection
@@ -93,9 +92,6 @@ namespace ark
 			system->messageBus = &messageBus;
 			system->init();
 			system->constructQuerry();
-			if (system->componentMask.none())
-				EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", system->name);
-
 			return dynamic_cast<T*>(system);
 		}
 

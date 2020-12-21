@@ -160,6 +160,8 @@ public:
 		requireComponent<Text>();
 	}
 
+	void update() override {}
+
 	void render(sf::RenderTarget& target) override
 	{
 		for (auto entity : getEntities())

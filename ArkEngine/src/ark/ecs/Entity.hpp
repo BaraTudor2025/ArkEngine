@@ -60,16 +60,21 @@ namespace ark {
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		// TODO: remove on postUpdate?
+
+	private:
+		// use Scene::safeRemoveComponent(Entity e, std::type_index componentType)
 		template <typename T>
 		void removeComponent();
 
+		// use Scene::safeRemoveComponent(Entity e, std::type_index componentType)
 		void removeComponent(std::type_index type);
 
+	public:
 		[[nodiscard]]
-		const ComponentManager::ComponentMask& getComponentMask();
+		auto getComponentMask() const -> const ComponentManager::ComponentMask&;
 
 		[[nodiscard]]
-		bool isValid() const { return manager != nullptr; }
+		bool isValid() const;
 
 #if 0 //disable entity children
 

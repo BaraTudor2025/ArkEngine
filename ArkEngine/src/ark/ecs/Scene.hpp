@@ -57,12 +57,13 @@ namespace ark {
 			entityManager.addOnConstruction<TComponent>(std::forward<F>(f));
 		}
 
-		// removes next frame after other pending updates
+		// is removed in Scene::update()
 		void safeRemoveComponent(Entity e, std::type_index type) {
-			// TODO(querry): adauga optimizare pentru querry remove, poate un vector<bitmask> ca parcurgerea sa fie liniara
+			// TODO (querry): adauga optimizare pentru querry remove, poate un vector<bitmask> ca parcurgerea sa fie liniara
 			this->mComponentsToRemove.emplace_back(e, type);
 		}
 
+		// is destroyed in Scene::update()
 		void destroyEntity(Entity entity)
 		{
 			destroyedEntities.push_back(entity);
@@ -343,7 +344,7 @@ namespace ark {
 		EntityManager entityManager;
 		MessageBus& mMessageBus;
 
-		//std::vector<ComponentManager::ComponentMask> querryMasks;
+		std::vector<ComponentManager::ComponentMask> querryMasks;
 		std::vector<std::weak_ptr<EntityQuerry::SharedData>> querries;
 		std::vector<std::pair<Entity, std::type_index>> mComponentsToRemove;
 		std::vector<std::unique_ptr<Director>> mDirectors;
@@ -357,6 +358,12 @@ namespace ark {
 		for (auto type : componentTypes)
 			componentNames.push_back(meta::getMetadata(type)->name);
 		querry = m_scene->makeQuerry(componentTypes);
+		querry.onEntityAdd([this](Entity e) mutable {
+			this->onEntityAdded(e);
+		});
+		querry.onEntityRemove([this](Entity e) mutable {
+			this->onEntityRemoved(e);
+		});
 
 		//for (auto type : componentTypes)
 		//	componentMask.set(cm.idFromType(type));

@@ -13,7 +13,7 @@
 
 namespace ark {
 
-	class Scene;
+	class Registry;
 	class EntitiesView;
 	class RuntimeComponentView;
 
@@ -345,7 +345,7 @@ namespace ark {
 		friend struct EntityIterator;
 		friend class RuntimeComponentView;
 		friend class EntitiesView;
-		friend class Scene;
+		friend class Registry;
 		friend class Entity;
 	};
 

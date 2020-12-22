@@ -11,7 +11,7 @@
 
 namespace ark {
 
-	class Scene;
+	class Registry;
 	class MessageBus;
 
 	class ARK_ENGINE_API Engine final : public NonCopyable, public NonMovable{

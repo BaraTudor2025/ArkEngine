@@ -13,7 +13,7 @@
 
 namespace ark
 {
-	class Scene;
+	class Registry;
 
 	class ARK_ENGINE_API System : public NonCopyable {
 
@@ -48,7 +48,7 @@ namespace ark
 			return messageBus->post<T>(id);
 		}
 
-		Scene* scene() { return m_scene; }
+		Registry* registry() { return mRegisry; }
 
 		virtual void onEntityAdded(Entity) {}
 		virtual void onEntityRemoved(Entity) {}
@@ -60,7 +60,7 @@ namespace ark
 		ComponentManager* componentManager = nullptr;
 		EntityQuerry querry;
 		std::vector<std::type_index> componentTypes; // folosit temporar doar pentru construcita lui querry
-		Scene* m_scene = nullptr;
+		Registry* mRegisry = nullptr;
 		MessageBus* messageBus = nullptr;
 		// used for inspection
 		std::vector<std::string_view> componentNames;
@@ -76,7 +76,7 @@ namespace ark
 	class SystemManager {
 
 	public:
-		SystemManager(MessageBus& bus, Scene& scene, ComponentManager& compMgr) : messageBus(bus), scene(scene), componentManager(compMgr) {}
+		SystemManager(MessageBus& bus, Registry& registry, ComponentManager& compMgr) : messageBus(bus), registry(registry), componentManager(compMgr) {}
 		~SystemManager() = default;
 
 		template <typename T, typename...Args>
@@ -87,7 +87,7 @@ namespace ark
 
 			System* system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
 			activeSystems.push_back(system);
-			system->m_scene = &scene;
+			system->mRegisry = &registry;
 			system->componentManager = &componentManager;
 			system->messageBus = &messageBus;
 			system->init();
@@ -138,7 +138,7 @@ namespace ark
 			}
 		}
 
-		// used by Scene to call handleEvent, handleMessage, update
+		// used by Registry to call handleEvent, handleMessage, update
 		template <typename F>
 		void forEachSystem(F f)
 		{
@@ -168,7 +168,7 @@ namespace ark
 		std::vector<std::unique_ptr<System>> systems;
 		std::vector<System*> activeSystems;
 		MessageBus& messageBus;
-		Scene& scene;
+		Registry& registry;
 		ComponentManager& componentManager;
 	};
 }

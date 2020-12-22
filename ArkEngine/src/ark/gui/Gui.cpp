@@ -80,8 +80,8 @@ namespace ark {
 		case LogSource::Message:
 			return "Message";
 
-		case LogSource::Scene:
-			return "Scene";
+		case LogSource::Registry:
+			return "Registry";
 
 		case LogSource::Engine:
 			return "Engine";

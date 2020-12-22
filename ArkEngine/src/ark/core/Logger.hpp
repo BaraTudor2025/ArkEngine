@@ -18,7 +18,7 @@ namespace ark {
 		StateStack,
 		MessageBus,
 		Message,
-		Scene,
+		Registry,
 		Engine
 	};
 

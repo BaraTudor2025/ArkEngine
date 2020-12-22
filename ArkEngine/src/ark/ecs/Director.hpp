@@ -10,7 +10,7 @@
 
 namespace ark
 {
-	class Scene;
+	class Registry;
 	class EntityManager;
 
 	class Director {
@@ -31,17 +31,17 @@ namespace ark
 			return mMessageBus->post<T>(id);
 		}
 
-		ROPROPERTY(getScene) Scene scene;
+		ROPROPERTY(getRegistry) Registry registry;
 		ROPROPERTY(getType) std::type_index type;
 
-		Scene& getScene() const { return *mScene; }
+		Registry& getRegistry() const { return *mRegistry; }
 		std::type_index getType() const { return mType; }
 
 	private:
 		MessageBus* mMessageBus;
-		Scene* mScene;
+		Registry* mRegistry;
 		std::type_index mType = typeid(Director);
 
-		friend class Scene;
+		friend class Registry;
 	};
 }

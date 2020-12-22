@@ -149,11 +149,11 @@ namespace ark
 			if (failure) {
 				auto mdata = ark::meta::getMetadata(typeid(Type));
 				if (mdata)
-					EngineLog(LogSource::Scene, LogLevel::Error,
+					EngineLog(LogSource::Registry, LogLevel::Error,
 						"failed to deser property (%s) on component (%s) on entity (%d)",
 						property.getName(), mdata->name, entity.getID());
 				else
-					EngineLog(LogSource::Scene, LogLevel::Error,
+					EngineLog(LogSource::Registry, LogLevel::Error,
 						"failed to deser property (%s) on entity (%s)",
 						property.getName(), entity.getID());
 			}

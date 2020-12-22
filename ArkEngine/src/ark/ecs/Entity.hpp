@@ -62,11 +62,11 @@ namespace ark {
 		// TODO: remove on postUpdate?
 
 	private:
-		// use Scene::safeRemoveComponent(Entity e, std::type_index componentType)
+		// use Registry::safeRemoveComponent(Entity e, std::type_index componentType)
 		template <typename T>
 		void removeComponent();
 
-		// use Scene::safeRemoveComponent(Entity e, std::type_index componentType)
+		// use Registry::safeRemoveComponent(Entity e, std::type_index componentType)
 		void removeComponent(std::type_index type);
 
 	public:
@@ -136,6 +136,6 @@ namespace ark {
 		EntityManager* manager = nullptr;
 		int id = ArkInvalidIndex;
 		friend class EntityManager;
-		friend class Scene;
+		friend class Registry;
 	};
 }

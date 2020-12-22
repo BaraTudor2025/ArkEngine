@@ -28,15 +28,15 @@ public:
 
 	std::type_index getType() const { return mType; }
 
-	__declspec(property(get = getScene))
-		ark::Scene& scene;
+	__declspec(property(get = getRegistry))
+		ark::Registry& registry;
 
-	ark::Scene& getScene() { return *mScene; }
+	ark::Registry& getRegistry() { return *mRegistry; }
 
 private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
-	ark::Scene* mScene;
+	ark::Registry* mRegistry;
 	std::type_index mType;
 
 	friend class ScriptingSystem;
@@ -133,9 +133,9 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		mEntity = e;
 	}
 
-	void _setScene(ark::Scene* scene)
+	void _setScene(ark::Registry* registry)
 	{
-		mScene = scene;
+		mRegistry = registry;
 	}
 
 private:
@@ -143,12 +143,12 @@ private:
 	void _bindScript(Script* script)
 	{
 		script->mEntity = mEntity;
-		script->mScene = mScene;
+		script->mRegistry = mRegistry;
 		script->bind();
 	}
 
 	ark::Entity mEntity;
-	ark::Scene* mScene;
+	ark::Registry* mRegistry;
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 
@@ -184,7 +184,7 @@ static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::jso
 	for(auto& script : scriptingComp->mScripts){
 		const auto* mdata = ark::meta::getMetadata(script->type);
 		script->mEntity = scriptingComp->mEntity;
-		script->mScene = scriptingComp->mScene;
+		script->mRegistry = scriptingComp->mRegistry;
 		script->bind();
 		if (auto deserialize = ark::meta::getService<void(ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
 			deserialize(entity, jsonScripts.at(mdata->name), script.get());

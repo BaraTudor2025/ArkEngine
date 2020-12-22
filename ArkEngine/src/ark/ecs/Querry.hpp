@@ -3,13 +3,13 @@
 #include "Component.hpp"
 #include "Entity.hpp"
 #include <functional>
-#include <concepts>
 #include <vector>
 #include <memory>
+#include <concepts>
 
 namespace ark {
 
-	// created with Scene::makeQuerry({typeid(Component)...});
+	// created with Registry::makeQuerry({typeid(Component)...});
 	class EntityQuerry {
 	public:
 
@@ -36,7 +36,7 @@ namespace ark {
 		}
 
 	private:
-		friend class Scene;
+		friend class Registry;
 		struct SharedData {
 			ComponentManager::ComponentMask componentMask;
 			std::vector<Entity> entities;
@@ -46,6 +46,5 @@ namespace ark {
 		};
 		std::shared_ptr<SharedData> data;
 		EntityQuerry(std::shared_ptr<SharedData> data) : data(std::move(data)) {}
-
 	};
 }

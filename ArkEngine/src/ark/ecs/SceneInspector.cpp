@@ -69,14 +69,14 @@ namespace ark {
 			}
 		};
 
-		treeWithSeparators("Systems:", scene.getSystems(), getLabel, renderElem);
+		treeWithSeparators("Systems:", registry.getSystems(), getLabel, renderElem);
 	}
 
 #if 0
 	void SceneInspector::renderSystemInspector()
 	{
 		if (ImGui::TreeNode("Systems:")) {
-			for (const auto& uSys : scene.getSystems()) {
+			for (const auto& uSys : registry.getSystems()) {
 				const System* system = uSys.get();
 				std::string text = tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
 				if (ImGui::TreeNodeEx(text.c_str(), ImGuiTreeNodeFlags_CollapsingHeader)) {
@@ -124,7 +124,7 @@ namespace ark {
 
 					ImGui::TextUnformatted("Components:");
 					for (const auto& compData : entity.components) {
-						const auto type = scene.componentTypeFromId(compData.id);
+						const auto type = registry.componentTypeFromId(compData.id);
 						ImGui::BulletText(Util::getNameOfType(type));
 					}
 
@@ -173,7 +173,7 @@ namespace ark {
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			for (const auto entity : scene.entitiesView()) {
+			for (const auto entity : registry.entitiesView()) {
 				auto name = getNameOfEntity(entity);
 				if (ImGui::Selectable(name.c_str(), selectedEntity == entity.getID()))
 					selectedEntity = entity.getID();
@@ -184,7 +184,7 @@ namespace ark {
 			// editor of selected entity
 			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
 			if (selectedEntity != -1) {
-				auto entity = scene.entityFromId(selectedEntity);
+				auto entity = registry.entityFromId(selectedEntity);
 
 				std::function<void()> delayDelete;
 				int widgetId = 0;
@@ -201,7 +201,7 @@ namespace ark {
 							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
 								 deleted = AlignButtonToRight("remove component", [&]() {
 									delayDelete = [entity, type = component.type, this]() mutable {
-										scene.safeRemoveComponent(entity, type);
+										registry.safeRemoveComponent(entity, type);
 									};
 								});
 							}
@@ -222,9 +222,9 @@ namespace ark {
 					return true;
 				};
 				int componentItemIndex;
-				const auto& types = scene.getComponentTypes();
+				const auto& types = registry.getComponentTypes();
 				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
-					Entity e = scene.entityFromId(selectedEntity);
+					Entity e = registry.entityFromId(selectedEntity);
 					e.addComponent(types.at(componentItemIndex));
 				}
 			}

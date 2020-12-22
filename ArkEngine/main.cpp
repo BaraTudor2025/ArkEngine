@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cmath>
 #include <thread>
+#include <memory_resource>
+#include <concepts>
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System/String.hpp>
@@ -231,19 +233,20 @@ enum States {
 class BasicState : public ark::State {
 
 protected:
-	ark::Scene scene{ getMessageBus() };
+	ark::Registry registry;
 	sf::Sprite screen;
 	sf::Texture screenImage;
 	bool takenSS = false;
 	bool pauseScene = false;
 
 public:
-	BasicState(ark::MessageBus& bus) : ark::State(bus) {}
+	BasicState(ark::MessageBus& bus, std::pmr::memory_resource* res = std::pmr::new_delete_resource()) 
+		: ark::State(bus), registry(bus, res) {}
 
 	void handleEvent(const sf::Event& event) override
 	{
 		if (!pauseScene)
-			scene.handleEvent(event);
+			registry.handleEvent(event);
 
 		if (event.type == sf::Event::KeyPressed)
 			if (event.key.code == sf::Keyboard::F1) {
@@ -255,25 +258,25 @@ public:
 	void handleMessage(const ark::Message& message) override
 	{
 		if (!pauseScene)
-			scene.handleMessage(message);
+			registry.handleMessage(message);
 	}
 
 	void update() override
 	{
 		if (!pauseScene) {
-			scene.update();
+			registry.update();
 		}
 		else
-			scene.processPendingData();
+			registry.processPendingData();
 	}
 
 	void render(sf::RenderTarget& target) override
 	{
 		if (!pauseScene) {
-			scene.render(target);
+			registry.render(target);
 		}
 		else if (!takenSS) {
-			scene.render(target);
+			registry.render(target);
 			takenSS = true;
 			auto& win = Engine::getWindow();
 			auto [x, y] = win.getSize();
@@ -327,7 +330,8 @@ public:
 			if (da.time <= sf::Time::Zero) {
 				if (da.action) {
 					auto action = std::move(da.action);
-					entity.removeComponent<DelayedAction>();
+					registry()->safeRemoveComponent(entity, typeid(DelayedAction));
+					//entity.removeComponent<DelayedAction>();
 					action(entity);
 				}
 			}
@@ -356,7 +360,7 @@ public:
 	char key = 'k';
 
 	void bind() noexcept override {
-		serde = scene.getDirector<ark::SerdeJsonDirector>();
+		serde = registry.getDirector<ark::SerdeJsonDirector>();
 	}
 
 	void handleEvent(const sf::Event& ev) noexcept override
@@ -392,7 +396,7 @@ private:
 
 	ark::Entity makeEntity(std::string name)
 	{
-		Entity e = scene.createEntity();
+		Entity e = registry.createEntity();
 		e.addComponent<ark::TagComponent>(name);
 		e.addComponent<ark::Transform>();
 		return e;
@@ -400,39 +404,45 @@ private:
 
 	void init() override
 	{
-		scene.addSystem<PointParticleSystem>();
-		scene.addSystem<PixelParticleSystem>();
-		scene.addSystem<ButtonSystem>();
-		scene.addSystem<TextSystem>();
-		scene.addSystem<AnimationSystem>();
-		scene.addSystem<DelayedActionSystem>();
+		registry.addSystem<PointParticleSystem>();
+		registry.addSystem<PixelParticleSystem>();
+		registry.addSystem<ButtonSystem>();
+		registry.addSystem<TextSystem>();
+		registry.addSystem<AnimationSystem>();
+		registry.addSystem<DelayedActionSystem>();
+
+		// TODO
+		//registry.addDefaultComponent<ark::TagComponent>();
+		//registry.addDefaultComponent<ark::Transform>();
+		//registry.addDefaultComponent(typeid(ark::Transform));
+		//registry.addDefaultComponent(typeid(ark::TagComponent));
 
 		// setup for tags
-		scene.onConstruction<TagComponent>([&](ark::Entity e, TagComponent& tag) {
+		registry.onConstruction<TagComponent>([&](ark::Entity e, TagComponent& tag) {
 			tag._setEntity(e);
 			if (tag.name.empty())
 				tag.name = std::string("entity_") + std::to_string(e.getID());
 		});
 
 		// setup for scripts
-		scene.addSystem<ScriptingSystem>();
-		scene.onConstruction<ScriptingComponent>([scene = &this->scene](ark::Entity e, ScriptingComponent* comp) {
-			comp->_setScene(scene);
+		registry.addSystem<ScriptingSystem>();
+		registry.onConstruction<ScriptingComponent>([registry = &this->registry](ark::Entity e, ScriptingComponent* comp) {
+			comp->_setScene(registry);
 			comp->_setEntity(e);
 		});
 
 		// setup for lua scripts
-		auto pLuaScriptingSystem = scene.addSystem<LuaScriptingSystem>();
-		scene.onConstruction<LuaScriptingComponent>([pLuaScriptingSystem](ark::Entity entity, LuaScriptingComponent& comp) {
+		auto pLuaScriptingSystem = registry.addSystem<LuaScriptingSystem>();
+		registry.onConstruction<LuaScriptingComponent>([pLuaScriptingSystem](ark::Entity entity, LuaScriptingComponent& comp) {
 			comp._setEntity(entity);
 			comp._setSystem(pLuaScriptingSystem);
 		});
 
-		auto* inspector = scene.addDirector<SceneInspector>();
-		auto* serde = scene.addDirector<SerdeJsonDirector>();
-		scene.addDirector<FpsCounterDirector>();
-		ImGuiLayer::addTab({ "scene inspector", [=]() { inspector->renderSystemInspector(); } });
-		//scene.addSystem<TestMessageSystem>();
+		auto* inspector = registry.addDirector<SceneInspector>();
+		auto* serde = registry.addDirector<SerdeJsonDirector>();
+		registry.addDirector<FpsCounterDirector>();
+		ImGuiLayer::addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
+		//registry.addSystem<TestMessageSystem>();
 
 		button = makeEntity("button");
 		mouseTrail = makeEntity("mouse_trail");
@@ -445,7 +455,7 @@ private:
 		serde->deserializeEntity(player);
 		
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		/*player = scene.createEntity("player2");
+		/*player = registry.createEntity("player2");
 		auto& transform = player.addComponent<Transform>();
 		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
@@ -463,6 +473,7 @@ private:
 		auto[w, h] = Engine::windowSize();
 		pp.platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 
+		std::vector<ComponentManager::ComponentMask> que
 		moveScript->setScale({0.1, 0.1});
 
 		player.addComponent<DelayedAction>(sf::seconds(4), [this, serde](Entity e) {
@@ -496,7 +507,7 @@ private:
 		}
 
 #if 1
-		ark::Entity rainbowClone = scene.cloneEntity(rainbowPointParticles);
+		ark::Entity rainbowClone = registry.cloneEntity(rainbowPointParticles);
 		//rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
 		{
 			auto& scripts = rainbowClone.addComponent<ScriptingComponent>();
@@ -517,7 +528,7 @@ private:
 			scripts.addScript<EmittFromMouse>();
 		}
 		firePointParticles.addComponent<DelayedAction>(sf::seconds(5), [this](ark::Entity e) {
-			scene.destroyEntity(e);
+			registry.destroyEntity(e);
 		});
 
 
@@ -642,8 +653,324 @@ struct erased_function {
 	void(*fun)(void*) = nullptr;
 };
 
+// basically a ring-buffer, allocate TEMPORARY objects(no more than a few frames)
+// when the it reaches the end of the buffer then loop from the beginning,
+// if objects are still alive on loop they will get rewriten, allocate bigger buffer next time :P
+class TemporaryResource : public std::pmr::memory_resource {
+	std::unique_ptr<std::byte[]> memory;
+	size_t size;
+	void* ptr;
+	size_t remainingSize;
+	struct {
+		void* ptr;
+		size_t bytes;
+	} lastDeallocation;
+public:
+	TemporaryResource(size_t size) 
+		: memory(new std::byte[size]), ptr(memory.get())
+		, size(size), remainingSize(size) { }
+
+	void* do_allocate(const size_t bytes, const size_t align) override {
+		if (std::align(align, bytes, ptr, remainingSize)) {
+			this->remainingSize -= bytes;
+			void* mem = ptr;
+			ptr = (std::byte*)ptr + bytes;
+			return mem;
+		}
+		else {
+			if (remainingSize == size)
+				return nullptr;
+			ptr = memory.get();
+			remainingSize = size;
+			return do_allocate(bytes, align);
+		}
+	}
+
+	// lol
+	void do_deallocate(void* p, size_t bytes, size_t align) override {
+		lastDeallocation = { p, bytes };
+	}
+
+	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
+		return this == &mem;
+	}
+};
+
+class SegregatorResource : public std::pmr::memory_resource {
+	std::pmr::memory_resource* small;
+	std::pmr::memory_resource* large;
+	int threshold;
+public:
+	SegregatorResource(int threshold, std::pmr::memory_resource* small, std::pmr::memory_resource* large)
+		: small(small), large(large), threshold(threshold) { }
+
+	void* do_allocate(const size_t bytes, const size_t align) override {
+		if (bytes <= threshold)
+			return small->allocate(bytes, align);
+		else
+			return large->allocate(bytes, align);
+	}
+	void do_deallocate(void* p, size_t bytes, size_t align) override {
+		if (bytes <= threshold)
+			small->deallocate(p, bytes, align);
+		else
+			large->deallocate(p, bytes, align);
+	}
+	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
+		return this == &mem;
+	}
+};
+
+class AffixAllocator : public std::pmr::memory_resource {
+	std::pmr::memory_resource* upstream;
+
+public:
+	struct Callback {
+		// pointer, size, align allocate=true, dealloc=false
+		std::function<void(size_t, size_t, bool)> prefix;
+		std::function<void(void*, size_t, size_t, bool)> postfix;
+	}cbs;
+
+	AffixAllocator(std::pmr::memory_resource* up, Callback cb)
+		: upstream(up), cbs(cb) {}
+
+	void* do_allocate(const size_t bytes, const size_t align) override {
+		if(cbs.prefix)
+			cbs.prefix(bytes, align, true);
+		void* p = upstream->allocate(bytes, align);
+		if(cbs.postfix)
+			cbs.postfix(p, bytes, align, true);
+		return p;
+	}
+	void do_deallocate(void* p, size_t bytes, size_t align) override {
+		if(cbs.prefix)
+			cbs.prefix(bytes, align, false);
+		upstream->deallocate(p, bytes, align);
+		if(cbs.postfix)
+			cbs.postfix(nullptr, bytes, align, false);
+	}
+	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
+		return this == &mem;
+	}
+};
+
+class TrackingResource : public std::pmr::memory_resource {
+
+};
+
+class FallBackResource : public std::pmr::memory_resource {
+	std::pmr::memory_resource* primary;
+	std::pmr::memory_resource* secondary;
+	std::deque<void*> secondaryPtrs;
+
+public:
+	FallBackResource(std::pmr::memory_resource* p, std::pmr::memory_resource* s)
+		: primary(p), secondary(s) { }
+	
+	void* do_allocate(const size_t bytes, const size_t align) override {
+		void* p = primary->allocate(bytes, align);
+		if (!p) {
+			p = secondary->allocate(bytes, align);
+			secondaryPtrs.push_back(p);
+		}
+		return p;
+	}
+	void do_deallocate(void* p, size_t bytes, size_t align) override {
+		if (secondaryPtrs.empty() || secondaryPtrs.end() == std::find(secondaryPtrs.begin(), secondaryPtrs.end(), p)) {
+			primary->deallocate(p, bytes, align);
+			Util::erase(secondaryPtrs, p);
+		}
+		else
+			secondary->deallocate(p, bytes, align);
+	}
+	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
+		return this == &mem;
+	}
+};
+
+auto makePrintingMemoryResource(std::string name, std::pmr::memory_resource* upstream) -> AffixAllocator 
+{
+	auto printing_prefix = [name](size_t bytes, size_t, bool alloc) {
+		if (alloc)
+			std::printf("alloc(%s) : %zu bytes\n", name.c_str(), bytes);
+		else
+			std::printf("dealloc(%s) : %zu bytes\n", name.c_str(), bytes);
+	};
+	return AffixAllocator(upstream, {printing_prefix});
+}
+
+template <typename T>
+void destroyObjectFromResource(std::pmr::memory_resource* res, T* ptr)  {
+	std::destroy_at(ptr);
+	res->deallocate(ptr, sizeof(T), alignof(T));
+}
+
+template <typename T, typename...Args>
+auto makeObjectFromResource(std::pmr::memory_resource* res, Args&&... args) -> T* {
+	void* ptr = res->allocate(sizeof(T), alignof(T));
+	return std::construct_at<T>(ptr, std::forward<Args>(args)...);
+}
+
+
+struct PmrResourceDeleter {
+	std::pmr::memory_resource* res;
+
+	template <typename T>
+	void operator()(T* ptr) {
+		destroyObjectFromResource(res, ptr);
+	}
+};
+
+template <typename T, typename...Args>
+auto makeUniqueFromResource(std::pmr::memory_resource* res, Args&&...args) -> std::unique_ptr<T, PmrResourceDeleter>
+{
+	void* vptr = res->allocate(sizeof(T), alignof(T));
+	T* ptr = new (vptr) T(std::forward<Args>(args)...);
+	return std::unique_ptr<T, PmrResourceDeleter>(ptr, { res });
+}
+
+// delay insertion so it can be done at once
+// dar mai bine dau un 'reserve' SI GATA
+template <typename V>
+struct VectorBuilderWithResource {
+
+	std::vector<std::function<void()>> builder;
+	std::pmr::memory_resource* res;
+	V& toBuild;
+
+	VectorBuilderWithResource(V& toBuild, std::pmr::memory_resource* res) : toBuild(toBuild), res(res) {}
+	VectorBuilderWithResource(V& toBuild) : toBuild(toBuild), res(toBuild.get_allocator().resource()) {}
+
+	template <typename T, typename...Args>
+	void add(Args&&... args) {
+		builder.emplace_back([this, &args...]() {
+			void* vptr = res->allocate(sizeof(T), alignof(T));
+			//T* ptr = new (vptr) T(std::forward<Args>(args)...);
+			T* ptr = new (vptr) T(std::move(args)...);
+			toBuild.emplace_back(ptr);
+		});
+	}
+
+	template <typename T, typename...Args>
+	void addUnique(Args&&... args) {
+		builder.emplace_back([this, &args...]() {
+			toBuild.emplace_back(makeUniqueFromResource<T>(res, std::move(args)...));
+			//toBuild.emplace_back(makeUniqueFromResource<T>(res, std::forward<Args>(args)...));
+		});
+	}
+
+	void build() {
+		toBuild.reserve(builder.size());
+		for (auto& f : builder) {
+			f();
+		}
+	}
+};
+
+// needs to be pmr
+template <typename T>
+struct ContainerResourceDeleterGuard {
+	T& vec;
+	ContainerResourceDeleterGuard(T& vec) : vec(vec) {}
+
+	~ContainerResourceDeleterGuard() {
+		for (auto* elem : vec)
+			destroyObjectFromResource(vec.get_allocator().resource(), elem);
+	}
+};
+
+constexpr std::size_t operator"" _KiB(unsigned long long value) noexcept
+{
+	return std::size_t(value * 1024);
+}
+
+constexpr std::size_t operator"" _KB(unsigned long long value) noexcept
+{
+	return std::size_t(value * 1000);
+}
+
+constexpr std::size_t operator"" _MiB(unsigned long long value) noexcept
+{
+	return std::size_t(value * 1024 * 1024);
+}
+
+constexpr std::size_t operator"" _MB(unsigned long long value) noexcept
+{
+	return std::size_t(value * 1000 * 1000);
+}
+
+// doesn't call destructor
+template <typename T>
+class WinkOut {
+	std::aligned_storage_t<sizeof(T), alignof(T)> storage;
+	T* _ptr() { return reinterpret_cast<T*>(&storage); }
+
+public:
+	template <typename... Args>
+	WinkOut(Args&&... args) {
+		new (&storage) T(std::forward<Args>(args)...);
+	}
+
+	T* data() { return _ptr(); }
+
+	T& operator*() {
+		return *_ptr();
+	}
+
+	T* operator->() {
+		return _ptr();
+	}
+
+	void destruct() {
+		_ptr()->~T();
+	}
+};
+
+template <typename T>
+concept CComponent = std::default_initializable<T> && std::copy_constructible<T> && std::move_constructible<T>;
+
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
+	auto default_memory_res = makePrintingMemoryResource("Rogue PMR Allocation!", std::pmr::null_memory_resource());
+	std::pmr::set_default_resource(&default_memory_res);
+
+	auto buff_size = 1000;
+	auto buffer = std::make_unique<std::byte[]>(buff_size);
+	auto track_new_del = makePrintingMemoryResource("new-del", std::pmr::new_delete_resource());
+	auto monotonic_res = std::pmr::monotonic_buffer_resource(buffer.get(), buff_size, &track_new_del);
+	auto track_monoton = makePrintingMemoryResource("monoton", &monotonic_res);
+	//auto uptr = makeUniqueFromResource<int>(&monotonic_res);
+	//auto pool = std::pmr::unsynchronized_pool_resource(&monotonic_res);
+
+	std::cout << "vector:\n";
+	//auto vec = std::pmr::vector<std::unique_ptr<bool, PmrResourceDeleter>>(&track_monoton);
+	auto track_monoton2 = makePrintingMemoryResource("vec", &monotonic_res);
+	auto vec = std::pmr::vector<bool*>(&track_monoton2);
+	auto _deleter = ContainerResourceDeleterGuard(vec);
+	auto builder = VectorBuilderWithResource(vec);
+	//builder.addUnique<bool>(true);
+	//builder.addUnique<bool>(true);
+	//builder.addUnique<bool>(true);
+	//builder.addUnique<bool>(true);
+	builder.add<bool>(true);
+	builder.add<bool>(true);
+	builder.add<bool>(true);
+	builder.add<bool>(true);
+	std::cout << "build\n";
+	builder.build();
+	std::cout << "map:\n";
+
+	auto map = std::pmr::map<std::pmr::string, int>(&track_monoton);
+	map.emplace("nush ceva string mai lung", 3);
+	map.emplace("nush ceva string mai lung1", 3);
+	map.emplace("nush ceva string mai lung2", 3);
+	map.emplace("nush ceva string mai lung3", 3);
+	map.emplace("nush ceva string mai lung4", 3);
+	map.emplace("nush ceva string mai lung5", 3);
+	map.emplace("nush ceva string mai lung6", 3);
+	//map["nush ceva string mai lung"] = 3;
+
+
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
 

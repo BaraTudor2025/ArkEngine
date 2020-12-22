@@ -18,7 +18,7 @@ namespace ark
 
 	class StateStack;
 	class MessageBus;
-	class Scene;
+	class Registry;
 
 	class State : public NonCopyable, public NonMovable {
 

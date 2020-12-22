@@ -64,7 +64,7 @@ public:
 			return tableFromPtr(luaState, pComp);
 		};
 
-		for (auto compType : scene()->getComponentTypes()) {
+		for (auto compType : registry()->getComponentTypes()) {
 			if (auto exportType = ark::meta::getService<void(sol::state_view)>(compType, "export_to_lua"))
 				exportType(lua);
 		}

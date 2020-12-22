@@ -51,7 +51,7 @@ namespace ark
 				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())
 					deserialize(entity, *it, component.ptr);
 				else
-					EngineLog(LogSource::Scene, LogLevel::Error, "deser-ing entity (%s) without component (%s)", 
+					EngineLog(LogSource::Registry, LogLevel::Error, "deser-ing entity (%s) without component (%s)", 
 						entity.getComponent<TagComponent>().name, mdata->name);
 			}
 		}

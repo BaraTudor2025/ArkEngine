@@ -6,7 +6,7 @@
 #include "ark/util/ResourceManager.hpp"
 #include "ark/ecs/components/Transform.hpp"
 
-namespace ark
+namespace ark::serde
 {
 	static inline const std::string sEntityFolder = Resources::resourceFolder + "entities/";
 
@@ -15,7 +15,7 @@ namespace ark
 		return sEntityFolder + name.data() + ".json";
 	}
 
-	void SerdeJsonDirector::serializeEntity(Entity& entity)
+	void serializeEntity(ark::Entity entity)
 	{
 		json jsonEntity;
 
@@ -32,7 +32,7 @@ namespace ark
 		of << jsonEntity.dump(4, ' ', true);
 	}
 
-	void SerdeJsonDirector::deserializeEntity(Entity& entity)
+	void deserializeEntity(ark::Entity entity)
 	{
 		json jsonEntity;
 		std::ifstream fin(getEntityFilePath(entity.getComponent<TagComponent>().name));

@@ -18,12 +18,19 @@ namespace ark {
 			: componentManager(),
 			entityManager(componentManager, upstreamComponent)
 		{}
+		~Registry() = default;
 
 		void addComponentType(std::type_index type) {
 			componentManager.addComponentType(type);
 		}
 
-		~Registry() = default;
+		int idFromType(std::type_index type) const {
+			return componentManager.idFromType(type);
+		}
+
+		auto typeFromId(int id) -> std::type_index const {
+			return componentManager.typeFromId(id);
+		}
 
 		[[nodiscard]]
 		auto createEntity() -> Entity
@@ -82,11 +89,19 @@ namespace ark {
 			return this->entityManager.entitiesView();
 		}
 
+		template <typename... Args>
+		[[nodiscard]]
+		auto makeQuerry() -> EntityQuerry 
+		{
+			return makeQuerry({ typeid(Args)... });
+		}
+
 		[[nodiscard]]
 		auto makeQuerry(const std::vector<std::type_index>& types) -> EntityQuerry 
 		{
 			auto mask = ComponentManager::ComponentMask();
 			for (auto type : types) {
+				componentManager.addComponentType(type);
 				mask.set(componentManager.idFromType(type));
 			}
 			return makeQuerry(mask);
@@ -106,7 +121,7 @@ namespace ark {
 					pos.push_back(index);
 				}
 				else if (auto data = querry.lock(); data->componentMask == mask) {
-					return EntityQuerry{std::move(data)};
+					return EntityQuerry{std::move(data), this};
 				}
 				index++;
 			}
@@ -116,7 +131,7 @@ namespace ark {
 			}
 
 			// if no querry already exists then make a new one
-			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>());
+			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>(), this);
 			querry.data->componentMask = mask;
 			for (auto entity : entitiesView()) {
 				if ((entity.getComponentMask() & mask) == mask) {
@@ -261,4 +276,14 @@ namespace ark {
 		//std::vector<ModifiedData> mEntitiesModifiedRemove;
 
 	}; // class Registry
+
+	template <typename F> 
+	requires std::invocable<F, const ark::meta::Metadata&>
+	void EntityQuerry::forComponents(F f) const {
+		if(data)
+			for (int i = 0; i < data->componentMask.size(); i++)
+				if (data->componentMask[i])
+					f(*ark::meta::getMetadata(mRegistry->typeFromId(i)));
+	}
+
 }

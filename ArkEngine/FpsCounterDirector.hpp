@@ -5,9 +5,9 @@
 #include <ark/core/Engine.hpp>
 #include <ark/util/Util.hpp>
 #include <ark/util/ResourceManager.hpp>
-#include <ark/ecs/Director.hpp>
+#include <ark/ecs/System.hpp>
 
-class FpsCounterDirector final : public ark::Director, public ark::Renderer {
+class FpsCounterDirector final : public ark::SystemT<FpsCounterDirector>, public ark::Renderer {
 	sf::Time updateElapsed;
 	sf::Text text;
 	int updateFPS = 0;
@@ -20,8 +20,6 @@ public:
 	}
 
 private:
-	void init() override {}
-
 	void update() override {
 		updateElapsed += ark::Engine::deltaTime();
 		updateFPS += 1;

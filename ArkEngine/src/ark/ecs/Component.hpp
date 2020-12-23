@@ -35,7 +35,7 @@ namespace ark {
 			return Util::contains(componentIndexes, type);
 		}
 
-		int idFromType(std::type_index type)
+		int idFromType(std::type_index type) const
 		{
 			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);
 			if (pos == std::end(componentIndexes)) {
@@ -44,6 +44,10 @@ namespace ark {
 			}
 			else 
 				return pos - std::begin(componentIndexes);
+		}
+
+		auto typeFromId(int id) const -> std::type_index {
+			return componentIndexes.at(id);
 		}
 
 		void addComponentType(std::type_index type)

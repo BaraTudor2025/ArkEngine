@@ -93,7 +93,7 @@ class ButtonSystem : public ark::SystemT<ButtonSystem>, public ark::Renderer {
 public:
 	void init() override
 	{
-		requireComponent<Button>();
+		querry = entityManager.makeQuerry<Button>();
 	}
 
 	void update() override
@@ -157,7 +157,7 @@ class TextSystem : public ark::SystemT<TextSystem>, public ark::Renderer {
 public:
 	void init() override
 	{
-		requireComponent<Text>();
+		querry = entityManager.makeQuerry<Text>();
 	}
 
 	void update() override {}

@@ -175,7 +175,7 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	nlohmann::json jsonScripts;
 	const ScriptingComponent* scriptingComp = static_cast<const ScriptingComponent*>(pvScriptComponent);
 	for (const auto& script : scriptingComp->mScripts) {
-		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::SerdeJsonDirector::serviceSerializeName)) {
+		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::serde::serviceSerializeName)) {
 			const auto* mdata = ark::meta::getMetadata(script->type);
 			jsonScripts[mdata->name] = serialize(script.get());
 		}
@@ -198,7 +198,7 @@ static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::jso
 		script->mEntity = scriptingComp->mEntity;
 		script->mRegistry = scriptingComp->mRegistry;
 		script->bind();
-		if (auto deserialize = ark::meta::getService<void(ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
+		if (auto deserialize = ark::meta::getService<void(ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::serde::serviceDeserializeName )) {
 			deserialize(entity, jsonScripts.at(mdata->name), script.get());
 		}
 	}
@@ -250,8 +250,8 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 
 ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
 	ark::meta::service<ScriptingComponent>(ark::SceneInspector::serviceName, renderScriptComponents),
-	ark::meta::service<ScriptingComponent>(ark::SerdeJsonDirector::serviceSerializeName, serializeScriptComponents),
-	ark::meta::service<ScriptingComponent>(ark::SerdeJsonDirector::serviceDeserializeName, deserializeScriptComponents)
+	ark::meta::service<ScriptingComponent>(ark::serde::serviceSerializeName, serializeScriptComponents),
+	ark::meta::service<ScriptingComponent>(ark::serde::serviceDeserializeName, deserializeScriptComponents)
 )
 {
 	return members(); 
@@ -263,7 +263,7 @@ public:
 
 	void init() override
 	{
-		requireComponent<ScriptingComponent>();
+		querry = entityManager.makeQuerry<ScriptingComponent>();
 	}
 
 	void update() override

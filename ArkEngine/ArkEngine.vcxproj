@@ -214,7 +214,6 @@
     <ClInclude Include="src\ark\ecs\Component.hpp" />
     <ClInclude Include="src\ark\ecs\components\Transform.hpp" />
     <ClInclude Include="src\ark\ecs\DefaultServices.hpp" />
-    <ClInclude Include="src\ark\ecs\Director.hpp" />
     <ClInclude Include="src\ark\ecs\Entity.hpp" />
     <ClInclude Include="src\ark\ecs\EntityManager.hpp" />
     <ClInclude Include="src\ark\ecs\Meta.hpp" />

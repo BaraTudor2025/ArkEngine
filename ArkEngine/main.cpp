@@ -318,7 +318,7 @@ class DelayedActionSystem : public ark::SystemT<DelayedActionSystem> {
 public:
 	void init() override
 	{
-		requireComponent<DelayedAction>();
+		querry = entityManager.makeQuerry<DelayedAction>();
 	}
 
 	void update() override
@@ -329,8 +329,7 @@ public:
 			if (da.time <= sf::Time::Zero) {
 				if (da.action) {
 					auto action = std::move(da.action);
-					registry()->safeRemoveComponent(entity, typeid(DelayedAction));
-					//entity.removeComponent<DelayedAction>();
+					entityManager.safeRemoveComponent(entity, typeid(DelayedAction));
 					action(entity);
 				}
 			}
@@ -352,14 +351,12 @@ public:
 };
 
 class SaveEntityScript : public ScriptT<SaveEntityScript> {
-	ark::SerdeJsonDirector* serde;
 public:
 	SaveEntityScript() = default;
 
 	char key = 'k';
 
 	void bind() noexcept override {
-		serde = systemManager.getDirector<ark::SerdeJsonDirector>();
 	}
 
 	void handleEvent(const sf::Event& ev) noexcept override
@@ -367,7 +364,7 @@ public:
 		if (ev.type == sf::Event::KeyPressed) {
 			if (ev.key.code == std::tolower(key) - 'a'){
 				auto e = entity();
-				serde->serializeEntity(e);
+				ark::serde::serializeEntity(e);
 				GameLog("just serialized entity %s", e.getComponent<TagComponent>().name);
 			}
 		}
@@ -438,9 +435,9 @@ private:
 			comp._setSystem(pLuaScriptingSystem);
 		});
 
-		auto* inspector = systems.addDirector<SceneInspector>();
-		auto* serde = systems.addDirector<SerdeJsonDirector>();
-		systems.addDirector<FpsCounterDirector>();
+		auto* inspector = systems.addSystem<SceneInspector>();
+		//auto* serde = systems.addSystem<SerdeJsonDirector>();
+		systems.addSystem<FpsCounterDirector>();
 		ImGuiLayer::addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
 		//registry.addSystem<TestMessageSystem>();
 
@@ -452,7 +449,7 @@ private:
 		rotatingParticles = makeEntity("rotating_ps");
 
 		player = makeEntity("player");
-		serde->deserializeEntity(player);
+		ark::serde::deserializeEntity(player);
 		
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
 		/*player = registry.createEntity("player2");

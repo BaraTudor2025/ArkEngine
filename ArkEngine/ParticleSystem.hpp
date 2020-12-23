@@ -281,7 +281,14 @@ class PointParticleSystem : public ark::SystemT<PointParticleSystem>, public ark
 public:
 	void init() override
 	{
-		requireComponent<PointParticles>();
+		this->querry = entityManager.makeQuerry<PointParticles>();
+		this->querry.onEntityAdd([this](ark::Entity entity) {
+			auto& p = entity.getComponent<PointParticles>();
+			if (p.spawn)
+				p.deathTimer = sf::Time::Zero;
+			else
+				p.deathTimer = p.lifeTime;
+		});
 	}
 
 	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
@@ -289,7 +296,6 @@ public:
 	static inline float gravityMagnitude = 20;
 	static inline bool hasUniversalGravity = true;
 
-	void onEntityAdded(ark::Entity) override;
 	void update() override;
 	void render(sf::RenderTarget&) override;
 
@@ -304,7 +310,14 @@ class PixelParticleSystem : public ark::SystemT<PixelParticleSystem>, public ark
 public:
 	void init() override
 	{
-		requireComponent<PixelParticles>();
+		querry = entityManager.makeQuerry<PixelParticles>();
+		querry.onEntityAdd([this](ark::Entity entity) {
+			auto& p = entity.getComponent<PixelParticles>();
+			if (p.spawn)
+				p.deathTimer = sf::Time::Zero;
+			else
+				p.deathTimer = p.lifeTime;
+		});
 	}
 
 	static inline sf::Vector2f gravityVector{ 0.f, 0.f };
@@ -312,7 +325,6 @@ public:
 	static inline float gravityMagnitude = 20;
 	static inline bool hasUniversalGravity = true;
 
-	void onEntityAdded(ark::Entity) override;
 	void update() override;
 	void render(sf::RenderTarget&) override;
 

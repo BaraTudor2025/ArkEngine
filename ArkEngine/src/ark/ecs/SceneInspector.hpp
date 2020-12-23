@@ -7,20 +7,20 @@
 #include <unordered_map>
 
 #include "ark/ecs/Meta.hpp"
-#include "ark/ecs/Director.hpp"
 #include "ark/ecs/Renderer.hpp"
+#include "ark/ecs/System.hpp"
 
 namespace ark
 {
 	class EntityManager;
 
-	class SceneInspector : public Director, public Renderer {
+	class SceneInspector : public SystemT<SceneInspector>, public Renderer {
 
 	public:
 		SceneInspector() = default;
 		~SceneInspector() = default;
 
-		void init() override;
+		void update() override {}
 		void renderSystemInspector();
 		//void renderEntityInspector();
 		void renderEntityEditor();
@@ -43,7 +43,6 @@ namespace ark
 
 	};
 }
-
 
 namespace ImGui
 {

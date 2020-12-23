@@ -155,8 +155,7 @@ public:
 
 	void init() override
 	{
-		requireComponent<ark::Transform>();
-		requireComponent<Animation>();
+		querry = entityManager.makeQuerry<ark::Transform, Animation>();
 	}
 
 	void update() override;
@@ -169,11 +168,13 @@ public:
 
 	void init() override
 	{
-		requireComponent<ark::Transform>();
-		requireComponent<Mesh>();
+		querry = entityManager.makeQuerry<ark::Transform, Mesh>();
+		querry.onEntityAdd([this](ark::Entity entity) {
+			this->onEntityAdded(entity);
+		});
 	}
 
-	void onEntityAdded(ark::Entity) override;
+	void onEntityAdded(ark::Entity);
 
 	void render(sf::RenderTarget& target) override;
 };

@@ -9,15 +9,6 @@
 //// POINT PARTICLE SYSTEM ////
 ///////////////////////////////
 
-void PointParticleSystem::onEntityAdded(ark::Entity entity)
-{
-	auto& p = entity.getComponent<PointParticles>();
-	if (p.spawn)
-		p.deathTimer = sf::Time::Zero;
-	else
-		p.deathTimer = p.lifeTime;
-}
-
 void PointParticleSystem::update()
 {
 	// disabling deathTimer
@@ -121,15 +112,6 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 ///////////////////////////////
 //// PIXEL PARTICLE SYSTEM ////
 ///////////////////////////////
-
-void PixelParticleSystem::onEntityAdded(ark::Entity entity)
-{
-	auto& p = entity.getComponent<PixelParticles>();
-	if (p.spawn)
-		p.deathTimer = sf::Time::Zero;
-	else
-		p.deathTimer = p.lifeTime;
-}
 
 void PixelParticleSystem::update()
 {

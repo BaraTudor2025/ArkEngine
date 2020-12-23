@@ -9,27 +9,19 @@
 #include <SFML/Graphics/Color.hpp>
 
 #include "ark/core/Core.hpp"
-#include "ark/ecs/Director.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Entity.hpp"
+#include "ark/ecs/System.hpp"
+#include "ark/ecs/Entity.hpp"
 
-namespace ark
+namespace ark::serde
 {
-	class Entity;
+	void serializeEntity(ark::Entity e);
 
-	class SerdeJsonDirector : public Director {
-	public:
-		SerdeJsonDirector() = default;
+	void deserializeEntity(ark::Entity e);
 
-		static inline std::string_view serviceSerializeName = "serialize";
-		static inline std::string_view serviceDeserializeName = "deserialize";
-
-		void init() override {}
-
-		void serializeEntity(Entity& e);
-
-		void deserializeEntity(Entity& e);
-	};
+	static inline std::string_view serviceSerializeName = "serialize";
+	static inline std::string_view serviceDeserializeName = "deserialize";
 }
 
 namespace sf
@@ -72,9 +64,8 @@ namespace sf
 	}
 }
 
-namespace ark
+namespace ark::serde
 {
-
 	using nlohmann::json;
 
 	// TODO (json): serialize sf::Vector2f with json::adl_serializer or meta::register?

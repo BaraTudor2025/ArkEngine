@@ -53,16 +53,18 @@ namespace ark {
 	{
 		auto getLabel = [](const auto& usys) {
 			const System* system = usys.get();
-			//return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
-			return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
+			auto count = system->getQuerry().isValid() ? system->getQuerry().getMask().count() : 0;
+			return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), count);
 		};
 
-		auto renderElem = [](const auto& usys) {
+		auto renderElem = [this](const auto& usys) {
 			const System* system = usys.get();
+			if (!system->getQuerry().isValid())
+				return;
 			ImGui::TextUnformatted("Components:");
-			for (std::string_view name : system->getComponentNames()) {
-				ImGui::BulletText(name.data());
-			}
+			system->getQuerry().forComponents([](const ark::meta::Metadata& meta) {
+				ImGui::BulletText(meta.name.c_str());
+			});
 
 			ImGui::TextUnformatted("Entities:");
 			for (Entity e : system->getEntities()) {
@@ -101,8 +103,6 @@ namespace ark {
 		}
 	}
 #endif
-
-	void SceneInspector::init() { }
 
 #if 0
 	void SceneInspector::renderEntityInspector()
@@ -174,7 +174,7 @@ namespace ark {
 			// entity list from wich you can select an entity
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			for (const auto entity : registry.entitiesView()) {
+			for (const auto entity : entityManager.entitiesView()) {
 				auto name = getNameOfEntity(entity);
 				if (ImGui::Selectable(name.c_str(), selectedEntity == entity.getID()))
 					selectedEntity = entity.getID();
@@ -185,7 +185,7 @@ namespace ark {
 			// editor of selected entity
 			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
 			if (selectedEntity != -1) {
-				auto entity = registry.entityFromId(selectedEntity);
+				auto entity = entityManager.entityFromId(selectedEntity);
 
 				std::function<void()> delayDelete;
 				int widgetId = 0;
@@ -202,7 +202,7 @@ namespace ark {
 							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
 								 deleted = AlignButtonToRight("remove component", [&]() {
 									delayDelete = [entity, type = component.type, this]() mutable {
-										registry.safeRemoveComponent(entity, type);
+										entityManager.safeRemoveComponent(entity, type);
 									};
 								});
 							}
@@ -223,9 +223,9 @@ namespace ark {
 					return true;
 				};
 				int componentItemIndex;
-				const auto& types = registry.getComponentTypes();
+				const auto& types = entityManager.getComponentTypes();
 				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
-					Entity e = registry.entityFromId(selectedEntity);
+					Entity e = entityManager.entityFromId(selectedEntity);
 					e.addComponent(types.at(componentItemIndex));
 				}
 			}

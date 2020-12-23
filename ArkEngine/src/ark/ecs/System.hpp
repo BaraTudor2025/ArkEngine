@@ -13,11 +13,12 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Querry.hpp"
 #include "ark/ecs/Renderer.hpp"
-#include "ark/ecs/Director.hpp"
 #include "ark/ecs/Scene.hpp"
 
 namespace ark
 {
+	class SystemManager;
+
 	class ARK_ENGINE_API System : public NonCopyable {
 
 	public:
@@ -34,17 +35,11 @@ namespace ark
 		const std::string name;
 		const std::type_index type;
 		auto getEntities() const -> const std::vector<Entity>& { return querry.getEntities(); }
-		auto getComponentNames() const -> const std::vector<std::string_view>& { return componentNames; }
+		auto getQuerry() const -> const EntityQuerry& { return querry; }
 
 	protected:
 
-		template <typename T>
-		void requireComponent()
-		{
-			static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-			componentTypes.push_back(typeid(T));
-			mRegisry->addComponentType(typeid(T));
-		}
+		EntityQuerry querry;
 
 		template <typename T>
 		T* postMessage(int id)
@@ -52,38 +47,20 @@ namespace ark
 			return messageBus->post<T>(id);
 		}
 
-		Registry* registry() { return mRegisry; }
+		Registry& getEntityManager() const { return *mRegisry; }
+		SystemManager& getSystemManager() const { return *mSystemManager; }
 
-		virtual void onEntityAdded(Entity) {}
-		virtual void onEntityRemoved(Entity) {}
+		__declspec(property(get=getEntityManager)) 
+			Registry entityManager;
+
+		__declspec(property(get=getSystemManager)) 
+			SystemManager systemManager;
 
 	private:
-		void constructQuerry()
-		{
-			for (auto type : componentTypes)
-				componentNames.push_back(meta::getMetadata(type)->name);
-			querry = mRegisry->makeQuerry(componentTypes);
-			querry.onEntityAdd([this](Entity e) mutable {
-				this->onEntityAdded(e);
-			});
-			querry.onEntityRemove([this](Entity e) mutable {
-				this->onEntityRemoved(e);
-			});
-
-			//for (auto type : componentTypes)
-			//	componentMask.set(cm.idFromType(type));
-			componentTypes.clear();
-		}
-
 		friend class SystemManager;
-		EntityQuerry querry;
-		// TODO: remove
-		std::vector<std::type_index> componentTypes; // folosit temporar doar pentru construcita lui querry
 		Registry* mRegisry = nullptr;
 		MessageBus* messageBus = nullptr;
-		// TODO: remove
-		// used for inspection
-		std::vector<std::string_view> componentNames;
+		SystemManager* mSystemManager = nullptr;
 		bool active = true;
 	};
 
@@ -94,7 +71,7 @@ namespace ark
 	};
 
 
-	/* NOTE: recomand declararea managerului dupa a registrului/entity-manager, ca sa poata fi distrul dupa el */
+	/* NOTE: recomand declararea managerului dupa cea a registrului/entity-manager, ca sa poata fi distrus dupa el */
 	class SystemManager {
 
 	public:
@@ -114,8 +91,8 @@ namespace ark
 			activeSystems.push_back(system);
 			system->mRegisry = &registry;
 			system->messageBus = &messageBus;
+			system->mSystemManager = this;
 			system->init();
-			system->constructQuerry();
 
 			if constexpr (std::is_base_of_v<Renderer, T>)
 				renderers.push_back(dynamic_cast<T*>(system));
@@ -211,41 +188,11 @@ namespace ark
 			}
 		}
 
-		template <typename T, typename...Args>
-		requires std::derived_from<T, Director>
-		T* addDirector(Args&&... args)
-		{
-			static_assert(std::is_base_of_v<Director, T>, " T not a system type");
-			//System* system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
-			Director* director = mDirectors.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
-			director->mRegistry = &this->registry;
-			director->mType = typeid(T);
-			director->mMessageBus = &this->messageBus;
-			director->mSystemManager = this;
-			director->init();
-			if constexpr (std::is_base_of_v<Renderer, T>)
-				renderers.push_back(dynamic_cast<Renderer*>(director));
-			return static_cast<T*>(director);
-		}
-
-		template <typename T>
-		requires std::derived_from<T, Director>
-		auto getDirector() -> T*
-		{
-			static_assert(std::is_base_of_v<Director, T>, " T not a director type");
-			for (auto& dir : mDirectors)
-				if (dir->mType == typeid(T))
-					return static_cast<T*>(dir.get());
-			return nullptr;
-		} 
-
 		void handleEvent(const sf::Event& event)
 		{
 			forEachSystem([&event](System* system){
 				system->handleEvent(event);
 			});
-			for (auto& dir : mDirectors)
-				dir->handleEvent(event);
 		}
 
 		void handleMessage(const Message& message)
@@ -253,8 +200,6 @@ namespace ark
 			forEachSystem([&message](System* system) {
 				system->handleMessage(message);
 			});
-			for (auto& dir : mDirectors)
-				dir->handleMessage(message);
 		}
 
 		void update() 
@@ -262,8 +207,6 @@ namespace ark
 			forEachSystem([](System* system) {
 				system->update();
 			});
-			for (auto& dir : mDirectors)
-				dir->update();
 		}
 
 		void preRender(sf::RenderTarget& target)
@@ -282,33 +225,7 @@ namespace ark
 				renderer->postRender(target);
 		}
 
-		//void setSystemActive(std::type_index type, bool active)
-		//{
-		//	System* system = getSystem(type);
-		//	if (!system)
-		//		return;
-
-		//	auto isCurrentlyActive = Util::contains(activeSystems, system);
-
-		//	if (isCurrentlyActive && !active) {
-		//		Util::erase(activeSystems, system);
-		//		system->active = false;
-		//	}
-		//	else if (!isCurrentlyActive && active) {
-		//		activeSystems.push_back(system);
-		//		system->active = true;
-		//	}
-
-			//if (active) {
-			//	if (!Util::contains(renderers, system))
-			//		renderers.push_back(dynamic_cast<Renderer*>(system));
-			//} else {
-			//	Util::erase(renderers, system);
-			//}
-		//}
-
 	private:
-		std::vector<std::unique_ptr<Director>> mDirectors;
 		std::vector<std::unique_ptr<System>> systems;
 		std::vector<Renderer*> renderers;
 		std::vector<System*> activeSystems;

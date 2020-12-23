@@ -55,7 +55,7 @@ public:
 
 	void init() override
 	{
-		requireComponent<LuaScriptingComponent>();
+		querry = entityManager.makeQuerry<LuaScriptingComponent>();
 		luaPath = ark::Resources::resourceFolder + "lua/";
 		lua.open_libraries(sol::lib::base);
 		lua["getComponent"] = [](sol::table selfScript, std::string_view componentName, sol::this_state luaState) mutable -> sol::table {
@@ -66,7 +66,7 @@ public:
 			return tableFromPtr(luaState, pComp);
 		};
 
-		for (auto compType : registry()->getComponentTypes()) {
+		for (auto compType : entityManager.getComponentTypes()) {
 			if (auto exportType = ark::meta::getService<void(sol::state_view)>(compType, "export_to_lua"))
 				exportType(lua);
 		}

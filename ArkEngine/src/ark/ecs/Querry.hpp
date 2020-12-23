@@ -15,7 +15,41 @@ namespace ark {
 
 		EntityQuerry() = default;
 
-		auto getEntities() const -> const std::vector<Entity>& { return data->entities; }
+		bool isValid() const { return bool(data); }
+
+		auto getEntities() const -> const std::vector<Entity>& { 
+			if (data)
+				return data->entities;
+			else
+				return {};
+		}
+
+		auto getMask() const -> ComponentManager::ComponentMask { 
+			if (data)
+				return data->componentMask;
+			else
+				return {};
+		}
+
+		template <typename F> 
+		requires std::invocable<F, const ark::meta::Metadata&>
+		void forComponents(F f) const;
+
+		template <typename F>
+		requires std::invocable<F, Entity>
+		void forEntities(F f) {
+			if(data)
+				for (Entity entity : data->entities)
+					f(entity);
+		}
+
+		template <typename F>
+		requires std::invocable<F, const Entity>
+		void forEntities(F f) const {
+			if(data)
+				for (const Entity entity : data->entities)
+					f(entity);
+		}
 
 		void onEntityAdd(std::function<void(Entity)> f) {
 			data->addEntityCallbacks.emplace_back(std::move(f));
@@ -23,16 +57,6 @@ namespace ark {
 
 		void onEntityRemove(std::function<void(Entity)> f) {
 			data->removeEntityCallbacks.emplace_back(std::move(f));
-		}
-
-		//auto getTypes() -> const std::vector<std::type_index>& { }
-
-		template <typename F>
-		requires std::invocable<F, Entity>
-		void forEntities(F f) {
-			for (Entity entity : data->entities) {
-				f(entity);
-			}
 		}
 
 	private:
@@ -45,6 +69,7 @@ namespace ark {
 
 		};
 		std::shared_ptr<SharedData> data;
-		EntityQuerry(std::shared_ptr<SharedData> data) : data(std::move(data)) {}
+		Registry* mRegistry = nullptr;
+		EntityQuerry(std::shared_ptr<SharedData> data, Registry* reg) : data(std::move(data)), mRegistry(reg) {}
 	};
 }

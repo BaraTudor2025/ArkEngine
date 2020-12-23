@@ -111,9 +111,8 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 
 	auto time = std::abs(RandomNumber(ps.lifeTimeDistribution));
 	if (ps.lifeTimeDistribution.type == DistributionType::normal) {
-		while (sf::seconds(time) > ps.lifeTime)
-			time = RandomNumber(ps.lifeTimeDistribution);
-		lifeTime = sf::seconds(time);
+		if (sf::seconds(time / 1000) > ps.lifeTime)
+			lifeTime = ps.lifeTime;
 	} else
 		lifeTime = sf::milliseconds(static_cast<int>(time));
 }

@@ -88,8 +88,8 @@ private:
 
 	void makeLifeTimeDistNormal() noexcept {
 		lifeTimeDistribution = {
-			lifeTime.asMilliseconds() / 2.f,
-			lifeTime.asMilliseconds() / 2.f,
+			(float)lifeTime.asMilliseconds() * (4.f / 10.f),
+			(float)lifeTime.asMilliseconds() / 4.5f,
 			DistributionType::normal };
 	}
 

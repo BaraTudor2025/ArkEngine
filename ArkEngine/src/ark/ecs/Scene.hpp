@@ -350,7 +350,7 @@ namespace ark {
 		}
 
 		template <typename F>
-		void forQuerries(Entity entity, auto entityMask, F f) {
+		void forQuerries(Entity entity, ComponentManager::ComponentMask entityMask, F f) {
 			int index = 0;
 			for (auto qmask : querryMasks) {
 				if ((entityMask & qmask) == qmask) {

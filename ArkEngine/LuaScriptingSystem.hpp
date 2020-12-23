@@ -15,6 +15,8 @@
 
 class LuaScriptingSystem;
 
+#define LUA_SCRIPT_UPDATING 0
+
 class LuaScriptingComponent : ark::Component<LuaScriptingComponent> {
 public:
 	LuaScriptingComponent() = default;
@@ -72,6 +74,8 @@ public:
 
 	void update() override
 	{
+
+#if LUA_SCRIPT_UPDATING
 		for (const auto& [path, lastWrite] : scriptLastWrites) {
 			const auto realLastWrite = std::filesystem::last_write_time(path);
 			if (lastWrite != realLastWrite) {
@@ -99,6 +103,7 @@ public:
 				}
 			}
 		}
+#endif
 		for (auto entity : getEntities()) {
 			auto& comp = entity.getComponent<LuaScriptingComponent>();
 			for (auto& script : comp.mScripts) {

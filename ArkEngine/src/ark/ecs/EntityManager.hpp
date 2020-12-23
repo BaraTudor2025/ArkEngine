@@ -542,4 +542,6 @@ namespace ark {
 	{
 		return manager->makeComponentView(*this);
 	}
+
+	inline auto Entity::getComponentMask() const -> const ComponentManager::ComponentMask& { return manager->getComponentMaskOfEntity(*this); }
 }

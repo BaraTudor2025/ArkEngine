@@ -112,7 +112,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)extlibs\moonjit-master\src;$(ProjectDir)extlibs\sol2\include;$(ProjectDir)extlibs\imgui;$(ProjectDir)extlibs\imgui-sfml;$(ProjectDir)extlibs\SFML-2.5.1\include;$(ProjectDir)extlibs\json\single_include;$(ProjectDir)extlibs\include;$(ProjectDir)src</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>/await /bigobj %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4244; 4267; </DisableSpecificWarnings>
     </ClCompile>
     <Link>

@@ -31,12 +31,18 @@ public:
 	__declspec(property(get = getRegistry))
 		ark::Registry& registry;
 
+	__declspec(property(get = getSystemManager))
+		ark::SystemManager& systemManager;
+
 	ark::Registry& getRegistry() { return *mRegistry; }
+
+	ark::SystemManager& getSystemManager() { return *mSystemManager; }
 
 private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
 	ark::Registry* mRegistry;
+	ark::SystemManager* mSystemManager;
 	std::type_index mType;
 
 	friend class ScriptingSystem;
@@ -138,17 +144,23 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		mRegistry = registry;
 	}
 
+	void _setSystemManager(ark::SystemManager* manager) {
+		mSystemManager = manager;
+	}
+
 private:
 
 	void _bindScript(Script* script)
 	{
 		script->mEntity = mEntity;
 		script->mRegistry = mRegistry;
+		script->mSystemManager = mSystemManager;
 		script->bind();
 	}
 
 	ark::Entity mEntity;
 	ark::Registry* mRegistry;
+	ark::SystemManager* mSystemManager;
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 

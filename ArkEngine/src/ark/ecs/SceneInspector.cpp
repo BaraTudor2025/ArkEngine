@@ -5,6 +5,7 @@
 #include "ark/ecs/Scene.hpp"
 #include "ark/ecs/SceneInspector.hpp"
 #include "ark/ecs/components/Transform.hpp"
+#include "ark/ecs/System.hpp"
 #include "ark/gui/ImGui.hpp"
 
 template <typename T, typename F, typename F2>
@@ -69,7 +70,7 @@ namespace ark {
 			}
 		};
 
-		treeWithSeparators("Systems:", registry.getSystems(), getLabel, renderElem);
+		treeWithSeparators("Systems:", systemManager.getSystems(), getLabel, renderElem);
 	}
 
 #if 0

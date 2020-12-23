@@ -8,8 +8,6 @@
 
 namespace ark {
 
-	const ComponentManager::ComponentMask& Entity::getComponentMask() const { return manager->getComponentMaskOfEntity(*this); }
-
 	void State::requestStackPush(int stateId)
 	{
 		this->stateStack->pushState(stateId);

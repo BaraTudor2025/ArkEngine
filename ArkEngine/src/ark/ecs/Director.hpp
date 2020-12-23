@@ -11,7 +11,7 @@
 namespace ark
 {
 	class Registry;
-	class EntityManager;
+	class SystemManager;
 
 	class Director {
 
@@ -33,15 +33,18 @@ namespace ark
 
 		ROPROPERTY(getRegistry) Registry registry;
 		ROPROPERTY(getType) std::type_index type;
+		ROPROPERTY(getSystemManager) SystemManager systemManager;
 
 		Registry& getRegistry() const { return *mRegistry; }
+		SystemManager& getSystemManager() const { return *mSystemManager; }
 		std::type_index getType() const { return mType; }
 
 	private:
 		MessageBus* mMessageBus;
 		Registry* mRegistry;
+		SystemManager* mSystemManager;
 		std::type_index mType = typeid(Director);
 
-		friend class Registry;
+		friend class SystemManager;
 	};
 }

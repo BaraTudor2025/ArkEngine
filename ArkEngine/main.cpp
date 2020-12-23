@@ -233,6 +233,7 @@ enum States {
 class BasicState : public ark::State {
 
 protected:
+	ark::SystemManager systems;
 	ark::Registry registry;
 	sf::Sprite screen;
 	sf::Texture screenImage;
@@ -241,12 +242,12 @@ protected:
 
 public:
 	BasicState(ark::MessageBus& bus, std::pmr::memory_resource* res = std::pmr::new_delete_resource()) 
-		: ark::State(bus), registry(bus, res) {}
+		: ark::State(bus), registry(res), systems(bus, registry) {}
 
 	void handleEvent(const sf::Event& event) override
 	{
 		if (!pauseScene)
-			registry.handleEvent(event);
+			systems.handleEvent(event);
 
 		if (event.type == sf::Event::KeyPressed)
 			if (event.key.code == sf::Keyboard::F1) {
@@ -258,25 +259,23 @@ public:
 	void handleMessage(const ark::Message& message) override
 	{
 		if (!pauseScene)
-			registry.handleMessage(message);
+			systems.handleMessage(message);
 	}
 
 	void update() override
 	{
-		if (!pauseScene) {
-			registry.update();
-		}
-		else
-			registry.processPendingData();
+		registry.update();
+		if (!pauseScene)
+			systems.update();
 	}
 
 	void render(sf::RenderTarget& target) override
 	{
 		if (!pauseScene) {
-			registry.render(target);
+			systems.render(target);
 		}
 		else if (!takenSS) {
-			registry.render(target);
+			systems.render(target);
 			takenSS = true;
 			auto& win = Engine::getWindow();
 			auto [x, y] = win.getSize();
@@ -360,7 +359,7 @@ public:
 	char key = 'k';
 
 	void bind() noexcept override {
-		serde = registry.getDirector<ark::SerdeJsonDirector>();
+		serde = systemManager.getDirector<ark::SerdeJsonDirector>();
 	}
 
 	void handleEvent(const sf::Event& ev) noexcept override
@@ -404,12 +403,12 @@ private:
 
 	void init() override
 	{
-		registry.addSystem<PointParticleSystem>();
-		registry.addSystem<PixelParticleSystem>();
-		registry.addSystem<ButtonSystem>();
-		registry.addSystem<TextSystem>();
-		registry.addSystem<AnimationSystem>();
-		registry.addSystem<DelayedActionSystem>();
+		systems.addSystem<PointParticleSystem>();
+		systems.addSystem<PixelParticleSystem>();
+		systems.addSystem<ButtonSystem>();
+		systems.addSystem<TextSystem>();
+		systems.addSystem<AnimationSystem>();
+		systems.addSystem<DelayedActionSystem>();
 
 		// TODO
 		//registry.addDefaultComponent<ark::TagComponent>();
@@ -425,22 +424,23 @@ private:
 		});
 
 		// setup for scripts
-		registry.addSystem<ScriptingSystem>();
-		registry.onConstruction<ScriptingComponent>([registry = &this->registry](ark::Entity e, ScriptingComponent* comp) {
-			comp->_setScene(registry);
+		systems.addSystem<ScriptingSystem>();
+		registry.onConstruction<ScriptingComponent>([this](ark::Entity e, ScriptingComponent* comp) {
+			comp->_setSystemManager(&this->systems);
+			comp->_setScene(&this->registry);
 			comp->_setEntity(e);
 		});
 
 		// setup for lua scripts
-		auto pLuaScriptingSystem = registry.addSystem<LuaScriptingSystem>();
+		auto pLuaScriptingSystem = systems.addSystem<LuaScriptingSystem>();
 		registry.onConstruction<LuaScriptingComponent>([pLuaScriptingSystem](ark::Entity entity, LuaScriptingComponent& comp) {
 			comp._setEntity(entity);
 			comp._setSystem(pLuaScriptingSystem);
 		});
 
-		auto* inspector = registry.addDirector<SceneInspector>();
-		auto* serde = registry.addDirector<SerdeJsonDirector>();
-		registry.addDirector<FpsCounterDirector>();
+		auto* inspector = systems.addDirector<SceneInspector>();
+		auto* serde = systems.addDirector<SerdeJsonDirector>();
+		systems.addDirector<FpsCounterDirector>();
 		ImGuiLayer::addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
 		//registry.addSystem<TestMessageSystem>();
 
@@ -541,7 +541,6 @@ private:
 			auto& luaScripts = greenPointParticles.addComponent<LuaScriptingComponent>();
 			luaScripts.addScript("test.lua");
 		}
-
 
 		rotatingParticles.addComponent<Transform>();
 		auto& plimb = rotatingParticles.addComponent<PointParticles>(getRainbowParticles());

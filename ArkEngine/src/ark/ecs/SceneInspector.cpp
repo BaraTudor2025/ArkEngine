@@ -3,10 +3,11 @@
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/EntityManager.hpp"
 #include "ark/ecs/Scene.hpp"
-#include "ark/ecs/SceneInspector.hpp"
 #include "ark/ecs/components/Transform.hpp"
 #include "ark/ecs/System.hpp"
 #include "ark/gui/ImGui.hpp"
+#include "ark/ecs/SceneInspector.hpp"
+#include <imgui_internal.h>
 
 template <typename T, typename F, typename F2>
 void treeWithSeparators(std::string_view label, const T& range, F getLabel, F2 renderElem)
@@ -49,6 +50,10 @@ void treeWithSeparators(std::string_view label, const T& range, F getLabel, F2 r
 }
 
 namespace ark {
+	void _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue, float columnWidth);
+	void _Transform_editor_render(int* widgetId, void* pValue);
+
+
 	void SceneInspector::renderSystemInspector()
 	{
 		auto getLabel = [](const auto& usys) {
@@ -171,7 +176,7 @@ namespace ark {
 
 		if (ImGui::Begin("Entity editor", &_open)) {
 
-			// entity list from wich you can select an entity
+			// select an entity from list
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
 			for (const auto entity : entityManager.entitiesView()) {
@@ -182,39 +187,36 @@ namespace ark {
 			ImGui::EndChild();
 			ImGui::SameLine();
 
-			// editor of selected entity
+			// edit selected entity
 			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
 			if (selectedEntity != -1) {
 				auto entity = entityManager.entityFromId(selectedEntity);
 
-				std::function<void()> delayDelete;
 				int widgetId = 0;
 				ImGui::TextUnformatted("Components:");
-				// component editor
+				// edit component
 				for (ark::RuntimeComponent component : entity.runtimeComponentView()) {
 					if (auto render = ark::meta::getService<bool(int*, void*)>(component.type, serviceName)) {
 						ImGui::AlignTextToFramePadding();
 						const auto* mdata = ark::meta::getMetadata(component.type);
-						if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+						auto flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
+						if (ImGui::TreeNodeEx(mdata->name.c_str(), flags)) {
 
-							bool deleted = false;
 							// can't delete Tag or Transform
 							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
-								 deleted = AlignButtonToRight("remove component", [&]() {
-									delayDelete = [entity, type = component.type, this]() mutable {
-										entityManager.safeRemoveComponent(entity, type);
-									};
+								AlignButtonToRight("remove component", [&]() {
+									entityManager.safeRemoveComponent(entity, type);
 								});
 							}
-							if (!deleted)
+							if (component.type == typeid(ark::Transform))
+								_Transform_editor_render(&widgetId, component.ptr);
+							else
 								render(&widgetId, component.ptr);
 							ImGui::TreePop();
 						}
 					}
 					ImGui::Separator();
 				}
-				if(delayDelete)
-					delayDelete();
 
 				// add components list
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
@@ -234,12 +236,74 @@ namespace ark {
 		ImGui::End();
 	}
 
+	void renderTransformField(std::string_view label1, std::string_view label2, ImVec2 buttonSize, float& value, float resetValue, ImVec4 color) {
+		ImGui::PushStyleColor(ImGuiCol_Button, color);
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ color.x + .1f, color.y + .1f, color.z + .1f, color.w });
+		ImGui::PushStyleColor(ImGuiCol_ButtonActive, color);
+		//ArkAlign(label1, 0.20);
+		if (ImGui::Button(label1.data(), buttonSize))
+			value = resetValue;
+		ImGui::PopStyleColor(3);
+
+		ImGui::SameLine();
+		ImGui::DragFloat(label2.data(), &value, std::abs(value) > 1 ? 0.1 : 0.001, 0, 0, "%.2f");
+		ImGui::PopItemWidth();
+	}
+
+	void _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue = 0, float columnWidth = 150) {
+		//ArkSetFieldName(label);
+		ImGui::Columns(2);
+		ImGui::SetColumnWidth(0, columnWidth);
+		ImGui::Text(label.data());
+		ImGui::NextColumn();
+
+		ImGui::PushMultiItemsWidths(2, ImGui::CalcItemWidth());
+		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 0, 0 });
+
+		float lineHeight = ImGui::GetFrameHeight();
+		ImVec2 buttonSize = { lineHeight + 3, lineHeight };
+		
+		renderTransformField("X", "##X", buttonSize, values.x, resetValue, ImVec4{ .8f, .1f, .15f, 1.f });
+		ImGui::SameLine();
+		renderTransformField("Y", "##Y", buttonSize, values.y, resetValue, ImVec4{ .2f, .7f, .3f, 1.f });
+
+		ImGui::PopStyleVar();
+		ImGui::Columns(1);
+	}
+
+	void _Transform_editor_render(int* widgetId, void* pValue) 
+	{
+		ark::Transform& trans = *static_cast<ark::Transform*>(pValue);
+		ImGui::PushID(*widgetId);
+		auto pos = trans.getPosition();
+		_DrawVec2Control("Position", pos);
+		trans.setPosition(pos);
+		ImGui::PopID();
+		*widgetId += 1;
+
+		ImGui::PushID(*widgetId);
+		auto scale = trans.getScale();
+		_DrawVec2Control("Rotation", scale);
+		trans.setScale(scale);
+		ImGui::PopID();
+		*widgetId += 1;
+
+		ImGui::PushID(*widgetId);
+		auto orig = trans.getOrigin();
+		_DrawVec2Control("Origin", orig);
+		trans.setPosition(orig);
+		ImGui::PopID();
+		*widgetId += 1;
+
+		// TODO: rotation
+	}
+
 	void ArkAlign(std::string_view str, float widthPercentage)
 	{
 		ImVec2 textSize = ImGui::CalcTextSize(str.data());
 		float width = ImGui::GetContentRegionAvailWidth();
 		ImGui::SameLine(0, width * widthPercentage - textSize.x);
-		ImGui::SetNextItemWidth(-2);
+		ImGui::SetNextItemWidth(-1);
 	}
 
 	void ArkSetFieldName(std::string_view name)
@@ -274,7 +338,7 @@ namespace ark {
 		{ typeid(float), [](std::string_view name, const void* pField) {
 			float field = *static_cast<const float*>(pField);
 			ArkSetFieldName(name);
-			if (ImGui::InputFloat("", &field, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			if (ImGui::InputFloat("", &field, 0, 0, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
 				ArkFocusHere();
 				return std::any{field};
 			}
@@ -307,7 +371,6 @@ namespace ark {
 			char buff[2] = { field, 0};
 			ArkSetFieldName(name);
 			if (ImGui::InputText("", buff, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
 				return std::any{buff[0]};
 			}
 			return std::any{};
@@ -318,7 +381,6 @@ namespace ark {
 			ArkSetFieldName(name);
 			float v[2] = {vec.x, vec.y};
 			if (ImGui::InputFloat2("", v, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
 				vec.x = v[0];
 				vec.y = v[1];
 				return std::any{vec};
@@ -331,7 +393,6 @@ namespace ark {
 			ArkSetFieldName(name);
 			int v[2] = {vec.x, vec.y};
 			if (ImGui::InputInt2("", v, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
 				vec.x = v[0];
 				vec.y = v[1];
 				return std::any{vec};
@@ -365,7 +426,6 @@ namespace ark {
 			ArkSetFieldName(label);
 			float sec = time.asSeconds();
 			if (ImGui::InputFloat("", &sec, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
 				return std::any{sf::seconds(sec)};
 			}
 			return std::any{};

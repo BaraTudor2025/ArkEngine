@@ -50,7 +50,7 @@ void treeWithSeparators(std::string_view label, const T& range, F getLabel, F2 r
 }
 
 namespace ark {
-	void _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue, float columnWidth);
+	bool _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue, float columnWidth);
 	void _Transform_editor_render(int* widgetId, void* pValue);
 
 
@@ -236,7 +236,7 @@ namespace ark {
 		ImGui::End();
 	}
 
-	void renderTransformField(std::string_view label1, std::string_view label2, ImVec2 buttonSize, float& value, float resetValue, ImVec4 color) {
+	bool renderTransformField(std::string_view label1, std::string_view label2, ImVec2 buttonSize, float& value, float resetValue, ImVec4 color) {
 		ImGui::PushStyleColor(ImGuiCol_Button, color);
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ color.x + .1f, color.y + .1f, color.z + .1f, color.w });
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, color);
@@ -246,11 +246,12 @@ namespace ark {
 		ImGui::PopStyleColor(3);
 
 		ImGui::SameLine();
-		ImGui::DragFloat(label2.data(), &value, std::abs(value) > 1 ? 0.1 : 0.001, 0, 0, "%.2f");
+		bool changed = ImGui::DragFloat(label2.data(), &value, std::abs(value) > 1 ? 0.1 : 0.001, 0, 0, "%.2f");
 		ImGui::PopItemWidth();
+		return changed;
 	}
 
-	void _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue = 0, float columnWidth = 150) {
+	bool _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue = 0, float columnWidth = 150) {
 		//ArkSetFieldName(label);
 		ImGui::Columns(2);
 		ImGui::SetColumnWidth(0, columnWidth);
@@ -263,12 +264,13 @@ namespace ark {
 		float lineHeight = ImGui::GetFrameHeight();
 		ImVec2 buttonSize = { lineHeight + 3, lineHeight };
 		
-		renderTransformField("X", "##X", buttonSize, values.x, resetValue, ImVec4{ .8f, .1f, .15f, 1.f });
+		bool changed = renderTransformField("X", "##X", buttonSize, values.x, resetValue, ImVec4{ .8f, .1f, .15f, 1.f });
 		ImGui::SameLine();
-		renderTransformField("Y", "##Y", buttonSize, values.y, resetValue, ImVec4{ .2f, .7f, .3f, 1.f });
+		changed = changed || renderTransformField("Y", "##Y", buttonSize, values.y, resetValue, ImVec4{ .2f, .7f, .3f, 1.f });
 
 		ImGui::PopStyleVar();
 		ImGui::Columns(1);
+		return changed;
 	}
 
 	void _Transform_editor_render(int* widgetId, void* pValue) 
@@ -276,22 +278,22 @@ namespace ark {
 		ark::Transform& trans = *static_cast<ark::Transform*>(pValue);
 		ImGui::PushID(*widgetId);
 		auto pos = trans.getPosition();
-		_DrawVec2Control("Position", pos);
-		trans.setPosition(pos);
+		if(_DrawVec2Control("Position", pos))
+			trans.setPosition(pos);
 		ImGui::PopID();
 		*widgetId += 1;
 
 		ImGui::PushID(*widgetId);
 		auto scale = trans.getScale();
-		_DrawVec2Control("Rotation", scale);
-		trans.setScale(scale);
+		if(_DrawVec2Control("Scale", scale))
+			trans.setScale(scale);
 		ImGui::PopID();
 		*widgetId += 1;
 
 		ImGui::PushID(*widgetId);
 		auto orig = trans.getOrigin();
-		_DrawVec2Control("Origin", orig);
-		trans.setPosition(orig);
+		if(_DrawVec2Control("Origin", orig))
+			trans.setOrigin(orig);
 		ImGui::PopID();
 		*widgetId += 1;
 

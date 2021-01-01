@@ -17,16 +17,17 @@ namespace ark {
 	class EntitiesView;
 	class RuntimeComponentView;
 
-
 	class EntityManager final : public NonCopyable, public NonMovable {
 
 	public:
-		EntityManager(ComponentManager& cm, std::pmr::memory_resource* upstreamComponent)
-			: componentManager(cm), 
+		EntityManager(ComponentManager& cm, 
+			std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>>& mComponentsAdded, 
+			std::pmr::memory_resource* upstreamComponent)
+			: componentManager(cm),
+			mComponentsAdded(mComponentsAdded),
 			componentPool(
 				std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
 				upstreamComponent) { }
-
 
 		auto createEntity() -> Entity
 		{
@@ -66,6 +67,7 @@ namespace ark {
 				clone.components.push_back({compData.type, newComponent});
 				onConstruction(compData.type, newComponent, hClone);
 			}
+			mComponentsAdded.push_back({clone.id, clone.mask});
 			return hClone;
 		}
 
@@ -82,7 +84,6 @@ namespace ark {
 			entity.mask.reset();
 			entity.components.clear();
 			entity.isFree = true;
-			dirtyEntities.erase(e);
 		}
 
 		//template <typename T>
@@ -134,7 +135,15 @@ namespace ark {
 			if (entity.mask.test(compId))
 				return getComponentOfEntity(e, type);
 			entity.mask.set(compId);
-			markAsModified(e);
+
+			auto index = Util::get_index_if(mComponentsAdded, [id = e.getID()](const auto& pair) { return pair.first == id; });
+			if (index == ArkInvalidIndex) {
+				auto& [id, mask] = mComponentsAdded.emplace_back();
+				id = entity.id;
+				mask.set(compId);
+			}
+			else
+				mComponentsAdded[index].second.set(compId);
 
 			auto metadata = meta::getMetadata(type);
 			void* newComponent = componentPool.allocate(metadata->size, metadata->align);
@@ -168,7 +177,6 @@ namespace ark {
 			auto compId = componentManager.idFromType(type);
 			if (entity.mask.test(compId)) {
 				entity.mask.set(compId, false);
-				markAsModified(e);
 				destroyComponent(type, entity.getComponentData(type).pComponent);
 				Util::erase_if(entity.components, [&](const auto& compData) { return compData.type == type; });
 			}
@@ -178,19 +186,6 @@ namespace ark {
 		{
 			auto& entity = getEntity(e);
 			return entity.mask;
-		}
-
-		void markAsModified(Entity e)
-		{
-			dirtyEntities.insert(e);
-		}
-
-		auto getModifiedEntities() -> std::optional<std::set<Entity>>
-		{
-			if (dirtyEntities.empty())
-				return std::nullopt;
-			else
-				return std::move(dirtyEntities);
 		}
 
 		template <typename F>
@@ -335,9 +330,9 @@ namespace ark {
 		using ComponentVector = decltype(InternalEntityData::components);
 
 	private:
-		std::pmr::unsynchronized_pool_resource componentPool;		
+		std::pmr::unsynchronized_pool_resource componentPool;
 		std::vector<InternalEntityData> entities;
-		std::set<Entity> dirtyEntities;
+		std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>>& mComponentsAdded;
 		std::vector<int> freeEntities;
 		std::unordered_map<std::type_index, std::function<void(Entity, void*)>> onConstructionTable;
 		ComponentManager& componentManager;

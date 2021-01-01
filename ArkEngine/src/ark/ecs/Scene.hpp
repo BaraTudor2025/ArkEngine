@@ -16,7 +16,7 @@ namespace ark {
 	public:
 		Registry(std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
 			: componentManager(),
-			entityManager(componentManager, upstreamComponent)
+			entityManager(componentManager, mComponentsAdded, upstreamComponent)
 		{}
 		~Registry() = default;
 
@@ -33,10 +33,8 @@ namespace ark {
 		}
 
 		[[nodiscard]]
-		auto createEntity() -> Entity
-		{
-			createdEntities.push_back(entityManager.createEntity());
-			return createdEntities.back();
+		auto createEntity() -> Entity {
+			return entityManager.createEntity();
 		}
 		
 		auto entityFromId(int id) -> Entity
@@ -48,30 +46,36 @@ namespace ark {
 		}
 
 		[[nodiscard]]
-		auto cloneEntity(Entity e) -> Entity
-		{
-			createdEntities.push_back(entityManager.cloneEntity(e));
-			return createdEntities.back();
+		auto cloneEntity(Entity e) -> Entity {
+			return entityManager.cloneEntity(e);
 		}
 
 		template <typename TComponent, typename F>
-		void onConstruction(F&& f)
-		{
+		void onConstruction(F&& f) {
 			entityManager.addOnConstruction<TComponent>(std::forward<F>(f));
 		}
 
-		// is removed in Registry::update()
-		void safeRemoveComponent(Entity e, std::type_index type) {
-			// TODO (querry): adauga optimizare pentru querry remove, poate un vector<bitmask> ca parcurgerea sa fie liniara
-			this->mComponentsToRemove.push_back({ e, type });
-			//addDataRemoved(e, type);
-			//this->mEntitiesModifiedRemove.push_back({});
+		void safeRemoveComponent(Entity entity, std::type_index type) 
+		{
+			auto compId = componentManager.idFromType(type);
+			auto index = Util::get_index_if(mComponentsRemoved, [id = entity.getID()](const auto& pair) { return pair.first == id; });
+			if (index == ArkInvalidIndex) {
+				auto& [id, mask] = mComponentsRemoved.emplace_back();
+				id = entity.getID();
+				mask.set(compId);
+			}
+			else
+				mComponentsRemoved[index].second.set(compId);
 		}
 
-		// is destroyed in Registry::update()
 		void destroyEntity(Entity entity)
 		{
-			destroyedEntities.push_back(entity);
+			mDestroyedEntities.push_back(entity);
+			auto index = Util::get_index_if(mComponentsRemoved, [id = entity.getID()](const auto& pair) { return pair.first == id; });
+			if (index == ArkInvalidIndex)
+				mComponentsRemoved.push_back({ entity.getID(), entity.getComponentMask() });
+			else
+				mComponentsRemoved[index].second |= entity.getComponentMask();
 		}
 
 		template <typename F>
@@ -89,10 +93,8 @@ namespace ark {
 			return this->entityManager.entitiesView();
 		}
 
-		template <typename... Args>
-		[[nodiscard]]
-		auto makeQuerry() -> EntityQuerry 
-		{
+		template <typename... Args> [[nodiscard]]
+		auto makeQuerry() -> EntityQuerry  {
 			return makeQuerry({ typeid(Args)... });
 		}
 
@@ -114,7 +116,7 @@ namespace ark {
 			int cleanup = 0;
 			auto pos = std::vector<int>();
 			int index = 0;
-			// search for existing/cached querry
+			// search for existing querry; remove expired querries 
 			for (auto& querry : querries) {
 				if (querry.expired()) {
 					cleanup += 1;
@@ -129,8 +131,7 @@ namespace ark {
 				Util::erase_if(querries, [](auto& q) { return q.expired(); });
 				Util::erase(querryMasks, querryMasks[pos[i]]);
 			}
-
-			// if no querry already exists then make a new one
+			// create new querry if one does not exist
 			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>(), this);
 			querry.data->componentMask = mask;
 			for (auto entity : entitiesView()) {
@@ -144,118 +145,65 @@ namespace ark {
 		}
 
 		[[nodiscard]]
-		const auto& getComponentTypes() const
-		{
+		const auto& getComponentTypes() const {
 			return componentManager.getTypes();
 		}
 
-		// removal of components, destruction of entities and updation of querries
-		// is delayed by 1 frame
+		// update querries, remove components, destroy entities
 		void update()
 		{
-			processPendingData();
+			// update with added components
+			for (auto [entityId, amask] : mComponentsAdded) {
+				Entity entity = entityFromId(entityId);
+				forQuerries(entity.getComponentMask(), amask, [this, entity](auto* data) mutable { 
+					data->entities.push_back(entity);
+					for (auto& f : data->addEntityCallbacks) {
+						f(entity);
+					}
+				});
+			}
+			// update with removed components/destroyed entities
+			for (auto [entityId, rmask] : mComponentsRemoved) {
+				Entity entity = entityFromId(entityId);
+				forQuerries(entity.getComponentMask(), rmask, [this, entity](auto* data) mutable { 
+					Util::erase_if(data->entities, [&](Entity e) {
+						if (entity == e) {
+							for (auto& f : data->removeEntityCallbacks)
+								f(entity);
+							return true;
+						} else 
+							return false;
+					});
+				});
+			}
+			// remove components and update bitmask
+			for (auto [entityId, mask] : mComponentsRemoved) {
+				Entity entity = entityFromId(entityId);
+				if (entity.isValid())
+					for (int i = 0; i < mask.size(); i++)
+						if (mask[i])
+							entityManager.removeComponentOfEntity(entity, componentManager.typeFromId(i));
+			}
+			for (Entity entity : mDestroyedEntities)
+				entityManager.destroyEntity(entity);
+			mDestroyedEntities.clear();
+			mComponentsAdded.clear();
+			mComponentsRemoved.clear();
 		}
 
 	private:
 
-		void processPendingData()
-		{
-			for (Entity entity : destroyedEntities) {
-				auto entityMask = entity.getComponentMask();
-				if (entityMask.none())
-					return;
-				forQuerries(entity, entityMask, 
-					[this, entity](auto* data) mutable { this->removeFromQuerry(data, entity); });
-				entityManager.destroyEntity(entity);
-			}
-			
-			for (auto& [e, type] : mComponentsToRemove)
-				if (e.isValid())
-					e.removeComponent(type);
-
-			for (auto entity : createdEntities)
-				forQuerries(entity, entity.getComponentMask(), 
-					[this, entity](auto* data) mutable { this->addToQuerry(data, entity); });
-
-			// modified == entity had added or removed components
-			if (auto modifiedEntities = entityManager.getModifiedEntities(); modifiedEntities.has_value()) {
-				// modified entities that have not been created this frame
-				std::vector<Entity> ent_mod = Util::set_difference(modifiedEntities.value(), createdEntities);
-				for (Entity entity : ent_mod)
-					processModifiedEntityToQuerries(entity);
-			}
-			createdEntities.clear();
-			destroyedEntities.clear();
-			mComponentsToRemove.clear();
-		}
-
-
-		//void addDataRemoved(Entity e, std::type_index type) {
-		//	for (ModifiedData& mod : mEntitiesModifiedRemove) {
-		//		if (mod.id == e.getID()) {
-		//			mod.mask.set(componentManager.idFromType(type));
-		//			return;
-		//		}
-		//	}
-		//	auto mask = ComponentManager::ComponentMask();
-		//	mask.set(componentManager.idFromType(type));
-		//	mEntitiesModifiedRemove.push_back({ e.getID(), mask });
-		//}
-
-		// TODO (querry): optimizat mizeria asta
-		void processModifiedEntityToQuerries(Entity entity)
-		{
-			auto entityMask = entity.getComponentMask();
-
-			int index = 0;
-			for (auto qmask : querryMasks) {
-				auto data = querries[index].lock();
-				if ((entityMask & qmask) == qmask) {
-					if (data) {
-						// adauga daca nu este
-						bool found = false;
-						for (Entity e : data->entities)
-							if (e == entity)
-								found = true;
-						if (!found) {
-							addToQuerry(data.get(), entity);
-						}
-					}
-				}
-				else {
-					removeFromQuerry(data.get(), entity);
-				}
-				index++;
-			}
-		}
-
-		void addToQuerry(EntityQuerry::SharedData* data, Entity entity) {
-			data->entities.push_back(entity);
-			for (auto& f : data->addEntityCallbacks) {
-				f(entity);
-			}
-		}
-
-		void removeFromQuerry(EntityQuerry::SharedData* data, Entity entity) {
-			Util::erase_if(data->entities, [&](Entity e) {
-				if (entity == e) {
-					for (auto& f : data->removeEntityCallbacks)
-						f(entity);
-					return true;
-				}
-				return false;
-			});
-		}
-
 		template <typename F>
-		void forQuerries(Entity entity, ComponentManager::ComponentMask entityMask, F f) {
+		void forQuerries(ComponentManager::ComponentMask entityMask, ComponentManager::ComponentMask modifiedMask, F f) {
 			int index = 0;
 			for (auto qmask : querryMasks) {
-				if ((entityMask & qmask) == qmask) {
-					auto data = querries[index].lock();
-					if (data)
+				// 1.check: querry-ul are cel putin o componenta added/removed
+				// 2.check: entity poate fi bagat in querry
+				// pentru add: facem 1.check pentru a sari peste querri-urile care au deja entity-ul
+				// pentru remove: entityMask inca nu este updatat (vezi update de mai sus) deci 2.check este irelevant
+				if (/*1*/(modifiedMask & qmask).any() && /*2*/(entityMask & qmask) == qmask)
+					if (auto data = querries[index].lock(); data)
 						f(data.get());
-				}
 				index++;
 			}
 		}
@@ -263,27 +211,23 @@ namespace ark {
 		ComponentManager componentManager;
 		EntityManager entityManager;
 
-		std::vector<ComponentManager::ComponentMask> querryMasks;
+		std::vector<ComponentManager::ComponentMask> querryMasks; // cache, ca sa nu dau .lock() la shared-ptr pentru ->mask
 		std::vector<std::weak_ptr<EntityQuerry::SharedData>> querries;
-		std::vector<std::pair<Entity, std::type_index>> mComponentsToRemove;
-		std::vector<Entity> createdEntities;
-		std::vector<Entity> destroyedEntities;
-		//struct ModifiedData {
-		//	Entity::ID id;
-		//	ComponentManager::ComponentMask mask;
-		//};
-		//std::vector<ModifiedData> mEntitiesModifiedAdd;
-		//std::vector<ModifiedData> mEntitiesModifiedRemove;
+		std::vector<Entity> mDestroyedEntities;
+		// momentan, mComponentsAdded este folosit de EntityManager si mRemoved de Registry print safeRemove
+		// on call of Add/RemoveComponent, add or update mask with id of component added or removed
+		std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>> mComponentsAdded;
+		std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>> mComponentsRemoved;
 
 	}; // class Registry
 
 	template <typename F> 
 	requires std::invocable<F, const ark::meta::Metadata&>
 	void EntityQuerry::forComponents(F f) const {
-		if(data)
-			for (int i = 0; i < data->componentMask.size(); i++)
-				if (data->componentMask[i])
-					f(*ark::meta::getMetadata(mRegistry->typeFromId(i)));
+		if (!data)
+			return;
+		for (int i = 0; i < data->componentMask.size(); i++)
+			if (data->componentMask[i])
+				f(*ark::meta::getMetadata(mRegistry->typeFromId(i)));
 	}
-
 }

@@ -81,18 +81,17 @@ namespace ark {
 		template <typename F>
 		void forEachEntity(F&& f)
 		{
-			for (auto& entityData : entityManager.entities) {
-				if (!entityData.isFree) {
-					auto e = entityFromId(entityData.id);
-					f(e);
-				}
-			}
+			for (Entity entity : entityManager.entitiesView())
+				f(entity);
 		}
 
 		auto entitiesView() -> EntitiesView {
 			return this->entityManager.entitiesView();
 		}
 
+		// get or create new querry and populate it if it's created;
+		// querries can be updated trough Registry::update() with the Entities that have been modified since the querry creation
+		// hence when a componet is added/removed it is not added to the querries automatically
 		template <typename... Args> [[nodiscard]]
 		auto makeQuerry() -> EntityQuerry  {
 			return makeQuerry({ typeid(Args)... });
@@ -131,7 +130,7 @@ namespace ark {
 				Util::erase_if(querries, [](auto& q) { return q.expired(); });
 				Util::erase(querryMasks, querryMasks[pos[i]]);
 			}
-			// create new querry if one does not exist
+			// create new querry if one does not exist and populate it
 			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>(), this);
 			querry.data->componentMask = mask;
 			for (auto entity : entitiesView()) {

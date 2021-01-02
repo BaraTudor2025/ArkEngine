@@ -9,10 +9,11 @@ namespace ark {
 
 	struct RuntimeComponent {
 		std::type_index type = typeid(void);
-		void* ptr;
+		void* ptr = nullptr;
 	};
 
 	class RuntimeComponentView;
+	class RuntimeComponentViewLive;
 
 	// this is more of a handle
 	// member function definitions are at the bottom of EntityManager.hpp
@@ -51,12 +52,15 @@ namespace ark {
 		[[nodiscard]]
 		const T* tryGetComponent() const;
 
-		// f takes as argument RuntimeComponent
 		template <typename F>
+		requires std::invocable<F, RuntimeComponent>
 		void forEachComponent(F&& f);
 
 		[[nodiscard]]
 		auto runtimeComponentView() -> RuntimeComponentView;
+
+		[[nodiscard]]
+		auto runtimeComponentViewLive() -> RuntimeComponentViewLive;
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		// TODO: remove on postUpdate?

@@ -20,11 +20,10 @@ namespace ark {
 	class EntityManager final : public NonCopyable, public NonMovable {
 
 	public:
-		EntityManager(ComponentManager& cm, 
-			std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>>& mComponentsAdded, 
+		EntityManager(
+			std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded, 
 			std::pmr::memory_resource* upstreamComponent)
-			: componentManager(cm),
-			mComponentsAdded(mComponentsAdded),
+			: mComponentsAdded(mComponentsAdded),
 			componentPool(
 				std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
 				upstreamComponent) { }
@@ -53,7 +52,7 @@ namespace ark {
 			auto& entity = getEntity(e);
 			auto& clone = getEntity(hClone);
 			clone.mask = entity.mask;
-			entity.forComponents([&, this](auto& compData) {
+			forComponents(entity, [&, this](auto& compData) {
 				auto metadata = meta::getMetadata(compData.type);
 				void* newComponent = componentPool.allocate(metadata->size, metadata->align);
 				if (metadata->copy_constructor) {
@@ -62,7 +61,7 @@ namespace ark {
 				else
 					metadata->default_constructor(newComponent);
 
-				clone.components[componentManager.idFromType(compData.type)] = { compData.type, newComponent };
+				clone.components[idFromType(compData.type)] = { compData.type, newComponent };
 				onConstruction(compData.type, newComponent, hClone);
 			});
 			mComponentsAdded.push_back({clone.id, clone.mask});
@@ -73,7 +72,7 @@ namespace ark {
 		{
 			auto& entity = getEntity(e);
 			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
-			entity.forComponents([this](auto& compData) {
+			forComponents(entity, [this](auto& compData) {
 				if (compData.pComponent) {
 					destroyComponent(compData.type, compData.pComponent);
 					compData = {};
@@ -100,8 +99,8 @@ namespace ark {
 		template <typename T, typename... Args>
 		T& addComponentOnEntity(Entity e, Args&&... args)
 		{
-			static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-			componentManager.addComponentType(typeid(T));
+			//static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
+			addComponentType(typeid(T));
 			bool bDefaultConstruct = sizeof...(args) == 0 ? true : false;
 			auto [comp, isAlready] = implAddComponentOnEntity(e, typeid(T), bDefaultConstruct);
 			if (!isAlready) {
@@ -114,7 +113,7 @@ namespace ark {
 
 		void* addComponentOnEntity(Entity e, std::type_index type)
 		{
-			componentManager.addComponentType(type);
+			addComponentType(type);
 			auto [comp, isAlready] = implAddComponentOnEntity(e, type, true);
 			if(!isAlready)
 				onConstruction(type, comp, e);
@@ -124,7 +123,7 @@ namespace ark {
 		// returns: component pointer, exists?
 		auto implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct) -> std::pair<void*, bool>
 		{
-			int compId = componentManager.idFromType(type);
+			int compId = idFromType(type);
 			auto& entity = getEntity(e);
 			if (entity.mask.test(compId))
 				return { getComponentOfEntity(e, type), true };
@@ -152,8 +151,8 @@ namespace ark {
 		void* getComponentOfEntity(Entity e, std::type_index type)
 		{
 			auto& entity = getEntity(e);
-			int compId = componentManager.idFromType(type);
-			if (!entity.mask.test(compId)) {
+			int compId = idFromType(type);
+			if (compId == ArkInvalidID || !entity.mask.test(compId)) {
 				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entity.id, meta::getMetadata(type)->name);
 				return nullptr;
 			}
@@ -169,7 +168,7 @@ namespace ark {
 		void removeComponentOfEntity(Entity e, std::type_index type)
 		{
 			auto& entity = getEntity(e);
-			auto compId = componentManager.idFromType(type);
+			auto compId = idFromType(type);
 			if (entity.mask.test(compId)) {
 				entity.mask.set(compId, false);
 				destroyComponent(type, entity.components[compId].pComponent);
@@ -177,7 +176,7 @@ namespace ark {
 			}
 		}
 
-		auto getComponentMaskOfEntity(Entity e) -> const ComponentManager::ComponentMask&
+		auto getComponentMaskOfEntity(Entity e) -> const ComponentMask&
 		{
 			auto& entity = getEntity(e);
 			return entity.mask;
@@ -187,7 +186,7 @@ namespace ark {
 		void forEachComponentOfEntity(Entity e, F&& f)
 		{
 			auto& entity = getEntity(e);
-			entity.forComponents([&](auto& compData) {
+			forComponents(entity, [&](auto& compData) {
 				RuntimeComponent comp;
 				comp.type = compData.type;
 				comp.ptr = compData.pComponent;
@@ -198,6 +197,42 @@ namespace ark {
 		auto makeComponentView(Entity e) -> RuntimeComponentView;
 		auto makeComponentViewLive(Entity e)->RuntimeComponentViewLive;
 		auto entitiesView() -> EntitiesView;
+
+		int idFromType(std::type_index type) const
+		{
+			const auto end = this->componentIds.begin() + numOfComponentIds;
+			auto pos = std::find(this->componentIds.begin(), end, type);
+			if (pos == end) {
+				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", meta::getMetadata(type)->name);
+				return ArkInvalidIndex;
+			}
+			else 
+				return pos - this->componentIds.begin();
+		}
+
+		auto typeFromId(int id) const -> std::type_index {
+			return this->componentIds[id];
+		}
+
+		void addComponentType(std::type_index type)
+		{
+			if (idFromType(type) != ArkInvalidIndex)
+				return;
+			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", meta::getMetadata(type)->name);
+			if (numOfComponentIds == MaxComponentTypes) {
+				EngineLog(LogSource::ComponentM, LogLevel::Error, 
+					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, meta::getMetadata(type)->name);
+				// TODO: add abort with grace
+				std::abort();
+			}
+			this->componentIds[numOfComponentIds].type = type;
+			numOfComponentIds++;
+		}
+
+		const auto& getTypes() const
+		{
+			return this->componentIds;
+		}
 
 #if 0 // disable entity children
 		void addChildTo(Entity p, Entity c)
@@ -273,7 +308,7 @@ namespace ark {
 				//auto it = std::find(freeEntities.begin(), freeEntities.end(), id);
 				// destroy components only for alive entities
 				if (isFree[entity.id]) {
-					entity.forComponents([this](auto& compData) {
+					forComponents(entity, [this](auto& compData) {
 						auto metadata = meta::getMetadata(compData.type);
 						if (metadata->destructor)
 							metadata->destructor(compData.pComponent);
@@ -301,33 +336,24 @@ namespace ark {
 			}
 		}
 
-	public:
+	private:
 		struct InternalEntityData {
 			struct ComponentData {
 				std::type_index type = typeid(void);
 				void* pComponent = nullptr;
 			};
-			ComponentManager::ComponentMask mask;
+			ComponentMask mask;
 			int16_t id = ArkInvalidID;
-			std::array<ComponentData, ComponentManager::MaxComponentTypes> components;
-
-			using BitsType = std::conditional_t<ComponentManager::MaxComponentTypes <= 32, std::uint32_t, std::uint64_t>;
-			auto getBits() -> BitsType {
-				if constexpr (ComponentManager::MaxComponentTypes <= 32)
-					return mask.to_ulong();
-				else
-					return mask.to_ullong();
-			}
-
-			template <typename F>
-			void forComponents(F&& f) {
-				int i = 0;
-				for (auto bits = getBits(); bits; bits >>= 1, ++i)
-					if (bits & 1)
-						f(components[i]);
-			}
+			std::array<ComponentData, MaxComponentTypes> components;
 		};
-	private:
+
+		template <typename F>
+		void forComponents(InternalEntityData& data, F&& f) {
+			int i = 0;
+			for (auto bits = bitsComponentFromMask(data.mask); bits; bits >>= 1, ++i)
+				if (bits & 1)
+					f(data.components[i]);
+		}
 
 		auto getEntity(Entity e) -> InternalEntityData&
 		{
@@ -337,15 +363,24 @@ namespace ark {
 		using ComponentVector = decltype(InternalEntityData::components);
 
 	private:
+		struct CompTypeWrapper {
+			std::type_index type = typeid(void);
+			inline operator std::type_index() const { return type; }
+		};
 		std::pmr::unsynchronized_pool_resource componentPool;
+		// component ID is the index
+		// wrapper pentru std::type_index deoarece el nu are default ctor, asa ca i dam typeid(void)
+		std::size_t numOfComponentIds = 0;
+		std::array<CompTypeWrapper, MaxComponentTypes> componentIds;
 		std::vector<InternalEntityData> entities;
-		std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>>& mComponentsAdded;
+		std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded;
 		std::vector<bool> isFree;
 		std::unordered_map<std::type_index, std::function<void(Entity, void*)>> onConstructionTable;
-		ComponentManager& componentManager;
+
 		template <bool> friend struct RuntimeComponentIterator;
 		friend struct EntityIterator;
 		friend class RuntimeComponentView;
+		friend class RuntimeComponentViewLive;
 		friend class EntitiesView;
 		friend class Registry;
 		friend class Entity;
@@ -356,7 +391,7 @@ namespace ark {
 		using InternalIterator = decltype(EntityManager::InternalEntityData::components)::iterator;
 		InternalIterator iter;
 		InternalIterator mEnd;
-		EntityManager::InternalEntityData::BitsType mask;
+		BitsComponentType mask;
 	public:
 		RuntimeComponentIterator(decltype(iter) iter, decltype(mEnd) mEnd, decltype(mask) mask) :iter(iter), mEnd(mEnd), mask(mask) {}
 
@@ -401,16 +436,16 @@ namespace ark {
 		EntityManager::InternalEntityData& mData;
 	public:
 		RuntimeComponentView(decltype(mData) mData) : mData(mData) {}
-		auto begin() -> RuntimeComponentIterator<false> { return { mData.components.begin(), mData.components.end(), mData.getBits() }; }
-		auto end() -> RuntimeComponentIterator<false> { return { mData.components.end(), mData.components.end(), mData.getBits() }; }
+		auto begin() -> RuntimeComponentIterator<false> { return { mData.components.begin(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
+		auto end() -> RuntimeComponentIterator<false> { return { mData.components.end(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
 	};
 
 	class RuntimeComponentViewLive {
 		EntityManager::InternalEntityData& mData;
 	public:
 		RuntimeComponentViewLive(decltype(mData) mData) : mData(mData) {}
-		auto begin() -> RuntimeComponentIterator<true> { return { mData.components.begin(), mData.components.end(), mData.getBits() }; }
-		auto end() -> RuntimeComponentIterator<true> { return { mData.components.end(), mData.components.end(), mData.getBits() }; }
+		auto begin() -> RuntimeComponentIterator<true> { return { mData.components.begin(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
+		auto end() -> RuntimeComponentIterator<true> { return { mData.components.end(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
 	};
 
 
@@ -485,34 +520,30 @@ namespace ark {
 		return EntitiesView{*this};
 	}
 
-
 	/* Entity handle definitions */
 
 	inline bool Entity::isValid() const {
-		return manager != nullptr && manager->isFree[this->id];
+		return manager != nullptr && !manager->isFree[this->id];
 	}
 
-	template<typename T, typename ...Args>
+	template<ConceptComponent T, typename ...Args>
 	inline T& Entity::addComponent(Args&& ...args)
 	{
-		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		return manager->addComponentOnEntity<T>(*this, std::forward<Args>(args)...);
 	}
 
-	template<typename T>
+	template<ConceptComponent T>
 	inline T& Entity::getComponent()
 	{
-		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		auto comp = manager->getComponentOfEntity<T>(*this);
 		if (!comp)
 			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
 		return *comp;
 	}
 
-	template<typename T>
+	template<ConceptComponent T>
 	inline const T& Entity::getComponent() const
 	{
-		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		auto comp = manager->getComponentOfEntity<T>(*this);
 		if (!comp)
 			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
@@ -539,24 +570,21 @@ namespace ark {
 		manager->forEachComponentOfEntity(*this, std::forward<F>(f));
 	}
 
-	template<typename T>
+	template<ConceptComponent T>
 	inline T* Entity::tryGetComponent()
 	{
-		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		return manager->getComponentOfEntity<T>(*this);
 	}
 
-	template<typename T>
+	template<ConceptComponent T>
 	inline const T* Entity::tryGetComponent() const
 	{
-		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		return &this->getComponent<T>();
 	}
 
-	template <typename T>
+	template <ConceptComponent T>
 	inline void Entity::removeComponent()
 	{
-		static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
 		this->removeComponent(typeid(T));
 	}
 
@@ -574,5 +602,5 @@ namespace ark {
 		return manager->makeComponentViewLive(*this);
 	}
 
-	inline auto Entity::getComponentMask() const -> const ComponentManager::ComponentMask& { return manager->getComponentMaskOfEntity(*this); }
+	inline auto Entity::getComponentMask() const -> const ComponentMask& { return manager->getComponentMaskOfEntity(*this); }
 }

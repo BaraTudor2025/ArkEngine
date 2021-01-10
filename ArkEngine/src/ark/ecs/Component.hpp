@@ -14,62 +14,25 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/util/Util.hpp"
 
+constexpr auto ARK_META_COMPONENT_GROUP = std::string_view{"components"};
+
 namespace ark {
+	// semi regulat type + move ctor
+	// TODO: make copy mandatory
 
 	template <typename T>
-	struct ARK_ENGINE_API Component {
-		Component()
-		{
-			static_assert(std::is_default_constructible_v<T>, "Component needs to have default constructor");
-		}
-	};
+	concept ConceptComponent = std::default_initializable<T> && std::move_constructible<T> //&& std::copy_constructible<T>
+		&& std::is_object_v<T> && !std::is_pointer_v<T>; 
 
-	class ComponentManager final : NonCopyable {
+	static inline constexpr std::size_t MaxComponentTypes = 32;
+	using ComponentMask = std::bitset<MaxComponentTypes>;
 
-	public:
-		static inline constexpr std::size_t MaxComponentTypes = 32;
-		using ComponentMask = std::bitset<MaxComponentTypes>;
+	using BitsComponentType = std::conditional_t<MaxComponentTypes <= 32, std::uint32_t, std::uint64_t>;
 
-		bool hasComponentType(std::type_index type)
-		{
-			return Util::contains(componentIndexes, type);
-		}
-
-		int idFromType(std::type_index type) const
-		{
-			auto pos = std::find(std::begin(componentIndexes), std::end(componentIndexes), type);
-			if (pos == std::end(componentIndexes)) {
-				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", meta::getMetadata(type)->name);
-				return ArkInvalidIndex;
-			}
-			else 
-				return pos - std::begin(componentIndexes);
-		}
-
-		auto typeFromId(int id) const -> std::type_index {
-			return componentIndexes.at(id);
-		}
-
-		void addComponentType(std::type_index type)
-		{
-			if (hasComponentType(type))
-				return;
-
-			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", meta::getMetadata(type)->name);
-			if (componentIndexes.size() == MaxComponentTypes) {
-				EngineLog(LogSource::ComponentM, LogLevel::Error, 
-					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, meta::getMetadata(type)->name);
-				std::abort();
-			}
-			componentIndexes.push_back(type);
-		}
-
-		auto getTypes() const -> std::vector<std::type_index> const& 
-		{
-			return this->componentIndexes;
-		}
-
-	private:
-		std::vector<std::type_index> componentIndexes;
-	};
+	inline auto bitsComponentFromMask(ComponentMask mask) -> BitsComponentType {
+		if constexpr (MaxComponentTypes <= 32)
+			return mask.to_ulong();
+		else
+			return mask.to_ullong();
+	}
 }

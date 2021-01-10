@@ -11,9 +11,7 @@
 
 namespace ark
 {
-
-
-	struct TagComponent final : public Component<TagComponent> {
+	struct TagComponent final  {
 		TagComponent() = default;
 		~TagComponent() = default;
 
@@ -56,7 +54,7 @@ namespace ark
 		mutable std::string m_name;
 	};
 
-	struct ARK_ENGINE_API Transform final : public Component<Transform>, public sf::Transformable{
+	struct ARK_ENGINE_API Transform final : public sf::Transformable {
 
 		using sf::Transformable::Transformable;
 		operator const sf::Transform& () const { return this->getTransform(); }
@@ -163,7 +161,7 @@ namespace ark
 	};
 }
 
-ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, registerServiceDefault<ark::Transform>())
 {
 	return members(
 		member_property("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
@@ -175,7 +173,7 @@ ARK_REGISTER_TYPE(ark::Transform, "Transform", ARK_DEFAULT_SERVICES)
 	);
 }
 
-ARK_REGISTER_TYPE(ark::TagComponent, "Tag", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::TagComponent, "Tag", tag, registerServiceDefault<ark::TagComponent>())
 {
 	return members(member_property("name", &ark::TagComponent::_getName, &ark::TagComponent::_setName));
 }

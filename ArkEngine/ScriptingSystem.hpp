@@ -58,7 +58,7 @@ void registerScript(bool customRegistration)
 	if (not customRegistration) {
 		using Type = T;
 		ARK_DEFAULT_SERVICES;
-		ark::meta::constructMetadataFrom<T>();
+		ark::meta::registerMetadata<T>();
 	}
 	ark::meta::service<T>("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
 	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
@@ -66,15 +66,18 @@ void registerScript(bool customRegistration)
 
 template <typename T, bool CustomRegistration = false>
 class ScriptT : public Script {
+	// as fi folosit o lambda, dar da eroares: use of undefined type; pentru ca T este derivata, 
+	// si cum clasa inca nu este definita, nu poate fi instantata template
 	static inline auto _ = (registerScript<T>(CustomRegistration), 0);
 public:
 	ScriptT() : Script(typeid(T)) {}
 };
 
 
-struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingComponent> {
+struct ScriptingComponent {
 
 	ScriptingComponent() = default;
+	ScriptingComponent(ScriptingComponent&&) = default;
 
 	template <typename T, typename... Args>
 	T* addScript(Args&&... args)
@@ -248,7 +251,7 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 	return false;
 }
 
-ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
+ARK_REGISTER_COMPONENT(ScriptingComponent,
 	ark::meta::service<ScriptingComponent>(ark::SceneInspector::serviceName, renderScriptComponents),
 	ark::meta::service<ScriptingComponent>(ark::serde::serviceSerializeName, serializeScriptComponents),
 	ark::meta::service<ScriptingComponent>(ark::serde::serviceDeserializeName, deserializeScriptComponents)

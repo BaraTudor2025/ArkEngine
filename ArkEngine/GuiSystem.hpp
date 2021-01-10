@@ -8,7 +8,7 @@
 #include <fstream>
 #include "ScriptingSystem.hpp"
 
-struct Text : ark::Component<Text>, sf::Text { 
+struct Text : sf::Text { 
 
 	Text(std::string fontName = "KeepCalm-Medium.ttf") : fileName(fontName) 
 	{
@@ -36,9 +36,9 @@ private:
 	friend class TextSystem;
 };
 
-ARK_REGISTER_TYPE(Text, "TextComponent", ARK_DEFAULT_SERVICES) { return members(); }
+ARK_REGISTER_COMPONENT(Text, registerServiceDefault<Text>()) { return members(); }
 
-struct Button : ark::Component<Button>, sf::RectangleShape {
+struct Button : sf::RectangleShape {
 
 	Button() = default;
 
@@ -86,7 +86,7 @@ private:
 	friend class ButtonSystem;
 };
 
-ARK_REGISTER_TYPE(Button, "ButtonComponent", ARK_DEFAULT_SERVICES) { return members(); }
+ARK_REGISTER_COMPONENT(Button, registerServiceDefault<Button>()) { return members(); }
 
 class ButtonSystem : public ark::SystemT<ButtonSystem>, public ark::Renderer {
 

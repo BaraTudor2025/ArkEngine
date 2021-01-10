@@ -9,7 +9,6 @@
 
 namespace ark {
 
-	// created with Registry::makeQuerry({typeid(Component)...});
 	class EntityQuerry {
 	public:
 
@@ -24,7 +23,7 @@ namespace ark {
 				return {};
 		}
 
-		auto getMask() const -> ComponentManager::ComponentMask { 
+		auto getMask() const -> ComponentMask { 
 			if (data)
 				return data->componentMask;
 			else
@@ -32,7 +31,7 @@ namespace ark {
 		}
 
 		template <typename F> 
-		requires std::invocable<F, const ark::meta::Metadata&>
+		requires std::invocable<F, std::type_index>
 		void forComponents(F f) const;
 
 		template <typename F>
@@ -62,7 +61,7 @@ namespace ark {
 	private:
 		friend class Registry;
 		struct SharedData {
-			ComponentManager::ComponentMask componentMask;
+			ComponentMask componentMask;
 			std::vector<Entity> entities;
 			std::vector<std::function<void(Entity)>> addEntityCallbacks;
 			std::vector<std::function<void(Entity)>> removeEntityCallbacks;

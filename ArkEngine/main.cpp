@@ -142,7 +142,7 @@ public:
 	}
 };
 
-ARK_REGISTER_TYPE(MovePlayer, "MovePlayerScript", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT_WITH_NAME(MovePlayer, "MovePlayerScript", registerServiceDefault<MovePlayer>())
 {
 	return ark::meta::members(
 		member_property("speed", &MovePlayer::speed),
@@ -170,6 +170,8 @@ ARK_REGISTER_MEMBERS(ParticleScripts::RotateEmitter)
 /* TODO (general): Shaders */
 /* TODO (general): ParticleEmmiter with settings*/
 /* TODO (general): add a archetype component manager*/
+
+// TODO (design): remove entity class as a wrapper and only use entity-manager
 
 /* TODO:
 	* small vector
@@ -291,7 +293,7 @@ public:
 };
 
 // one time use component, it is removed from its entity after thes action is performed
-struct DelayedAction : ark::Component<DelayedAction> {
+struct DelayedAction {
 
 	DelayedAction() = default;
 
@@ -312,7 +314,7 @@ private:
 
 	friend class DelayedActionSystem;
 };
-ARK_REGISTER_TYPE(DelayedAction, "DelayedAction", ARK_DEFAULT_SERVICES) { return members(); }
+ARK_REGISTER_COMPONENT(DelayedAction, registerServiceDefault<DelayedAction>()) { return members(); }
 
 class DelayedActionSystem : public ark::SystemT<DelayedActionSystem> {
 public:
@@ -393,13 +395,16 @@ private:
 	ark::Entity makeEntity(std::string name)
 	{
 		Entity e = registry.createEntity();
-		e.addComponent<ark::TagComponent>(name);
-		e.addComponent<ark::Transform>();
+		e.getComponent<TagComponent>().name = name;
 		return e;
 	}
 
 	void init() override
 	{
+		registry.addAllComponentTypesFromMetaGroup();
+		registry.addDefaultComponent<ark::TagComponent>();
+		registry.addDefaultComponent<ark::Transform>();
+
 		systems.addSystem<PointParticleSystem>();
 		systems.addSystem<PixelParticleSystem>();
 		systems.addSystem<ButtonSystem>();
@@ -407,20 +412,14 @@ private:
 		systems.addSystem<AnimationSystem>();
 		systems.addSystem<DelayedActionSystem>();
 
-		// TODO
-		//registry.addDefaultComponent<ark::TagComponent>();
-		//registry.addDefaultComponent<ark::Transform>();
-		//registry.addDefaultComponent(typeid(ark::Transform));
-		//registry.addDefaultComponent(typeid(ark::TagComponent));
-
-		// setup for tags
-		registry.onConstruction<TagComponent>([&](ark::Entity e, TagComponent& tag) {
+		// tag setup
+		registry.onConstruction<TagComponent>([](ark::Entity e, TagComponent& tag) {
 			tag._setEntity(e);
 			if (tag.name.empty())
 				tag.name = std::string("entity_") + std::to_string(e.getID());
 		});
 
-		// setup for scripts
+		// script setup
 		systems.addSystem<ScriptingSystem>();
 		registry.onConstruction<ScriptingComponent>([this](ark::Entity e, ScriptingComponent* comp) {
 			comp->_setSystemManager(&this->systems);
@@ -428,18 +427,16 @@ private:
 			comp->_setEntity(e);
 		});
 
-		// setup for lua scripts
-		auto pLuaScriptingSystem = systems.addSystem<LuaScriptingSystem>();
+		// lua script setup
+		auto* pLuaScriptingSystem = systems.addSystem<LuaScriptingSystem>();
 		registry.onConstruction<LuaScriptingComponent>([pLuaScriptingSystem](ark::Entity entity, LuaScriptingComponent& comp) {
 			comp._setEntity(entity);
 			comp._setSystem(pLuaScriptingSystem);
 		});
 
 		auto* inspector = systems.addSystem<SceneInspector>();
-		//auto* serde = systems.addSystem<SerdeJsonDirector>();
 		systems.addSystem<FpsCounterDirector>();
 		ImGuiLayer::addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
-		//registry.addSystem<TestMessageSystem>();
 
 		button = makeEntity("button");
 		mouseTrail = makeEntity("mouse_trail");
@@ -921,9 +918,6 @@ public:
 		_ptr()->~T();
 	}
 };
-
-template <typename T>
-concept CComponent = std::default_initializable<T> && std::copy_constructible<T> && std::move_constructible<T>;
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {

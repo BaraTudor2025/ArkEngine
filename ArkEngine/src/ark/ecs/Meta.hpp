@@ -27,6 +27,23 @@ auto registerMembers<YourClass>()
 4) If the class is not registered then doForAllMembers(<your function>) will do nothing,
    because the function will return empty tuple.
 
+
+   // TODO (Meta): 4. pentru membrii privati
+
+   Modulul de Meta are 4 parti
+   1. Groups: un vector de type-uri indexat dupa un string
+	   -> grupuri de tipuri
+   2. Services: un table de functii indexat printr-un pair de (std::type_index, string)
+       -> servesc ca callback-uri sofisticate
+       -> observatorul/cel care apeleaza seviciile isi defineste string-ul (acesta fiind un grup de service-uri)
+       -> observatorul poate da un template care poate fi folosit de orice type la inregistrare
+   3. Metadata: numele, size, alignment, referinte catre constructori
+       -> ctorii sunt type-erased pentru a putea fi apelati dinamic
+   4. Members: membrii si functiile unui struct/class si-i poti itera
+       -> iteratia are loc in compile-time: un loop-rool pe un std::tuple
+	   -> membrii au proprietate de nume, get-citire, set-atribuire (operator=), 
+	   -> deoarece biblioteca face abstractie prin get/set, un membru poate sa fie si o pereche de get/set al clasei, nu doar o variabila
+
 -------------------------------------------------------------------------------------------------*/
 
 #pragma once
@@ -59,30 +76,45 @@ auto registerMembers<YourClass>()
 #define RUN_CODE_QSTATIC(TYPE, GUARD, ...) \
 	template <> static inline auto ::ark::meta::dummy<TYPE, GUARD> = []() {__VA_ARGS__ return 0;} ();
 
-#define _ARK_META_COUT(TYPE) std::cout << "ctor:" << typeid(TYPE).name() << '\n'
-//#define _ARK_META_COUT(TYPE)
-
-
-// scope global, tre sa apara o singura data ca sa mearga
-// ori dai lista de servicii la REGISTER_TYPE ori la REGISTER_SERVICES dupa ce type-ul a fost inregistrat
-#define ARK_REGISTER_SERVICES(TYPE, GUARD, ...) \
-	RUN_CODE_NAMESPACE(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; (__VA_ARGS__); )
-
 // de pus intr o clasa, si dat un type unic ca 'GUARD'
 #define ARK_REGISTER_SERVICES_IN_CLASS(TYPE, GUARD, ...) \
-	RUN_CODE_QSTATIC(TYPE, GUARD, _ARK_META_COUT(TYPE); using Type = TYPE; (__VA_ARGS__); )
+	RUN_CODE_QSTATIC(TYPE, GUARD, (__VA_ARGS__); )
 
+// doar pe asta-l pastrez
 #define ARK_REGISTER_MEMBERS(TYPE) \
 	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
 
-#define ARK_REGISTER_METADATA(TYPE, NAME) \
-	RUN_CODE_NAMESPACE(TYPE, void, constructMetadataFrom<TYPE>(NAME);)
+// TODO: test
+#define ARK_REGISTER_GROUP_WITH_TAG(TYPE, TAG, GROUP)\
+	inline auto _ark_reg_group##TAG = [](){ ark::meta::addTypeToGroup(GROUP, typeid(TYPE)); return 0;}();
+#define ARK_REGISTER_GROUP(TYPE, GROUP) ARK_REGISTER_GROUP(TYPE, TYPE, GROUP)
 
-// standard
-#define ARK_REGISTER_TYPE(TYPE, NAME, ...) \
-	ARK_REGISTER_METADATA(TYPE, NAME) \
-	ARK_REGISTER_SERVICES(TYPE, decltype(NAME), __VA_ARGS__) \
+#define ARK_REGISTER_SERVICES(TAG, ...)\
+	inline auto _ark_reg_serv##TAG = [](){ (__VA_ARGS__); return 0;}();
+
+#define ARK_REGISTER_METADATA_WITH_NAME_TAG(TYPE, NAME, TAG)\
+	inline auto _ark_reg_meta##TAG = [](){ ark::meta::registerMetadata<TYPE>(NAME); return 0;}();
+#define ARK_REGISTER_METADATA(TYPE) ARK_REGISTER_METADATA_WITH_TAG_NAME(TYPE, #TYPE, TYPE)
+#define ARK_REGISTER_METADATA_WITH_TAG(TYPE, TAG) ARK_REGISTER_METADATA_WITH_TAG_NAME(TYPE, #TYPE, TAG)
+#define ARK_REGISTER_METADATA_WITH_NAME(TYPE, NAME) ARK_REGISTER_METADATA_WITH_TAG_NAME(TYPE, NAME, TAG)
+
+// first is the group
+#define ARK_REGISTER_TYPE_WITH_NAME_TAG(GROUP, TYPE, NAME, TAG, /*services*/...) \
+	ARK_REGISTER_GROUP_WITH_TAG(TYPE, TAG, GROUP) \
+	ARK_REGISTER_METADATA_WITH_NAME_TAG(TYPE, NAME, TAG) \
+	ARK_REGISTER_SERVICES(TAG, __VA_ARGS__) \
 	ARK_REGISTER_MEMBERS(TYPE)
+
+#define ARK_REGISTER_TYPE(GROUP, TYPE, /*services*/...) ARK_REGISTER_TYPE_WITH_NAME_TAG(GROUP, TYPE, #TYPE, TYPE, __VA_ARGS__)
+#define ARK_REGISTER_TYPE_WITH_NAME(GROUP, TYPE, NAME, /*services*/...) ARK_REGISTER_TYPE_WITH_NAME_TAG(GROUP, TYPE, NAME, TYPE, __VA_ARGS__)
+#define ARK_REGISTER_TYPE_WITH_TAG(GROUP, TYPE, TAG, /*services*/...) ARK_REGISTER_TYPE_WITH_NAME_TAG(GROUP, TYPE, #TYPE, TAG, __VA_ARGS__)
+
+#define ARK_REGISTER_COMPONENT_WITH_NAME_TAG(TYPE, NAME, TAG, /*services*/...) \
+	ARK_REGISTER_TYPE_WITH_NAME_TAG(ARK_META_COMPONENT_GROUP, TYPE, NAME, TAG, __VA_ARGS__)
+
+#define ARK_REGISTER_COMPONENT(TYPE, /*services*/...) ARK_REGISTER_COMPONENT_WITH_NAME_TAG(TYPE, #TYPE, TYPE, __VA_ARGS__)
+#define ARK_REGISTER_COMPONENT_WITH_NAME(TYPE, NAME, /*services*/...) ARK_REGISTER_COMPONENT_WITH_NAME_TAG(TYPE, NAME, TYPE, __VA_ARGS__)
+#define ARK_REGISTER_COMPONENT_WITH_TAG(TYPE, TAG, /*services*/...) ARK_REGISTER_COMPONENT_WITH_NAME_TAG(TYPE, #TYPE, TAG, __VA_ARGS__)
 
 #define ARK_REGISTER_ENUM(TYPE) \
 	template <> inline auto ::ark::meta::registerEnum<TYPE>()
@@ -124,7 +156,7 @@ namespace ark::meta
 		void(*move_assign)(void*, void*) = nullptr;
 
 		template <typename T>
-		friend void constructMetadataFrom(std::string name) noexcept;
+		friend void registerMetadata(std::string name) noexcept;
 	};
 
 
@@ -190,12 +222,6 @@ namespace ark::meta
 			};
 			static inline std::map<std::pair<std::type_index, std::string_view>, ServiceData> sServiceTable;
 			static inline std::unordered_map<std::string_view, std::vector<std::type_index>> sTypeGroups;
-			//static inline std::unordered_map<std::type_index, std::unordered_map<std::string_view, void*>> sServiceTable;
-
-
-			// exp: services["EDITOR"] = SceneInspector::renderPropertiesOfType<T>;
-			// exp: services["SERIALIZE-JSON"] = serialize_value<T>;
-			// exp: services["NEW-UNIQUE"] = lambdaToPtr([]()->unique_ptr<TBase> { return make_unique<T>();});
 		};
 
 		/* helper functions */
@@ -336,7 +362,7 @@ namespace ark::meta
 
 	// if no name is passed then prettifyTypeName will generate name from typeid(T).name()
 	template <typename T>
-	void constructMetadataFrom(std::string name = "") noexcept
+	void registerMetadata(std::string name = "") noexcept
 	{
 		if (name.empty())
 			name = detail::prettifyTypeName(typeid(T).name());

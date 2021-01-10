@@ -11,3 +11,20 @@
 
 #define ARK_DEFAULT_SERVICES \
 	ARK_SERVICE_INSPECTOR, ARK_SERVICE_SERDE
+
+template <typename T>
+inline void registerServiceInspector() {
+	ark::meta::service<T>(ark::SceneInspector::serviceName, &ark::SceneInspector::renderPropertiesOfType<T>);
+}
+
+template <typename T>
+inline void registerServiceSerde() {
+	ark::meta::service<T>(ark::serde::serviceSerializeName, ark::serde::serialize_value<T>);
+	ark::meta::service<T>(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<T>);
+}
+
+template <typename T>
+inline void registerServiceDefault() {
+	registerServiceInspector<T>();
+	registerServiceSerde<T>();
+}

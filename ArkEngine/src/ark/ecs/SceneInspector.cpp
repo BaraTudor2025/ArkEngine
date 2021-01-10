@@ -67,8 +67,9 @@ namespace ark {
 			if (!system->getQuerry().isValid())
 				return;
 			ImGui::TextUnformatted("Components:");
-			system->getQuerry().forComponents([](const ark::meta::Metadata& meta) {
-				ImGui::BulletText(meta.name.c_str());
+			system->getQuerry().forComponents([](std::type_index type) {
+				auto* meta = ark::meta::getMetadata(type);
+				ImGui::BulletText(meta->name.c_str());
 			});
 
 			ImGui::TextUnformatted("Entities:");
@@ -159,14 +160,6 @@ namespace ark {
 		return pressed;
 	}
 
-	std::string getNameOfEntity(ark::Entity entity)
-	{
-		if (auto tag = entity.tryGetComponent<TagComponent>())
-			return tag->name;
-		else
-			return std::string("entity_") + std::to_string(entity.getID());
-	}
-
 	void SceneInspector::renderEntityEditor()
 	{
 		const int windowHeight = 700;
@@ -180,7 +173,7 @@ namespace ark {
 			static int selectedEntity = -1;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
 			for (const auto entity : entityManager.entitiesView()) {
-				auto name = getNameOfEntity(entity);
+				const auto& name = entity.getComponent<TagComponent>().name;
 				if (ImGui::Selectable(name.c_str(), selectedEntity == entity.getID()))
 					selectedEntity = entity.getID();
 			}

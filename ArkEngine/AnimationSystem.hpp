@@ -13,7 +13,7 @@
 
 #include "Quad.hpp"
 
-struct Mesh : public ark::Component<Mesh> {
+struct Mesh {
 
 	Mesh() = default;
 
@@ -52,7 +52,7 @@ private:
 	friend class MeshSystem;
 };
 
-struct Animation : public ark::Component<Animation> {
+struct Animation {
 
 	Animation() = default;
 	// frameCount: number of frames of every row and number of rows; example: sf::Vector2u{6, 2} means 6 frames and 2 rows
@@ -138,7 +138,7 @@ private:
 	template <std::size_t N> decltype(auto) get();
 };
 
-ARK_REGISTER_TYPE(Animation, "Animation", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT(Animation, registerServiceDefault<Animation>())
 {
 	return members(
 		member_property("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),

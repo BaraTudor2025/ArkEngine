@@ -15,26 +15,50 @@ namespace ark {
 
 	public:
 		Registry(std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
-			: componentManager(),
-			entityManager(componentManager, mComponentsAdded, upstreamComponent)
+			: entityManager(mComponentsAdded, upstreamComponent)
 		{}
 		~Registry() = default;
 
+		template <ConceptComponent T>
+		void addDefaultComponent() {
+			addDefaultComponent(typeid(T));
+		}
+
+		void addDefaultComponent(std::type_index type) {
+			mDefaultComponentTypes.push_back(type);
+			addComponentType(type);
+		}
+
+		template <ConceptComponent... Args>
+		void addComponentType() {
+			(addComponentType(typeid(Args)), ...);
+		}
+
 		void addComponentType(std::type_index type) {
-			componentManager.addComponentType(type);
+			entityManager.addComponentType(type);
+		}
+
+		// TODO: addAllComponentTypesFromMetaGroup
+		void addAllComponentTypesFromMetaGroup() {
+			const auto& types = ark::meta::getTypeGroup(ARK_META_COMPONENT_GROUP);
+			for (auto type : types)
+				entityManager.addComponentType(type);
 		}
 
 		int idFromType(std::type_index type) const {
-			return componentManager.idFromType(type);
+			return entityManager.idFromType(type);
 		}
 
 		auto typeFromId(int id) -> std::type_index const {
-			return componentManager.typeFromId(id);
+			return entityManager.typeFromId(id);
 		}
 
 		[[nodiscard]]
 		auto createEntity() -> Entity {
-			return entityManager.createEntity();
+			Entity entity = entityManager.createEntity();
+			for (std::type_index type : mDefaultComponentTypes)
+				entity.addComponent(type);
+			return entity;
 		}
 		
 		auto entityFromId(int id) -> Entity
@@ -50,14 +74,15 @@ namespace ark {
 			return entityManager.cloneEntity(e);
 		}
 
-		template <typename TComponent, typename F>
+		template <ConceptComponent T, typename F>
+		requires std::invocable<F, Entity, T&> || std::invocable<F, Entity, T*>
 		void onConstruction(F&& f) {
-			entityManager.addOnConstruction<TComponent>(std::forward<F>(f));
+			entityManager.addOnConstruction<T>(std::forward<F>(f));
 		}
 
 		void safeRemoveComponent(Entity entity, std::type_index type) 
 		{
-			auto compId = componentManager.idFromType(type);
+			auto compId = entityManager.idFromType(type);
 			auto index = Util::get_index_if(mComponentsRemoved, [id = entity.getID()](const auto& pair) { return pair.first == id; });
 			if (index == ArkInvalidIndex) {
 				auto& [id, mask] = mComponentsRemoved.emplace_back();
@@ -79,6 +104,7 @@ namespace ark {
 		}
 
 		template <typename F>
+		requires std::invocable<F, Entity>
 		void forEachEntity(F&& f)
 		{
 			for (Entity entity : entityManager.entitiesView())
@@ -92,7 +118,7 @@ namespace ark {
 		// get or create new querry and populate it if it's created;
 		// querries can be updated trough Registry::update() with the Entities that have been modified since the querry creation
 		// hence when a componet is added/removed it is not added to the querries automatically
-		template <typename... Args> [[nodiscard]]
+		template <ConceptComponent... Args> [[nodiscard]]
 		auto makeQuerry() -> EntityQuerry  {
 			return makeQuerry({ typeid(Args)... });
 		}
@@ -100,16 +126,16 @@ namespace ark {
 		[[nodiscard]]
 		auto makeQuerry(const std::vector<std::type_index>& types) -> EntityQuerry 
 		{
-			auto mask = ComponentManager::ComponentMask();
+			auto mask = ComponentMask();
 			for (auto type : types) {
-				componentManager.addComponentType(type);
-				mask.set(componentManager.idFromType(type));
+				entityManager.addComponentType(type);
+				mask.set(entityManager.idFromType(type));
 			}
 			return makeQuerry(mask);
 		}
 
 		[[nodiscard]]
-		auto makeQuerry(ComponentManager::ComponentMask mask) -> EntityQuerry 
+		auto makeQuerry(ComponentMask mask) -> EntityQuerry 
 		{
 			assert(("empty component mask", !mask.none()));
 			int cleanup = 0;
@@ -145,7 +171,7 @@ namespace ark {
 
 		[[nodiscard]]
 		const auto& getComponentTypes() const {
-			return componentManager.getTypes();
+			return entityManager.getTypes();
 		}
 
 		// update querries, remove components, destroy entities
@@ -181,7 +207,8 @@ namespace ark {
 				if (entity.isValid())
 					for (int i = 0; i < mask.size(); i++)
 						if (mask[i])
-							entityManager.removeComponentOfEntity(entity, componentManager.typeFromId(i));
+							entityManager.removeComponentOfEntity(entity, entityManager.typeFromId(i));
+
 			}
 			for (Entity entity : mDestroyedEntities)
 				entityManager.destroyEntity(entity);
@@ -193,7 +220,7 @@ namespace ark {
 	private:
 
 		template <typename F>
-		void forQuerries(ComponentManager::ComponentMask entityMask, ComponentManager::ComponentMask modifiedMask, F f) {
+		void forQuerries(ComponentMask entityMask, ComponentMask modifiedMask, F f) {
 			int index = 0;
 			for (auto qmask : querryMasks) {
 				// 1.check: querry-ul are cel putin o componenta added/removed
@@ -207,26 +234,26 @@ namespace ark {
 			}
 		}
 
-		ComponentManager componentManager;
 		EntityManager entityManager;
 
-		std::vector<ComponentManager::ComponentMask> querryMasks; // cache, ca sa nu dau .lock() la shared-ptr pentru ->mask
+		std::vector<ComponentMask> querryMasks; // cache, ca sa nu dau .lock() la shared-ptr pentru ->mask
 		std::vector<std::weak_ptr<EntityQuerry::SharedData>> querries;
 		std::vector<Entity> mDestroyedEntities;
+		std::vector<std::type_index> mDefaultComponentTypes;
 		// momentan, mComponentsAdded este folosit de EntityManager si mRemoved de Registry print safeRemove
 		// on call of Add/RemoveComponent, add or update mask with id of component added or removed
-		std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>> mComponentsAdded;
-		std::vector<std::pair<Entity::ID, ComponentManager::ComponentMask>> mComponentsRemoved;
+		std::vector<std::pair<Entity::ID, ComponentMask>> mComponentsAdded;
+		std::vector<std::pair<Entity::ID, ComponentMask>> mComponentsRemoved;
 
 	}; // class Registry
 
 	template <typename F> 
-	requires std::invocable<F, const ark::meta::Metadata&>
+	requires std::invocable<F, std::type_index>
 	void EntityQuerry::forComponents(F f) const {
 		if (!data)
 			return;
 		for (int i = 0; i < data->componentMask.size(); i++)
 			if (data->componentMask[i])
-				f(*ark::meta::getMetadata(mRegistry->typeFromId(i)));
+				f(mRegistry->typeFromId(i));
 	}
 }

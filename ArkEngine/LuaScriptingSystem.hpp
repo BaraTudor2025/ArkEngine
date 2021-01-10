@@ -17,7 +17,7 @@ class LuaScriptingSystem;
 
 #define LUA_SCRIPT_UPDATING 0
 
-class LuaScriptingComponent : ark::Component<LuaScriptingComponent> {
+class LuaScriptingComponent {
 public:
 	LuaScriptingComponent() = default;
 
@@ -38,7 +38,7 @@ private:
 	friend class LuaScriptingSystem;
 };
 
-ARK_REGISTER_TYPE(LuaScriptingComponent, "", ARK_DEFAULT_SERVICES) { return members(); }
+ARK_REGISTER_COMPONENT(LuaScriptingComponent, registerServiceDefault<LuaScriptingComponent>()) { return members(); }
 
 namespace fs = std::filesystem;
 class LuaScriptingSystem : public ark::SystemT<LuaScriptingSystem> {

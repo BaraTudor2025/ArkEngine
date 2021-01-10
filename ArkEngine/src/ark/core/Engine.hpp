@@ -7,7 +7,7 @@
 #include "ark/ecs/Scene.hpp"
 #include "ark/util/ResourceManager.hpp"
 
-//#define USE_DELTA_TIME
+#define USE_DELTA_TIME
 
 namespace ark {
 

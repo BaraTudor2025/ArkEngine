@@ -19,11 +19,9 @@
 
 static inline constexpr auto PI = 3.14159f;
 
-struct PointParticles final : public ark::Component<PointParticles> {
+struct PointParticles final {
 
 	PointParticles() : vertices(0), data(0) { }
-	COPYABLE(PointParticles)
-	MOVABLE(PointParticles)
 
 	PointParticles(int count, sf::Time lifeTime,
 	          Distribution<float> speedArgs = { 0, 0 },
@@ -108,7 +106,7 @@ private:
 	friend class PointParticleSystem;
 };
 
-ARK_REGISTER_TYPE(PointParticles, "PointParticles", ARK_DEFAULT_SERVICES, 
+ARK_REGISTER_COMPONENT(PointParticles, registerServiceDefault<PointParticles>(), 
 	ark::meta::service<PointParticles>("export_to_lua", exportTypeToLua<PointParticles>), 
 	ark::meta::service<PointParticles>("lua_table_from_pointer", tableFromPointer<PointParticles>))
 {
@@ -124,13 +122,11 @@ ARK_REGISTER_TYPE(PointParticles, "PointParticles", ARK_DEFAULT_SERVICES,
 	);
 }
 
-struct PixelParticles : public ark::Component<PixelParticles> {
+struct PixelParticles {
 
 	using Colors = std::pair<sf::Color, sf::Color>;
 
 	PixelParticles() : quads(0), data(0) { }
-	COPYABLE(PixelParticles)
-	MOVABLE(PixelParticles)
 
 	PixelParticles(size_t count, sf::Time lifeTime, sf::Vector2f size, Colors colors)
 		:count(count), particlesPerSecond(count), size(size), colors(colors), lifeTime(lifeTime) 
@@ -187,7 +183,7 @@ private:
 	friend class PixelParticleSystem;
 };
 
-ARK_REGISTER_TYPE(sf::FloatRect, "FloatRect", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT_WITH_TAG(sf::FloatRect, floatrect ,registerServiceDefault<sf::FloatRect>())
 {
 	constexpr auto m = members(
 		member_property("top", &sf::FloatRect::top),
@@ -198,7 +194,7 @@ ARK_REGISTER_TYPE(sf::FloatRect, "FloatRect", ARK_DEFAULT_SERVICES)
 	return m;
 }
 
-ARK_REGISTER_TYPE(PixelParticles::Colors, "ColorPair", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(PixelParticles::Colors, "ColorPair", pixelcolorpair, registerServiceDefault<PixelParticles>())
 {
 	return members(
 		member_property("dominant", &PixelParticles::Colors::first),
@@ -206,7 +202,7 @@ ARK_REGISTER_TYPE(PixelParticles::Colors, "ColorPair", ARK_DEFAULT_SERVICES)
 	);
 }
 
-ARK_REGISTER_TYPE(PixelParticles, "PixelParticles", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT(PixelParticles, registerServiceDefault<PixelParticles>())
 {
 	return members(
 		member_property("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),

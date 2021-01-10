@@ -27,16 +27,16 @@ namespace ark {
 
 		ID getID() const { return id; }
 
-		template <typename T, typename...Args>
+		template <ConceptComponent T, typename...Args>
 		T& addComponent(Args&& ... args);
 
 		void addComponent(std::type_index type);
 
-		template <typename T>
+		template <ConceptComponent T>
 		[[nodiscard]]
 		T& getComponent();
 
-		template <typename T>
+		template <ConceptComponent T>
 		[[nodiscard]]
 		const T& getComponent() const;
 
@@ -44,11 +44,11 @@ namespace ark {
 		void* getComponent(std::type_index type);
 
 		// returns nullptr if component is not found
-		template <typename T>
+		template <ConceptComponent T>
 		[[nodiscard]]
 		T* tryGetComponent();
 
-		template <typename T>
+		template <ConceptComponent T>
 		[[nodiscard]]
 		const T* tryGetComponent() const;
 
@@ -67,7 +67,7 @@ namespace ark {
 
 	private:
 		// use Registry::safeRemoveComponent(Entity e, std::type_index componentType)
-		template <typename T>
+		template <ConceptComponent T>
 		void removeComponent();
 
 		// use Registry::safeRemoveComponent(Entity e, std::type_index componentType)
@@ -75,7 +75,7 @@ namespace ark {
 
 	public:
 		[[nodiscard]]
-		auto getComponentMask() const -> const ComponentManager::ComponentMask&;
+		auto getComponentMask() const -> const ComponentMask&;
 
 		[[nodiscard]]
 		bool isValid() const;

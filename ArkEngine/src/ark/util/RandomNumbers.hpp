@@ -15,7 +15,7 @@ struct Distribution {
 template<typename T> Distribution(T, T)->Distribution<T>;
 template<typename T> Distribution(T, T, DistributionType)->Distribution<T>;
 
-ARK_REGISTER_TYPE(Distribution<float>, "Distribution", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(Distribution<float>, "Distribution", Distribution_float, registerServiceDefault<Distribution<float>>())
 {
 	return members(
 		member_property("lower", &Distribution<float>::a),

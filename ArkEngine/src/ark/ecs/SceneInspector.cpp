@@ -198,7 +198,7 @@ namespace ark {
 							// can't delete Tag or Transform
 							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
 								AlignButtonToRight("remove component", [&]() {
-									entityManager.safeRemoveComponent(entity, type);
+									entityManager.safeRemoveComponent(entity, component.type);
 								});
 							}
 							render(&widgetId, component.ptr);

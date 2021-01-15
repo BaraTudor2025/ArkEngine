@@ -227,7 +227,7 @@ namespace ark {
 			const auto end = this->componentIds.end();
 			auto pos = std::find(this->componentIds.begin(), end, type);
 			if (pos == end) {
-				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", meta::getMetadata(type)->name);
+				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", type.name());
 				return ArkInvalidIndex;
 			}
 			else 

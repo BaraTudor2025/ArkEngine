@@ -17,16 +17,26 @@ namespace ark {
 	class EntitiesView;
 	class RuntimeComponentView;
 
-	class EntityManager final : public NonCopyable, public NonMovable {
-
+	class EntityManager final {
 	public:
-		EntityManager(
+		EntityManager(			
 			std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded, 
 			std::pmr::memory_resource* upstreamComponent)
 			: mComponentsAdded(mComponentsAdded),
-			componentPool(
+			resComponentIds(std::make_unique<std::pmr::monotonic_buffer_resource>(buffComponentIds.data(), sizeof(buffComponentIds))),
+			componentIds(resComponentIds.get()),
+			componentPool(std::make_unique<std::pmr::unsynchronized_pool_resource>(
 				std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
-				upstreamComponent) { }
+				upstreamComponent))
+		{
+			componentIds.reserve(MaxComponentTypes);
+		}
+
+		EntityManager(EntityManager&&) = default;
+
+		/// 
+		/// use cloneManager instead
+		EntityManager(const EntityManager&) = delete;
 
 		auto createEntity() -> Entity
 		{
@@ -46,6 +56,10 @@ namespace ark {
 			return e;
 		}
 
+		//EntityManager cloneThisManager(
+		//	std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded,
+		//	std::pmr::memory_resource* upstreamComponent);
+
 		auto cloneEntity(Entity e) -> Entity
 		{
 			Entity hClone = createEntity();
@@ -54,7 +68,7 @@ namespace ark {
 			clone.mask = entity.mask;
 			forComponents(entity, [&, this](auto& compData) {
 				auto metadata = meta::getMetadata(compData.type);
-				void* newComponent = componentPool.allocate(metadata->size, metadata->align);
+				void* newComponent = componentPool->allocate(metadata->size, metadata->align);
 				if (metadata->copy_constructor) {
 					metadata->copy_constructor(newComponent, compData.pComponent);
 				}
@@ -63,6 +77,7 @@ namespace ark {
 
 				clone.components[idFromType(compData.type)] = { compData.type, newComponent };
 				onConstruction(compData.type, newComponent, hClone);
+				onCopy(compData.type, newComponent, compData.pComponent);
 			});
 			mComponentsAdded.push_back({clone.id, clone.mask});
 			return hClone;
@@ -83,14 +98,21 @@ namespace ark {
 		}
 
 		template <typename T, typename F>
-		void addOnConstruction(F&& f) {
-			onConstructionTable[typeid(T)] = [f = std::forward<F>(f)](Entity e, void* ptr) {
-				if constexpr (std::invocable<F, ark::Entity, T&>)
-					f(e, *static_cast<T*>(ptr));
-				else if constexpr (std::invocable<F, ark::Entity, T*>)
-					f(e, static_cast<T*>(ptr));
+		void addOnConstruction(F&& f, Registry* reg) {
+			onConstructionTable[typeid(T)] = [f = std::forward<F>(f), reg](void* ptr, ark::Entity e) {
+				if constexpr (std::invocable<F, T&>)
+					f(*static_cast<T*>(ptr));
+				else if constexpr (std::invocable<F, T&, ark::Entity>)
+					f(*static_cast<T*>(ptr), e);
 				else
-					static_assert(false, "argumetul componenta tre sa fie ori pointer ori referinta");
+					f(*static_cast<T*>(ptr), e, *reg);
+			};
+		}
+
+		template <typename T, typename F>
+		void addOnCopy(F&& f) {
+			onCopyTable[typeid(T)] = [f = std::forward<F>(f)](void* This, const void* That) {
+				f(*static_cast<T*>(This), *static_cast<const T*>(That));
 			};
 		}
 
@@ -121,7 +143,7 @@ namespace ark {
 		}
 
 		// returns: component pointer, exists?
-		auto implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct) -> std::pair<void*, bool>
+		auto implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct, const void* otherComponent = nullptr) -> std::pair<void*, bool>
 		{
 			int compId = idFromType(type);
 			auto& entity = getEntity(e);
@@ -140,8 +162,10 @@ namespace ark {
 				mComponentsAdded[index].second.set(compId);
 
 			auto metadata = meta::getMetadata(type);
-			void* newComponent = componentPool.allocate(metadata->size, metadata->align);
-			if(defaultConstruct)
+			void* newComponent = componentPool->allocate(metadata->size, metadata->align);
+			if (otherComponent && metadata->copy_constructor)
+				metadata->copy_constructor(newComponent, otherComponent);
+			else if(defaultConstruct)
 				metadata->default_constructor(newComponent);
 
 			entity.components[compId] = { type, newComponent };
@@ -200,7 +224,7 @@ namespace ark {
 
 		int idFromType(std::type_index type) const
 		{
-			const auto end = this->componentIds.begin() + numOfComponentIds;
+			const auto end = this->componentIds.end();
 			auto pos = std::find(this->componentIds.begin(), end, type);
 			if (pos == end) {
 				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", meta::getMetadata(type)->name);
@@ -219,14 +243,13 @@ namespace ark {
 			if (idFromType(type) != ArkInvalidIndex)
 				return;
 			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", meta::getMetadata(type)->name);
-			if (numOfComponentIds == MaxComponentTypes) {
+			if (componentIds.size() == MaxComponentTypes) {
 				EngineLog(LogSource::ComponentM, LogLevel::Error, 
 					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, meta::getMetadata(type)->name);
 				// TODO: add abort with grace
 				std::abort();
 			}
-			this->componentIds[numOfComponentIds].type = type;
-			numOfComponentIds++;
+			this->componentIds.emplace_back(type);
 		}
 
 		const auto& getTypes() const
@@ -305,7 +328,6 @@ namespace ark {
 		{
 			int id = 0;
 			for (auto& entity : entities) {
-				//auto it = std::find(freeEntities.begin(), freeEntities.end(), id);
 				// destroy components only for alive entities
 				if (isFree[entity.id]) {
 					forComponents(entity, [this](auto& compData) {
@@ -324,15 +346,21 @@ namespace ark {
 			auto metadata = meta::getMetadata(type);
 			if(metadata->destructor)
 				metadata->destructor(component);
-			componentPool.deallocate(component, metadata->size, metadata->align);
+			componentPool->deallocate(component, metadata->size, metadata->align);
 		}
 
 		void onConstruction(std::type_index type, void* ptr, Entity e)
 		{
 			if (auto it = onConstructionTable.find(type); it != onConstructionTable.end()) {
-				auto& onCtor = it->second;
-				if (onCtor)
-					onCtor(e, ptr);
+				if (auto& func = it->second; func)
+					func(ptr, e);
+			}
+		}
+		void onCopy(std::type_index type, void* ptr, const void* that)
+		{
+			if (auto it = onCopyTable.find(type); it != onCopyTable.end()) {
+				if (auto& func = it->second; func)
+					func(ptr, that);
 			}
 		}
 
@@ -367,15 +395,22 @@ namespace ark {
 			std::type_index type = typeid(void);
 			inline operator std::type_index() const { return type; }
 		};
-		std::pmr::unsynchronized_pool_resource componentPool;
+#ifdef NDEBUG
+		std::array<CompTypeWrapper, MaxComponentTypes> buffComponentIds;
+#else
+		// msvc mai aloca 16 bytes in debug wtf???
+		std::array<CompTypeWrapper, MaxComponentTypes + 2> buffComponentIds;
+#endif
 		// component ID is the index
 		// wrapper pentru std::type_index deoarece el nu are default ctor, asa ca i dam typeid(void)
-		std::size_t numOfComponentIds = 0;
-		std::array<CompTypeWrapper, MaxComponentTypes> componentIds;
+		std::unique_ptr<std::pmr::monotonic_buffer_resource> resComponentIds;
+		std::pmr::vector<CompTypeWrapper> componentIds;
+		std::unique_ptr<std::pmr::unsynchronized_pool_resource> componentPool;
 		std::vector<InternalEntityData> entities;
 		std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded;
 		std::vector<bool> isFree;
-		std::unordered_map<std::type_index, std::function<void(Entity, void*)>> onConstructionTable;
+		std::unordered_map<std::type_index, std::function<void(void*, Entity)>> onConstructionTable;
+		std::unordered_map<std::type_index, std::function<void(void*, const void*)>> onCopyTable;
 
 		template <bool> friend struct RuntimeComponentIterator;
 		friend struct EntityIterator;
@@ -519,6 +554,26 @@ namespace ark {
 	{
 		return EntitiesView{*this};
 	}
+
+	//inline EntityManager EntityManager::cloneThisManager(
+	//	std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded,
+	//	std::pmr::memory_resource* upstreamComponent)
+	//{
+	//	auto manager = EntityManager(mComponentsAdded, upstreamComponent);
+	//	manager.componentIds = this->componentIds;
+	//	// tre facut MANUAL?!
+	//	//manager.onConstructionTable = this->onConstructionTable;
+	//	for (Entity entity : this->entitiesView()) {
+	//		Entity clone = manager.createEntity();
+	//		for (auto [type, ptr] : entity.runtimeComponentView()) {
+	//			auto [newComp, /*isAlready*/_] = manager.implAddComponentOnEntity(clone, type, false, ptr);
+	//			manager.onConstruction(type, newComp, clone);
+	//			// ar trebui si asta pe langa .onCtor()
+	//			//manager.onCopy(type, newComp, clone, ptr);
+	//		}
+	//	}
+	//	return manager;
+	//}
 
 	/* Entity handle definitions */
 

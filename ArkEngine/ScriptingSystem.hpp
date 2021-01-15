@@ -6,10 +6,11 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/DefaultServices.hpp"
 
-class Script : public NonCopyable {
+class Script {
 
 public:
 	Script(std::type_index type) : mType(type) {}
+	Script(const Script&) = default;
 	virtual ~Script() = default;
 
 	// scripts are immediatly binded
@@ -36,13 +37,10 @@ public:
 
 	ark::Registry& getRegistry() { return *mRegistry; }
 
-	ark::SystemManager& getSystemManager() { return *mSystemManager; }
-
 private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
 	ark::Registry* mRegistry;
-	ark::SystemManager* mSystemManager;
 	std::type_index mType;
 
 	friend class ScriptingSystem;
@@ -57,20 +55,22 @@ void registerScript(bool customRegistration)
 {
 	if (not customRegistration) {
 		using Type = T;
-		ARK_DEFAULT_SERVICES;
 		ark::meta::registerMetadata<T>();
+		registerServiceDefault<T>();
 	}
-	ark::meta::service<T>("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
+	ark::meta::service<T>("unique_ptr", +[]() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
+	ark::meta::service<T>("clone", +[](Script* script) -> std::unique_ptr<Script> { return std::make_unique<T>(*static_cast<const T*>(script)); });
 	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
 }
 
 template <typename T, bool CustomRegistration = false>
 class ScriptT : public Script {
-	// as fi folosit o lambda, dar da eroares: use of undefined type; pentru ca T este derivata, 
+	// as fi folosit o lambda, dar da eroarea: use of undefined type; pentru ca T este derivata, 
 	// si cum clasa inca nu este definita, nu poate fi instantata template
 	static inline auto _ = (registerScript<T>(CustomRegistration), 0);
 public:
 	ScriptT() : Script(typeid(T)) {}
+	ScriptT(const ScriptT&) = default;
 };
 
 
@@ -78,6 +78,23 @@ struct ScriptingComponent {
 
 	ScriptingComponent() = default;
 	ScriptingComponent(ScriptingComponent&&) = default;
+	/* NO copy ctor */
+	ScriptingComponent(const ScriptingComponent&) = delete;
+	//ScriptingComponent(ark::Entity, ark::Registry) = delete;
+	//ScriptingComponent(const ScriptingComponent&, ark::Entity, ark::Registry) = delete;
+
+	static auto onConstruction() // -> std::function<void(ScriptingComponent& comp, ark::Entity e, ark::Registry& reg)>
+	{
+		return [](ScriptingComponent& comp, ark::Entity e, ark::Registry& reg) {
+			comp._setEntity(e);
+			comp._setScene(&reg);
+		};
+	}
+
+	static void onCopy(ScriptingComponent& This, const ScriptingComponent& other) {
+		for (const auto& script : other.mScripts)
+			This.copyScript(script.get());
+	}
 
 	template <typename T, typename... Args>
 	T* addScript(Args&&... args)
@@ -100,6 +117,18 @@ struct ScriptingComponent {
 		else {
 			auto create = ark::meta::getService<std::unique_ptr<Script>()>(type, "unique_ptr");
 			auto script = mScripts.emplace_back(create()).get();
+			_bindScript(script);
+			return script;
+		}
+	}
+
+	Script* copyScript(Script* toCopy)
+	{
+		if (auto s = getScript(toCopy->type))
+			return s;
+		else {
+			auto clone = ark::meta::getService<std::unique_ptr<Script>(Script*)>(toCopy->type, "clone");
+			auto script = mScripts.emplace_back(clone(toCopy)).get();
 			_bindScript(script);
 			return script;
 		}
@@ -147,23 +176,17 @@ struct ScriptingComponent {
 		mRegistry = registry;
 	}
 
-	void _setSystemManager(ark::SystemManager* manager) {
-		mSystemManager = manager;
-	}
-
 private:
 
 	void _bindScript(Script* script)
 	{
 		script->mEntity = mEntity;
 		script->mRegistry = mRegistry;
-		script->mSystemManager = mSystemManager;
 		script->bind();
 	}
 
 	ark::Entity mEntity;
 	ark::Registry* mRegistry;
-	ark::SystemManager* mSystemManager;
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 

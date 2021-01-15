@@ -41,10 +41,10 @@ namespace ark
 
 		EntityQuerry querry;
 
-		template <typename T>
-		T* postMessage(int id)
+		template <typename T, typename...Args>
+		T* postMessage(Args&&... args)
 		{
-			return messageBus->post<T>(id);
+			return messageBus->post<T>(std::forward<Args>(args)...);
 		}
 
 		Registry& getEntityManager() const { return *mRegisry; }

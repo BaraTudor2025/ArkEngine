@@ -26,6 +26,13 @@ namespace ark
 		__declspec(property(get = _getName, put = _setName))
 			std::string name;
 
+		static auto onConstruction() {
+			return [](TagComponent& tag, ark::Entity e) {
+				tag._setEntity(e);
+				tag.name = "";
+			};
+		}
+
 		const std::string& _getName() const
 		{
 			return m_name;
@@ -35,13 +42,10 @@ namespace ark
 		{
 			// if newName starts wiht 'entity_'
 			auto constexpr strEntity_ = std::string_view("entity_");
-			if (newName.empty() || strEntity_ == std::string_view(newName.c_str(), strEntity_.size())) {
-				m_name = "entity_";
-				m_name += std::to_string(m_entity.getID());
-			}
-			else {
+			if (newName.empty() || strEntity_ == std::string_view(newName.c_str(), strEntity_.size()))
+				m_name = "entity_" + std::to_string(m_entity.getID());
+			else
 				m_name = newName;
-			}
 		}
 
 		void _setEntity(ark::Entity e)
@@ -161,12 +165,15 @@ namespace ark
 	};
 }
 
-ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, registerServiceDefault<ark::Transform>())
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, registerServiceDefault<ark::Transform>(),
+	registerServiceInspectorOptions<ark::Transform>({ 
+		{.property_name="scale", .drag_speed=0.001f, .format="%.3f"},
+		{.property_name="rotation", .drag_speed=0.1f}}))
 {
 	return members(
 		member_property("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
 		member_property("scale", &ark::Transform::getScale, &ark::Transform::setScale),
-		member_property("roatation", &ark::Transform::getRotation, &ark::Transform::setRotation),
+		member_property("rotation", &ark::Transform::getRotation, &ark::Transform::setRotation),
 		member_property("origin", &ark::Transform::getOrigin, &ark::Transform::setOrigin),
 		member_function<ark::Transform, void, float, float>("move", &ark::Transform::move),
 		member_function<ark::Transform>("getChildren", &ark::Transform::getChildren)

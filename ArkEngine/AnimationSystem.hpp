@@ -13,31 +13,50 @@
 
 #include "Quad.hpp"
 
-struct Mesh {
+struct MeshComponent {
 
-	Mesh() = default;
+	MeshComponent() = default;
 
-	Mesh(std::string fileName, bool smoothTexture = false)
+	MeshComponent(std::string fileName, bool smoothTexture = false)
 		:fileName(fileName), smoothTexture(smoothTexture), uvRect(0,0,0,0), repeatTexture(false) 
 	{
 		setTexture(fileName);
 	}
 
-	Mesh(std::string fileName, bool smoothTexture, sf::IntRect rect, bool repeatTexture)
+	MeshComponent(std::string fileName, bool smoothTexture, sf::IntRect rect, bool repeatTexture)
 		:fileName(fileName),  smoothTexture(smoothTexture), uvRect(uvRect), repeatTexture(repeatTexture) 
 	{
 		setTexture(fileName);
 	}
 
-	sf::Vector2f meshSize() { 
+	sf::Vector2f getMeshSize() const { 
 	    return static_cast<sf::Vector2f>(
 		    sf::Vector2i{ std::abs(uvRect.width), std::abs(uvRect.height) }); 
 	}
 
-	void setTexture(std::string name)
+	void setMeshSize(sf::Vector2f vec) {
+		uvRect.width = vec.x;
+		uvRect.height = vec.y;
+		vertices.updatePosTex(uvRect);
+	}
+
+	sf::IntRect getTextureRect() const {
+		return uvRect;
+	}
+
+	void setTextureRect(sf::IntRect rect) {
+		uvRect = rect;
+		vertices.updatePosTex(uvRect);
+	}
+
+	void setTexture(const std::string& name)
 	{
 		fileName = name;
 		texture = ark::Resources::load<sf::Texture>(name);
+	}
+
+	const std::string& getTexture() const {
+		return fileName;
 	}
 
 private:
@@ -51,6 +70,14 @@ private:
 	Quad vertices;
 	friend class MeshSystem;
 };
+
+ARK_REGISTER_COMPONENT(MeshComponent, registerServiceDefault<MeshComponent>()) {
+	return members(
+		member_property("texture", &MeshComponent::getTexture, &MeshComponent::setTexture),
+		member_property("mesh_size", &MeshComponent::getMeshSize, &MeshComponent::setMeshSize),
+		member_property("texture_rect", &MeshComponent::getTextureRect, &MeshComponent::setTextureRect)
+	);
+}
 
 struct Animation {
 
@@ -168,13 +195,15 @@ public:
 
 	void init() override
 	{
-		querry = entityManager.makeQuerry<ark::Transform, Mesh>();
+		querry = entityManager.makeQuerry<ark::Transform, MeshComponent>();
 		querry.onEntityAdd([this](ark::Entity entity) {
 			this->onEntityAdded(entity);
 		});
 	}
 
 	void onEntityAdded(ark::Entity);
+
+	void update() override {}
 
 	void render(sf::RenderTarget& target) override;
 };

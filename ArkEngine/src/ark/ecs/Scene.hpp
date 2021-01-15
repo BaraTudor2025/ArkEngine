@@ -10,13 +10,25 @@
 
 namespace ark {
 
+	template <typename F, typename T>
+	concept IsOnConstruction =
+		std::invocable<F, T&>
+		|| std::invocable<F, T&, Entity>
+		|| std::invocable<F, T&, Entity, Registry&>;
+
+	template <typename T, typename... Args>
+	concept HasOnConstruction = requires(Args&&... args) {
+		{ T::onConstruction(std::forward<Args>(args)...) } -> IsOnConstruction<T>;
+	};
+
 	// wrapper for EntityManager to make querries easier to manage
-	class Registry final : public NonCopyable, public NonMovable {
+	class Registry final  {
 
 	public:
 		Registry(std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
 			: entityManager(mComponentsAdded, upstreamComponent)
 		{}
+		Registry(Registry&&) = default;
 		~Registry() = default;
 
 		template <ConceptComponent T>
@@ -38,7 +50,6 @@ namespace ark {
 			entityManager.addComponentType(type);
 		}
 
-		// TODO: addAllComponentTypesFromMetaGroup
 		void addAllComponentTypesFromMetaGroup() {
 			const auto& types = ark::meta::getTypeGroup(ARK_META_COMPONENT_GROUP);
 			for (auto type : types)
@@ -75,9 +86,21 @@ namespace ark {
 		}
 
 		template <ConceptComponent T, typename F>
-		requires std::invocable<F, Entity, T&> || std::invocable<F, Entity, T*>
+		requires IsOnConstruction<F, T>
 		void onConstruction(F&& f) {
-			entityManager.addOnConstruction<T>(std::forward<F>(f));
+			entityManager.addOnConstruction<T>(std::forward<F>(f), this);
+		}
+
+		template <ConceptComponent T, typename... Args>
+		requires HasOnConstruction<T, Args...>
+		void onConstruction(Args&&... args) {
+			entityManager.addOnConstruction<T>(T::onConstruction(std::forward<Args>(args)...), this);
+		}
+
+		template <ConceptComponent T, typename F>
+		requires std::invocable<F, T&, const T&> 
+		void onCopy(F&& f) {
+			entityManager.addOnCopy<T>(std::forward<F>(f));
 		}
 
 		void safeRemoveComponent(Entity entity, std::type_index type) 

@@ -61,6 +61,7 @@ auto registerMembers<YourClass>()
 #include <typeindex>
 #include <unordered_map>
 #include <map>
+#include <any>
 
 
 /* for example usage see the registration of ark::Transform for members and for enum see RandomNumbers.hpp */
@@ -80,11 +81,9 @@ auto registerMembers<YourClass>()
 #define ARK_REGISTER_SERVICES_IN_CLASS(TYPE, GUARD, ...) \
 	RUN_CODE_QSTATIC(TYPE, GUARD, (__VA_ARGS__); )
 
-// doar pe asta-l pastrez
 #define ARK_REGISTER_MEMBERS(TYPE) \
 	template <> constexpr inline auto ::ark::meta::registerMembers<TYPE>() noexcept
 
-// TODO: test
 #define ARK_REGISTER_GROUP_WITH_TAG(TYPE, TAG, GROUP)\
 	inline auto _ark_reg_group##TAG = [](){ ark::meta::addTypeToGroup(GROUP, typeid(TYPE)); return 0;}();
 #define ARK_REGISTER_GROUP(TYPE, GROUP) ARK_REGISTER_GROUP(TYPE, TYPE, GROUP)
@@ -98,7 +97,6 @@ auto registerMembers<YourClass>()
 #define ARK_REGISTER_METADATA_WITH_TAG(TYPE, TAG) ARK_REGISTER_METADATA_WITH_TAG_NAME(TYPE, #TYPE, TAG)
 #define ARK_REGISTER_METADATA_WITH_NAME(TYPE, NAME) ARK_REGISTER_METADATA_WITH_TAG_NAME(TYPE, NAME, TAG)
 
-// first is the group
 #define ARK_REGISTER_TYPE_WITH_NAME_TAG(GROUP, TYPE, NAME, TAG, /*services*/...) \
 	ARK_REGISTER_GROUP_WITH_TAG(TYPE, TAG, GROUP) \
 	ARK_REGISTER_METADATA_WITH_NAME_TAG(TYPE, NAME, TAG) \
@@ -219,6 +217,7 @@ namespace ark::meta
 			struct ServiceData {
 				std::type_index type = typeid(void);
 				void* func_ptr;
+				std::any value;
 			};
 			static inline std::map<std::pair<std::type_index, std::string_view>, ServiceData> sServiceTable;
 			static inline std::unordered_map<std::string_view, std::vector<std::type_index>> sTypeGroups;
@@ -407,42 +406,63 @@ namespace ark::meta
 		return nullptr;
 	}
 
-	/* services are type erased functions that operate on a specific type
-	* to declare a service for a type T: ark::meta::service<T>("name", &func)
-	* a service can be retrieved with: 
+	/*  
+	* Services are values or type erased functions that operate on a specific type.
+	* To declare a service for a type T write ark::meta::service<T>("service-name", &func)
+	* A service can be retrieved with: 
 	* auto func = ark::meta::getService<return_type(arguments_types, ...)>(typeid(T), "service_name");
-	* the template parameter on getService is the type of the function
 	*/
-	template <typename T, typename F>
-	inline auto service(std::string_view name, F fun) noexcept
+	template <typename T, typename U>
+	inline void service(std::string_view name, U serviceArg) noexcept
 	{
-		static_assert(std::is_function_v<std::remove_pointer_t<F>>
-			|| (std::is_class_v<F> && std::is_empty_v<F>),
-			"F must be function non-capturing lambda");
-
-		using func_ptr_t = detail::make_func_ptr_t<F>;
-		detail::guard::sServiceTable[{typeid(T), name}] = { typeid(func_ptr_t), static_cast<func_ptr_t>(std::forward<F>(fun)) };
-		return 0;
+		if constexpr (std::is_function_v<std::remove_pointer_t<U>>) {
+			using func_ptr_t = detail::make_func_ptr_t<U>;
+			detail::guard::sServiceTable[{typeid(T), name}].type = typeid(func_ptr_t);
+			detail::guard::sServiceTable[{typeid(T), name}].func_ptr = static_cast<func_ptr_t>(std::forward<U>(serviceArg));
+		}
+		else if constexpr (std::is_object_v<U>) {
+			detail::guard::sServiceTable[{typeid(T), name}].type = typeid(U);
+			detail::guard::sServiceTable[{typeid(T), name}].value = serviceArg;
+		}
+		else
+			static_assert(false, "service-ul tre sa fie ori functie ori obiect");
 	}
 
-	template <typename F>
-	inline auto getService(std::type_index type, std::string_view serviceName) noexcept -> detail::make_func_ptr_t<F>
+	/* example call:
+	* auto fun = getService<return_type(arg1_type, arg2_type, ...)>(type, "service-name")
+	* auto value = getService<Type>(type, "serv-name");
+	*/
+	template <typename T>
+	inline auto* getService(std::type_index type, std::string_view serviceName) noexcept //-> detail::make_func_ptr_t<F>
 	{
-		using func_ptr_t = detail::make_func_ptr_t<F>;
-		if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
-			it != detail::guard::sServiceTable.end()) {
-			auto func_type = std::type_index(typeid(func_ptr_t));
-			assert(func_type == it->second.type);
-			return reinterpret_cast<func_ptr_t>(it->second.func_ptr);
+		if constexpr (std::is_function_v<T>) {
+			using func_ptr_t = detail::make_func_ptr_t<T>;
+			if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
+				it != detail::guard::sServiceTable.end()) 
+			{
+				auto func_type = std::type_index(typeid(func_ptr_t));
+				assert(func_type == it->second.type);
+				return reinterpret_cast<func_ptr_t>(it->second.func_ptr);
+			}
+			else {
+				return static_cast<func_ptr_t>(nullptr);
+			}
 		}
-		else {
-			return nullptr;
+		else if constexpr (std::is_object_v<T>) {
+			if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
+				it != detail::guard::sServiceTable.end()) {
+				return std::any_cast<T>(&it->second.value);
+			}
+			else
+				return static_cast<T*>(nullptr);
 		}
 	}
 
 	inline void addTypeToGroup(std::string_view groupName, std::type_index type) noexcept
 	{
-		detail::guard::sTypeGroups[groupName].push_back(type);
+		auto& vec = detail::guard::sTypeGroups[groupName];
+		if (auto it = std::find(vec.begin(), vec.end(), type); it == vec.end())
+			vec.push_back(type);
 	}
 
 	inline const std::vector<std::type_index>& getTypeGroup(std::string_view groupName) noexcept

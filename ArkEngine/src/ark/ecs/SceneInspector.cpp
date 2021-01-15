@@ -1,5 +1,6 @@
 #include <libs/tinyformat.hpp>
 
+
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/EntityManager.hpp"
 #include "ark/ecs/Scene.hpp"
@@ -194,17 +195,13 @@ namespace ark {
 						const auto* mdata = ark::meta::getMetadata(component.type);
 						auto flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
 						if (ImGui::TreeNodeEx(mdata->name.c_str(), flags)) {
-
 							// can't delete Tag or Transform
 							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
 								AlignButtonToRight("remove component", [&]() {
 									entityManager.safeRemoveComponent(entity, type);
 								});
 							}
-							if (component.type == typeid(ark::Transform))
-								_Transform_editor_render(&widgetId, component.ptr);
-							else
-								render(&widgetId, component.ptr);
+							render(&widgetId, component.ptr);
 							ImGui::TreePop();
 						}
 					}
@@ -212,13 +209,14 @@ namespace ark {
 				}
 
 				// add components list
+				const auto& types = entityManager.getComponentTypes();
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
-					const auto& types = *static_cast<const std::vector<std::type_index>*> (data);
+					using CompVecT = std::decay_t<decltype(std::declval<Registry>().getComponentTypes())>;
+					const auto& types = *static_cast<const CompVecT*> (data);
 					*out_text = ark::meta::getMetadata(types.at(index))->name.c_str();
 					return true;
 				};
 				int componentItemIndex;
-				const auto& types = entityManager.getComponentTypes();
 				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
 					Entity e = entityManager.entityFromId(selectedEntity);
 					e.addComponent(types.at(componentItemIndex));
@@ -320,27 +318,25 @@ namespace ark {
 
 	std::unordered_map<std::type_index, SceneInspector::RenderPropFunc> SceneInspector::sPropertyRendererTable = {
 
-		{ typeid(int), [](std::string_view name, const void* pField) {
+		{ typeid(int), [](std::string_view name, const void* pField, EditorOptions opt) {
 			int field = *static_cast<const int*>(pField);
 			ArkSetFieldName(name);
-			if (ImGui::InputInt("", &field, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
+			if (ImGui::DragInt("", &field, opt.drag_speed, opt.drag_min, opt.drag_max)) {
 				return std::any{field};
 			}
 			return std::any{};
 		} },
 
-		{ typeid(float), [](std::string_view name, const void* pField) {
+		{ typeid(float), [](std::string_view name, const void* pField, EditorOptions opt) {
 			float field = *static_cast<const float*>(pField);
 			ArkSetFieldName(name);
-			if (ImGui::InputFloat("", &field, 0, 0, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				ArkFocusHere();
+			if (ImGui::DragFloat("", &field, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
 				return std::any{field};
 			}
 			return std::any{};
 		} },
 
-		{ typeid(bool), [](std::string_view name, const void* pField) {
+		{ typeid(bool), [](std::string_view name, const void* pField, EditorOptions opt) {
 			bool field = *static_cast<const bool*>(pField);
 			ArkSetFieldName(name);
 			if (ImGui::Checkbox("", &field)) {
@@ -349,7 +345,7 @@ namespace ark {
 			return std::any{};
 		} },
 
-		{ typeid(std::string), [](std::string_view name, const void* pField) {
+		{ typeid(std::string), [](std::string_view name, const void* pField, EditorOptions opt) {
 			std::string field = *static_cast<const std::string*>(pField);
 			char buff[40];
 			std::memset(buff, 0, sizeof(buff));
@@ -361,7 +357,7 @@ namespace ark {
 			return std::any{};
 		} },
 
-		{ typeid(char), [](std::string_view name, const void* pField) {
+		{ typeid(char), [](std::string_view name, const void* pField, EditorOptions opt) {
 			char field = *static_cast<const char*>(pField);
 			char buff[2] = { field, 0};
 			ArkSetFieldName(name);
@@ -371,31 +367,47 @@ namespace ark {
 			return std::any{};
 		} },
 
-		{ typeid(sf::Vector2f), [](std::string_view name, const void* pField) {
+		{ typeid(sf::Vector2f), [](std::string_view name, const void* pField, EditorOptions opt) {
 			sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);
 			ArkSetFieldName(name);
-			float v[2] = {vec.x, vec.y};
-			if (ImGui::InputFloat2("", v, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				vec.x = v[0];
-				vec.y = v[1];
+			if (ImGui::DragFloat2("", &vec.x, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
 				return std::any{vec};
 			}
 			return std::any{};
 		} },
 
-		{ typeid(sf::Vector2u), [](std::string_view name, const void* pField) {
+		{ typeid(sf::Vector2i), [](std::string_view name, const void* pField, EditorOptions opt) {
+			sf::Vector2i vec = *static_cast<const sf::Vector2i*>(pField);
+			ArkSetFieldName(name);
+			if (ImGui::DragInt2("", &vec.x, opt.drag_speed, opt.drag_min, opt.drag_max)) {
+				return std::any{vec};
+			}
+			return std::any{};
+		} },
+
+		{ typeid(sf::IntRect), [](std::string_view name, const void* pField, EditorOptions opt) {
+			sf::IntRect rect = *static_cast<const sf::IntRect*>(pField);
+			auto extname = std::string(name) + " L/T/W/H";
+			ArkSetFieldName({ extname.c_str(), extname.size() });
+			if (ImGui::DragInt4("", (int*)&rect, opt.drag_speed, opt.drag_min, opt.drag_max)) {
+				return std::any{rect};
+			}
+			return std::any{};
+		} },
+
+		{ typeid(sf::Vector2u), [](std::string_view name, const void* pField, EditorOptions opt) {
 			sf::Vector2u vec = *static_cast<const sf::Vector2u*>(pField);
 			ArkSetFieldName(name);
 			int v[2] = {vec.x, vec.y};
 			if (ImGui::InputInt2("", v, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				vec.x = v[0];
-				vec.y = v[1];
+				vec.x = v[0] >= 0? v[0] : 0;
+				vec.y = v[1] >= 0? v[1] : 0;
 				return std::any{vec};
 			}
 			return std::any{};
 		} },
 
-		{ typeid(sf::Color), [](std::string_view name, const void* pField) {
+		{ typeid(sf::Color), [](std::string_view name, const void* pField, EditorOptions opt) {
 			sf::Color color = *static_cast<const sf::Color*>(pField);
 			ArkSetFieldName(name);
 			float v[4] = {
@@ -415,12 +427,12 @@ namespace ark {
 			return std::any{};
 		} },
 
-		{ typeid(sf::Time), [](std::string_view name, const void* pField) {
+		{ typeid(sf::Time), [](std::string_view name, const void* pField, EditorOptions opt) {
 			sf::Time time = *static_cast<const sf::Time*>(pField);
 			std::string label = std::string(name) + " (as seconds)";
 			ArkSetFieldName(label);
 			float sec = time.asSeconds();
-			if (ImGui::InputFloat("", &sec, 0, 0, 3, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			if (ImGui::DragFloat("", &sec, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
 				return std::any{sf::seconds(sec)};
 			}
 			return std::any{};

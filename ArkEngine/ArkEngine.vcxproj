@@ -182,6 +182,7 @@
     <ClCompile Include="src\ark\gui\Gui.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Allocators.hpp" />
     <ClInclude Include="AnimationSystem.hpp" />
     <ClInclude Include="ArchetypeManager.hpp" />
     <ClInclude Include="CommandSystem.hpp" />

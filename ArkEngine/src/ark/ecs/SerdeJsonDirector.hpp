@@ -32,7 +32,6 @@ namespace sf
 	{
 		jsonObj = nlohmann::json{ {"x", vec.x,}, {"y", vec.y} };
 	}
-
 	template <typename T>
 	static void from_json(const nlohmann::json& jsonObj, Vector2<T>& vec)
 	{
@@ -40,11 +39,24 @@ namespace sf
 		vec.y = jsonObj.at("y").get<T>();
 	}
 
+	template <typename T>
+	static void to_json(nlohmann::json& jsonObj, const Rect<T>& rect)
+	{
+		jsonObj = nlohmann::json{ {"top", rect.top,}, {"left", rect.left}, {"height", rect.height}, {"width", rect.width} };
+	}
+	template <typename T>
+	static void from_json(const nlohmann::json& jsonObj, Rect<T>& rect)
+	{
+		rect.top = jsonObj.at("top").get<T>();
+		rect.left = jsonObj.at("left").get<T>();
+		rect.height = jsonObj.at("height").get<T>();
+		rect.width = jsonObj.at("width").get<T>();
+	}
+
 	static void to_json(nlohmann::json& jsonObj, const Time& time)
 	{
 		jsonObj = nlohmann::json(time.asSeconds());
 	}
-
 	static void from_json(const nlohmann::json& jsonObj, Time& time)
 	{
 		time = sf::seconds(jsonObj.get<float>());
@@ -54,7 +66,6 @@ namespace sf
 	{
 		jsonObj = nlohmann::json{ {"r", color.r}, {"g", color.g}, {"b", color.b}, {"a", color.a} };
 	}
-
 	static void from_json(const nlohmann::json& jsonObj, Color& color)
 	{
 		color.r = jsonObj.at("r").get<Uint8>();

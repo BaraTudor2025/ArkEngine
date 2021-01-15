@@ -77,16 +77,15 @@ void AnimationSystem::render(sf::RenderTarget& target)
 	}
 }
 
-
 void MeshSystem::onEntityAdded(ark::Entity entity)
 {
-	auto& mesh = entity.getComponent<Mesh>();
-	auto& tx = entity.getComponent<ark::Transform>();
+	auto& mesh = entity.getComponent<MeshComponent>();
+	auto& trans = entity.getComponent<ark::Transform>();
 
 	mesh.texture = ark::Resources::load<sf::Texture>(mesh.fileName);
 	mesh.texture->setRepeated(mesh.repeatTexture);
 	mesh.texture->setSmooth(mesh.smoothTexture);
-	tx.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
+	trans.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
 	//mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
 	auto[a, b, c, d] = mesh.uvRect;
 	if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
@@ -115,7 +114,7 @@ void MeshSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
 	for (auto entity : getEntities()) {
-		auto& mesh = entity.getComponent<Mesh>();
+		auto& mesh = entity.getComponent<MeshComponent>();
 		const auto& transform = entity.getComponent<ark::Transform>();
 		rs.texture = mesh.texture;
 		rs.transform = transform.getTransform();

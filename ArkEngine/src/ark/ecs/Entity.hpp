@@ -43,6 +43,12 @@ namespace ark {
 		[[nodiscard]]
 		void* getComponent(std::type_index type);
 
+		template <ConceptComponent... Cs>
+		auto getComponents() -> std::tuple<Cs&...>
+		{
+			return { this->getComponent<Cs>()... };
+		}
+
 		// returns nullptr if component is not found
 		template <ConceptComponent T>
 		[[nodiscard]]

@@ -217,5 +217,8 @@
     <ClInclude Include="src\ark\ecs\Querry.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
+    <ClInclude Include="Allocators.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

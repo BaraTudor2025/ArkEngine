@@ -44,7 +44,7 @@ struct Button : sf::RectangleShape {
 
 	Button(sf::FloatRect rect, std::string texture = "")
 	{
-		setRect(rect);
+		setTextureRect(rect);
 		if(!texture.empty())
 			setTexture(texture);
 	}
@@ -64,7 +64,7 @@ struct Button : sf::RectangleShape {
 		this->setPosition(x, y);
 	}
 
-	void setRect(sf::FloatRect rect)
+	void setTextureRect(sf::FloatRect rect)
 	{
 		this->rect = rect;
 		this->setSize({ this->rect.width, this->rect.height });

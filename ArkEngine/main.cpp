@@ -29,6 +29,8 @@
 #include "GuiSystem.hpp"
 #include "ScriptingSystem.hpp"
 #include "LuaScriptingSystem.hpp"
+#include "Allocators.hpp"
+#include "DrawableSystem.hpp"
 
 using namespace std::literals;
 using namespace ark;
@@ -47,7 +49,6 @@ class ColisionSystem : public System {
 
 #endif
 
-//class MovePlayer : public ark::ScriptT<MovePlayer> {
 class MovePlayer : public ScriptT<MovePlayer, true> {
 	Animation* animation;
 	Transform* transform;
@@ -77,8 +78,7 @@ public:
 		resetOffset();
 		particleEmitterOffsetLeft = particleEmitterOffsetLeft * transform->getScale();
 		particleEmitterOffsetRight = particleEmitterOffsetRight * transform->getScale();
-		runningParticles->size = { 60, 30 };
-		runningParticles->size = runningParticles->size * transform->getScale();
+		runningParticles->size = sf::Vector2f{ 60, 30 } * transform->getScale();
 	}
 
 	sf::Vector2f getScale() const
@@ -142,7 +142,8 @@ public:
 	}
 };
 
-ARK_REGISTER_COMPONENT_WITH_NAME(MovePlayer, "MovePlayerScript", registerServiceDefault<MovePlayer>())
+ARK_REGISTER_TYPE_WITH_NAME(gScriptGroupName, MovePlayer, "MovePlayerAnimated", registerServiceDefault<MovePlayer>(),
+	registerServiceInspectorOptions<MovePlayer>({ {.property_name="scale", .drag_speed=0.001} }))
 {
 	return ark::meta::members(
 		member_property("speed", &MovePlayer::speed),
@@ -187,13 +188,6 @@ ARK_REGISTER_MEMBERS(ParticleScripts::RotateEmitter)
 	* ParticleSystem shaders with point size
 */
 
-
-enum MessageType {
-	TestData,
-	PodData,
-	Count,
-};
-
 struct Mesajul {
 	std::string msg;
 };
@@ -208,11 +202,11 @@ public:
 
 	void handleMessage(const ark::Message& message) override
 	{
-		if (message.id == MessageType::TestData) {
+		if (message.is<Mesajul>()) {
 			const auto& m = message.data<Mesajul>();
 			std::cout << "mesaj: " << m.msg << '\n';
 		}
-		if (message.id == MessageType::PodData) {
+		if (message.is<PodType>()) {
 			const auto& m = message.data<PodType>();
 			std::cout << "int: " << m.i << "\n";
 		}
@@ -220,23 +214,23 @@ public:
 
 	void update() override
 	{
-		auto m = postMessage<Mesajul>(TestData);
-		m->msg = "mesaju matiii";
-		auto p = postMessage<PodType>(PodData);
+		auto m = postMessage<Mesajul>("mesaju matiii");
+		auto p = postMessage<PodType>(5);
 		p->i = 5;
 	}
 };
 
 enum States {
 	TestingState,
-	ImGuiLayer
+	ImGuiLayer,
+	ChessState
 };
 
 class BasicState : public ark::State {
 
 protected:
 	ark::SystemManager systems;
-	ark::Registry registry;
+	ark::Registry manager;
 	sf::Sprite screen;
 	sf::Texture screenImage;
 	bool takenSS = false;
@@ -244,7 +238,7 @@ protected:
 
 public:
 	BasicState(ark::MessageBus& bus, std::pmr::memory_resource* res = std::pmr::new_delete_resource()) 
-		: ark::State(bus), registry(res), systems(bus, registry) {}
+		: ark::State(bus), manager(res), systems(bus, manager) {}
 
 	void handleEvent(const sf::Event& event) override
 	{
@@ -266,7 +260,7 @@ public:
 
 	void update() override
 	{
-		registry.update();
+		manager.update();
 		if (!pauseScene)
 			systems.update();
 	}
@@ -394,16 +388,38 @@ private:
 
 	ark::Entity makeEntity(std::string name)
 	{
-		Entity e = registry.createEntity();
+		Entity e = manager.createEntity();
 		e.getComponent<TagComponent>().name = name;
 		return e;
 	}
 
+	Registry cloneRegistry() {
+		auto newManager = Registry();
+		for (auto type : this->manager.getComponentTypes())
+			newManager.addComponentType(type);
+		// TODO
+		//for (auto type : this->manager.getDefaultComponentTypes())
+			//newManager.addDefaultComponent(type);
+
+		// tre facut MANUAL?!
+		//manager.onConstructionTable = this->onConstructionTable;
+		//for (Entity entity : this->entitiesView()) {
+		//	Entity clone = manager.createEntity();
+		//	for (auto [type, ptr] : entity.runtimeComponentView()) {
+		//		auto [newComp, /*isAlready*/_] = manager.implAddComponentOnEntity(clone, type, false, ptr);
+		//		manager.onConstruction(type, newComp, clone);
+		//		// ar trebui si asta pe langa .onCtor()
+		//		//manager.onCopy(type, newComp, clone, ptr);
+		//	}
+		//}
+		return std::move(newManager);
+	}
+
 	void init() override
 	{
-		registry.addAllComponentTypesFromMetaGroup();
-		registry.addDefaultComponent<ark::TagComponent>();
-		registry.addDefaultComponent<ark::Transform>();
+		manager.addDefaultComponent<ark::TagComponent>();
+		manager.addDefaultComponent<ark::Transform>();
+		manager.addAllComponentTypesFromMetaGroup();
 
 		systems.addSystem<PointParticleSystem>();
 		systems.addSystem<PixelParticleSystem>();
@@ -411,32 +427,16 @@ private:
 		systems.addSystem<TextSystem>();
 		systems.addSystem<AnimationSystem>();
 		systems.addSystem<DelayedActionSystem>();
-
-		// tag setup
-		registry.onConstruction<TagComponent>([](ark::Entity e, TagComponent& tag) {
-			tag._setEntity(e);
-			if (tag.name.empty())
-				tag.name = std::string("entity_") + std::to_string(e.getID());
-		});
-
-		// script setup
 		systems.addSystem<ScriptingSystem>();
-		registry.onConstruction<ScriptingComponent>([this](ark::Entity e, ScriptingComponent* comp) {
-			comp->_setSystemManager(&this->systems);
-			comp->_setScene(&this->registry);
-			comp->_setEntity(e);
-		});
 
-		// lua script setup
-		auto* pLuaScriptingSystem = systems.addSystem<LuaScriptingSystem>();
-		registry.onConstruction<LuaScriptingComponent>([pLuaScriptingSystem](ark::Entity entity, LuaScriptingComponent& comp) {
-			comp._setEntity(entity);
-			comp._setSystem(pLuaScriptingSystem);
-		});
-
-		auto* inspector = systems.addSystem<SceneInspector>();
 		systems.addSystem<FpsCounterDirector>();
+		auto* inspector = systems.addSystem<SceneInspector>();
 		ImGuiLayer::addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
+
+		manager.onConstruction<TagComponent>(TagComponent::onConstruction());
+		manager.onConstruction<ScriptingComponent>();
+		manager.onConstruction<LuaScriptingComponent>(systems.addSystem<LuaScriptingSystem>());
+		manager.onCopy<ScriptingComponent>(ScriptingComponent::onCopy);
 
 		button = makeEntity("button");
 		mouseTrail = makeEntity("mouse_trail");
@@ -449,11 +449,11 @@ private:
 		ark::serde::deserializeEntity(player);
 		
 		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		/*player = registry.createEntity("player2");
+		/*
 		auto& transform = player.addComponent<Transform>();
 		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		auto& playerScripting = player.addComponent<ScriptingComponent>(player);
+		auto& playerScripting = player.addComponent<ScriptingComponent>();
 		auto moveScript = playerScripting.addScript<MovePlayer>(400, 180);
 
 		transform.move(Engine::center());
@@ -467,12 +467,11 @@ private:
 		auto[w, h] = Engine::windowSize();
 		pp.platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
 
-		std::vector<ComponentManager::ComponentMask> que
 		moveScript->setScale({0.1, 0.1});
 
-		player.addComponent<DelayedAction>(sf::seconds(4), [this, serde](Entity e) {
-			GameLog("just serialized entity %s", e.getName());
-			serde->serializeEntity(e);
+		player.addComponent<DelayedAction>(sf::seconds(4), [](Entity e) {
+			GameLog("just serialized entity %s", e.getComponent<TagComponent>().name);
+			ark::serde::serializeEntity(e);
 		});
 		/**/
 
@@ -501,17 +500,19 @@ private:
 		}
 
 #if 1
-		ark::Entity rainbowClone = registry.cloneEntity(rainbowPointParticles);
-		//rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
+		ark::Entity rainbowClone = manager.cloneEntity(rainbowPointParticles);
+		rainbowClone.getComponent<TagComponent>().name = "rainbow_clone";
 		{
-			auto& scripts = rainbowClone.addComponent<ScriptingComponent>();
-			scripts.addScript<SpawnOnRightClick>();
-			scripts.removeScript(typeid(SpawnOnRightClick));
-			scripts.addScript<SpawnOnLeftClick>()->setActive(false);
-			scripts.addScript<EmittFromMouse>();
+			auto& scripts = rainbowClone.getComponent<ScriptingComponent>();
+			scripts.getScript<SpawnOnRightClick>()->setActive(false);;
+			//auto& scripts = rainbowClone.addComponent<ScriptingComponent>();
+			//scripts.addScript<SpawnOnRightClick>();
+			//scripts.removeScript(typeid(SpawnOnRightClick));
+			//scripts.addScript<SpawnOnLeftClick>()->setActive(false);
+			//scripts.addScript<EmittFromMouse>();
 		}
 		rainbowClone.addComponent<DelayedAction>(sf::seconds(5), [](ark::Entity e) {
-			e.getComponent<ScriptingComponent>().getScript<SpawnOnLeftClick>()->setActive(true);
+			e.getComponent<ScriptingComponent>().getScript<SpawnOnRightClick>()->setActive(true);
 		});
 #endif
 
@@ -522,7 +523,7 @@ private:
 			scripts.addScript<EmittFromMouse>();
 		}
 		firePointParticles.addComponent<DelayedAction>(sf::seconds(5), [this](ark::Entity e) {
-			registry.destroyEntity(e);
+			manager.destroyEntity(e);
 		});
 
 
@@ -615,7 +616,7 @@ class ChildTestScene : public TemplateScene {
 		std::cout << pps.size() << std::endl; // 3
 		auto cs = parent->getChildrenComponents<Transform>();
 		std::cout << cs.size() << std::endl; // 1
-		auto none = parent->getChildrenComponents<Mesh>();
+		auto none = parent->getChildrenComponents<MeshComponent>();
 		std::cout << none.size() << std::endl; // 0
 		auto none2 = child2->getChildrenComponents<PointParticles>();
 		std::cout << none2.size() << std::endl; // 0
@@ -646,319 +647,231 @@ struct erased_function {
 	void(*fun)(void*) = nullptr;
 };
 
-// basically a ring-buffer, allocate TEMPORARY objects(no more than a few frames)
-// when the it reaches the end of the buffer then loop from the beginning,
-// if objects are still alive on loop they will get rewriten, allocate bigger buffer next time :P
-class TemporaryResource : public std::pmr::memory_resource {
-	std::unique_ptr<std::byte[]> memory;
-	size_t size;
-	void* ptr;
-	size_t remainingSize;
-	struct {
-		void* ptr;
-		size_t bytes;
-	} lastDeallocation;
-public:
-	TemporaryResource(size_t size) 
-		: memory(new std::byte[size]), ptr(memory.get())
-		, size(size), remainingSize(size) { }
 
-	void* do_allocate(const size_t bytes, const size_t align) override {
-		if (std::align(align, bytes, ptr, remainingSize)) {
-			this->remainingSize -= bytes;
-			void* mem = ptr;
-			ptr = (std::byte*)ptr + bytes;
-			return mem;
-		}
-		else {
-			if (remainingSize == size)
-				return nullptr;
-			ptr = memory.get();
-			remainingSize = size;
-			return do_allocate(bytes, align);
-		}
-	}
+/**/
 
-	// lol
-	void do_deallocate(void* p, size_t bytes, size_t align) override {
-		lastDeallocation = { p, bytes };
-	}
-
-	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
-		return this == &mem;
-	}
-};
-
-class SegregatorResource : public std::pmr::memory_resource {
-	std::pmr::memory_resource* small;
-	std::pmr::memory_resource* large;
-	int threshold;
-public:
-	SegregatorResource(int threshold, std::pmr::memory_resource* small, std::pmr::memory_resource* large)
-		: small(small), large(large), threshold(threshold) { }
-
-	void* do_allocate(const size_t bytes, const size_t align) override {
-		if (bytes <= threshold)
-			return small->allocate(bytes, align);
-		else
-			return large->allocate(bytes, align);
-	}
-	void do_deallocate(void* p, size_t bytes, size_t align) override {
-		if (bytes <= threshold)
-			small->deallocate(p, bytes, align);
-		else
-			large->deallocate(p, bytes, align);
-	}
-	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
-		return this == &mem;
-	}
-};
-
-class AffixAllocator : public std::pmr::memory_resource {
-	std::pmr::memory_resource* upstream;
+class MoveEntityScript : public ScriptT<MoveEntityScript, true> {
+	Transform* transform;
 
 public:
-	struct Callback {
-		// pointer, size, align allocate=true, dealloc=false
-		std::function<void(size_t, size_t, bool)> prefix;
-		std::function<void(void*, size_t, size_t, bool)> postfix;
-	}cbs;
+	float speed = 400;
+	float rotationSpeed = 180;
 
-	AffixAllocator(std::pmr::memory_resource* up, Callback cb)
-		: upstream(up), cbs(cb) {}
+	MoveEntityScript() = default;
+	MoveEntityScript(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) {}
 
-	void* do_allocate(const size_t bytes, const size_t align) override {
-		if(cbs.prefix)
-			cbs.prefix(bytes, align, true);
-		void* p = upstream->allocate(bytes, align);
-		if(cbs.postfix)
-			cbs.postfix(p, bytes, align, true);
-		return p;
+	void bind() noexcept override
+	{
+		transform = getComponent<Transform>();
 	}
-	void do_deallocate(void* p, size_t bytes, size_t align) override {
-		if(cbs.prefix)
-			cbs.prefix(bytes, align, false);
-		upstream->deallocate(p, bytes, align);
-		if(cbs.postfix)
-			cbs.postfix(nullptr, bytes, align, false);
-	}
-	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
-		return this == &mem;
-	}
-};
 
-class TrackingResource : public std::pmr::memory_resource {
+	void update() noexcept override
+	{
+		bool moved = false;
+		auto dt = Engine::deltaTime().asSeconds();
+		float dx = speed * dt;
+		float angle = Util::toRadians(transform->getRotation());
 
-};
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+			transform->move(dx * std::cos(angle), dx * std::sin(angle));
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
+			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+			transform->move(dx * std::sin(angle), -dx * std::cos(angle));
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+			transform->move(-dx * std::sin(angle), dx * std::cos(angle));
 
-class FallBackResource : public std::pmr::memory_resource {
-	std::pmr::memory_resource* primary;
-	std::pmr::memory_resource* secondary;
-	std::deque<void*> secondaryPtrs;
-
-public:
-	FallBackResource(std::pmr::memory_resource* p, std::pmr::memory_resource* s)
-		: primary(p), secondary(s) { }
-	
-	void* do_allocate(const size_t bytes, const size_t align) override {
-		void* p = primary->allocate(bytes, align);
-		if (!p) {
-			p = secondary->allocate(bytes, align);
-			secondaryPtrs.push_back(p);
-		}
-		return p;
-	}
-	void do_deallocate(void* p, size_t bytes, size_t align) override {
-		if (secondaryPtrs.empty() || secondaryPtrs.end() == std::find(secondaryPtrs.begin(), secondaryPtrs.end(), p)) {
-			primary->deallocate(p, bytes, align);
-			Util::erase(secondaryPtrs, p);
-		}
-		else
-			secondary->deallocate(p, bytes, align);
-	}
-	bool do_is_equal(const std::pmr::memory_resource& mem) const noexcept override {
-		return this == &mem;
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
+			transform->rotate(rotationSpeed * dt);
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::E))
+			transform->rotate(-rotationSpeed * dt);
 	}
 };
 
-auto makePrintingMemoryResource(std::string name, std::pmr::memory_resource* upstream) -> AffixAllocator 
+ARK_REGISTER_TYPE(gScriptGroupName, MoveEntityScript, registerServiceDefault<MoveEntityScript>())
 {
-	auto printing_prefix = [name](size_t bytes, size_t, bool alloc) {
-		if (alloc)
-			std::printf("alloc(%s) : %zu bytes\n", name.c_str(), bytes);
-		else
-			std::printf("dealloc(%s) : %zu bytes\n", name.c_str(), bytes);
-	};
-	return AffixAllocator(upstream, {printing_prefix});
+	return ark::meta::members(
+		member_property("speed", &MoveEntityScript::speed),
+		member_property("rotation_speed", &MoveEntityScript::rotationSpeed)
+	);
 }
 
-template <typename T>
-void destroyObjectFromResource(std::pmr::memory_resource* res, T* ptr)  {
-	std::destroy_at(ptr);
-	res->deallocate(ptr, sizeof(T), alignof(T));
-}
+struct ChessPlayer {
+	std::string name;
+	std::string color;
+};
 
-template <typename T, typename...Args>
-auto makeObjectFromResource(std::pmr::memory_resource* res, Args&&... args) -> T* {
-	void* ptr = res->allocate(sizeof(T), alignof(T));
-	return std::construct_at<T>(ptr, std::forward<Args>(args)...);
-}
+struct ChessPieceComponent {
+	int x, y; // position
+	int type;
+	std::function<bool(int, int)> canMoveTo;
+	ChessPlayer* player;
+};
 
+struct SelectableComponent {
+	sf::FloatRect rect;
+};
 
-struct PmrResourceDeleter {
-	std::pmr::memory_resource* res;
+enum class ChessColor {
+	White,
+	Black
+};
 
-	template <typename T>
-	void operator()(T* ptr) {
-		destroyObjectFromResource(res, ptr);
+struct ChessBoard {
+	std::vector<std::vector<ChessPieceComponent>> board;
+};
+
+struct MessageIsSelected {
+	ark::Entity entity;
+};
+
+ARK_REGISTER_COMPONENT(ChessPieceComponent, registerServiceDefault<ChessPieceComponent>()) { return members(); }
+
+class ChessSystemBoard : public ark::SystemT<ChessSystemBoard> {
+	std::vector<std::vector<ChessPieceComponent>> board;
+	ChessPlayer playerInTurn;
+	ark::Entity selectedPiece;
+public:
+
+	void init() override {
+		querry = entityManager.makeQuerry<Transform, ChessPieceComponent, SelectableComponent>();
+	}
+
+	void handleMessage(const ark::Message& message) override {
+		if (message.is<MessageIsSelected>()) {
+			Entity selectedEntity = message.data<MessageIsSelected>().entity;
+			ChessPlayer* player = selectedEntity.getComponent<ChessPieceComponent>().player;
+			GameLog("apasat \n ");
+			//if (playerInTurn == ) {
+			//}
+		}
+	}
+
+	void handleEvent(sf::Event ev) override {
+	}
+
+	void update() override {
+
 	}
 };
 
-template <typename T, typename...Args>
-auto makeUniqueFromResource(std::pmr::memory_resource* res, Args&&...args) -> std::unique_ptr<T, PmrResourceDeleter>
-{
-	void* vptr = res->allocate(sizeof(T), alignof(T));
-	T* ptr = new (vptr) T(std::forward<Args>(args)...);
-	return std::unique_ptr<T, PmrResourceDeleter>(ptr, { res });
-}
+ARK_REGISTER_COMPONENT(SelectableComponent, registerServiceDefault<SelectableComponent>()) { return members(); }
 
-// delay insertion so it can be done at once
-// dar mai bine dau un 'reserve' SI GATA
-template <typename V>
-struct VectorBuilderWithResource {
-
-	std::vector<std::function<void()>> builder;
-	std::pmr::memory_resource* res;
-	V& toBuild;
-
-	VectorBuilderWithResource(V& toBuild, std::pmr::memory_resource* res) : toBuild(toBuild), res(res) {}
-	VectorBuilderWithResource(V& toBuild) : toBuild(toBuild), res(toBuild.get_allocator().resource()) {}
-
-	template <typename T, typename...Args>
-	void add(Args&&... args) {
-		builder.emplace_back([this, &args...]() {
-			void* vptr = res->allocate(sizeof(T), alignof(T));
-			//T* ptr = new (vptr) T(std::forward<Args>(args)...);
-			T* ptr = new (vptr) T(std::move(args)...);
-			toBuild.emplace_back(ptr);
-		});
+// when its click-ed
+class SelectableSystem : public SystemT<SelectableSystem> {
+public:
+	void init() override {
+		querry = this->entityManager.makeQuerry<Transform, SelectableComponent>();
 	}
 
-	template <typename T, typename...Args>
-	void addUnique(Args&&... args) {
-		builder.emplace_back([this, &args...]() {
-			toBuild.emplace_back(makeUniqueFromResource<T>(res, std::move(args)...));
-			//toBuild.emplace_back(makeUniqueFromResource<T>(res, std::forward<Args>(args)...));
-		});
+	void handleEvent(sf::Event ev) override {
+		switch (ev.type) {
+		case sf::Event::MouseButtonPressed:
+			if (ev.mouseButton.button == sf::Mouse::Button::Left) {
+				int x = ev.mouseButton.x;
+				int y = ev.mouseButton.y;
+				for (Entity entity : querry.getEntities()) {
+					auto& rect = entity.getComponent<SelectableComponent>().rect;
+					if (rect.contains(x, y)) {
+						postMessage<MessageIsSelected>(entity);
+					}
+				}
+			}
+		}
 	}
 
-	void build() {
-		toBuild.reserve(builder.size());
-		for (auto& f : builder) {
-			f();
+	void update() override {
+		for (Entity entity : querry.getEntities()) {
+			auto [trans, select] = entity.getComponents<Transform, SelectableComponent>();
+			select.rect.left = trans.getPosition().x;
+			select.rect.top = trans.getPosition().y;
 		}
 	}
 };
 
-// needs to be pmr
-template <typename T>
-struct ContainerResourceDeleterGuard {
-	T& vec;
-	ContainerResourceDeleterGuard(T& vec) : vec(vec) {}
-
-	~ContainerResourceDeleterGuard() {
-		for (auto* elem : vec)
-			destroyObjectFromResource(vec.get_allocator().resource(), elem);
-	}
-};
-
-constexpr std::size_t operator"" _KiB(unsigned long long value) noexcept
-{
-	return std::size_t(value * 1024);
-}
-
-constexpr std::size_t operator"" _KB(unsigned long long value) noexcept
-{
-	return std::size_t(value * 1000);
-}
-
-constexpr std::size_t operator"" _MiB(unsigned long long value) noexcept
-{
-	return std::size_t(value * 1024 * 1024);
-}
-
-constexpr std::size_t operator"" _MB(unsigned long long value) noexcept
-{
-	return std::size_t(value * 1000 * 1000);
-}
-
-// doesn't call destructor
-template <typename T>
-class WinkOut {
-	std::aligned_storage_t<sizeof(T), alignof(T)> storage;
-	T* _ptr() { return reinterpret_cast<T*>(&storage); }
+class ChessState : public BasicState {
 
 public:
-	template <typename... Args>
-	WinkOut(Args&&... args) {
-		new (&storage) T(std::forward<Args>(args)...);
-	}
+	ChessState(ark::MessageBus& mb) : BasicState(mb) {}
 
-	T* data() { return _ptr(); }
+	int getStateId() override { return States::ChessState; }
 
-	T& operator*() {
-		return *_ptr();
-	}
+	void init() override {
+		manager.addDefaultComponent<TagComponent>();
+		manager.addDefaultComponent<Transform>();
 
-	T* operator->() {
-		return _ptr();
-	}
+		systems.addSystem<SelectableSystem>();
+		systems.addSystem<MeshSystem>();
+		systems.addSystem<ChessSystemBoard>();
+		systems.addSystem<SceneInspector>();
+		systems.addSystem<FpsCounterDirector>();
+		systems.addSystem<ScriptingSystem>();
+		systems.addSystem<RenderSystem>();
 
-	void destruct() {
-		_ptr()->~T();
+		manager.onConstruction<ScriptingComponent>();
+		manager.onConstruction<TagComponent>();
+		manager.onConstruction<LuaScriptingComponent>(this->systems.getSystem<LuaScriptingSystem>());
+
+		Entity piesa = manager.createEntity();
+		auto& trans = piesa.getComponent<Transform>(); 
+		trans.setOrigin(0, 0);
+		trans.setPosition(400, 400);
+		piesa.addComponent<ChessPieceComponent>();
+		auto& select = piesa.addComponent<SelectableComponent>();
+		select.rect.width = 100;
+		select.rect.height = 100;
+		//auto& draw = piesa.addComponent<Drawable>("chess_pieces.png");
+		//auto [x, y] = draw.getTexture()->getSize();
+		//draw.setCroppingArea();
+		piesa.addComponent<MeshComponent>("chess_pieces.png", true);
+		//{
+		//	auto& scripts = piesa.addComponent<ScriptingComponent>();
+		//	scripts.addScript<MoveEntityScript>();
+		//}
 	}
 };
+/**/
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	auto default_memory_res = makePrintingMemoryResource("Rogue PMR Allocation!", std::pmr::null_memory_resource());
 	std::pmr::set_default_resource(&default_memory_res);
 
-	auto buff_size = 1000;
-	auto buffer = std::make_unique<std::byte[]>(buff_size);
-	auto track_new_del = makePrintingMemoryResource("new-del", std::pmr::new_delete_resource());
-	auto monotonic_res = std::pmr::monotonic_buffer_resource(buffer.get(), buff_size, &track_new_del);
-	auto track_monoton = makePrintingMemoryResource("monoton", &monotonic_res);
-	//auto uptr = makeUniqueFromResource<int>(&monotonic_res);
-	//auto pool = std::pmr::unsynchronized_pool_resource(&monotonic_res);
+	//auto buff_size = 1000;
+	//auto buffer = std::make_unique<std::byte[]>(buff_size);
+	//auto track_new_del = makePrintingMemoryResource("new-del", std::pmr::new_delete_resource());
+	//auto monotonic_res = std::pmr::monotonic_buffer_resource(buffer.get(), buff_size, &track_new_del);
+	//auto track_monoton = makePrintingMemoryResource("monoton", &monotonic_res);
+	////auto uptr = makeUniqueFromResource<int>(&monotonic_res);
+	////auto pool = std::pmr::unsynchronized_pool_resource(&monotonic_res);
 
-	std::cout << "vector:\n";
-	//auto vec = std::pmr::vector<std::unique_ptr<bool, PmrResourceDeleter>>(&track_monoton);
-	auto track_monoton2 = makePrintingMemoryResource("vec", &monotonic_res);
-	auto vec = std::pmr::vector<bool*>(&track_monoton2);
-	auto _deleter = ContainerResourceDeleterGuard(vec);
-	auto builder = VectorBuilderWithResource(vec);
-	//builder.addUnique<bool>(true);
-	//builder.addUnique<bool>(true);
-	//builder.addUnique<bool>(true);
-	//builder.addUnique<bool>(true);
-	builder.add<bool>(true);
-	builder.add<bool>(true);
-	builder.add<bool>(true);
-	builder.add<bool>(true);
-	std::cout << "build\n";
-	builder.build();
-	std::cout << "map:\n";
+	//std::cout << "vector:\n";
+	////auto vec = std::pmr::vector<std::unique_ptr<bool, PmrResourceDeleter>>(&track_monoton);
+	//auto track_monoton2 = makePrintingMemoryResource("vec", &monotonic_res);
+	//auto vec = std::pmr::vector<bool*>(&track_monoton2);
+	//auto _deleter = ContainerResourceDeleterGuard(vec);
+	//auto builder = VectorBuilderWithResource(vec);
+	////builder.addUnique<bool>(true);
+	////builder.addUnique<bool>(true);
+	////builder.addUnique<bool>(true);
+	////builder.addUnique<bool>(true);
+	//builder.add<bool>(true);
+	//builder.add<bool>(true);
+	//builder.add<bool>(true);
+	//builder.add<bool>(true);
+	//std::cout << "build\n";
+	//builder.build();
+	//std::cout << "map:\n";
 
-	auto map = std::pmr::map<std::pmr::string, int>(&track_monoton);
-	map.emplace("nush ceva string mai lung", 3);
-	map.emplace("nush ceva string mai lung1", 3);
-	map.emplace("nush ceva string mai lung2", 3);
-	map.emplace("nush ceva string mai lung3", 3);
-	map.emplace("nush ceva string mai lung4", 3);
-	map.emplace("nush ceva string mai lung5", 3);
-	map.emplace("nush ceva string mai lung6", 3);
-	//map["nush ceva string mai lung"] = 3;
+	//auto map = std::pmr::map<std::pmr::string, int>(&track_monoton);
+	//map.emplace("nush ceva string mai lung", 3);
+	//map.emplace("nush ceva string mai lung1", 3);
+	//map.emplace("nush ceva string mai lung2", 3);
+	//map.emplace("nush ceva string mai lung3", 3);
+	//map.emplace("nush ceva string mai lung4", 3);
+	//map.emplace("nush ceva string mai lung5", 3);
+	//map.emplace("nush ceva string mai lung6", 3);
+	////map["nush ceva string mai lung"] = 3;
 
 
 	sf::ContextSettings settings = sf::ContextSettings();
@@ -969,6 +882,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::getWindow().setVerticalSyncEnabled(false);
 	Engine::registerState<class TestingState>(States::TestingState);
 	Engine::registerState<class ImGuiLayer>(States::ImGuiLayer);
+	Engine::registerState<class ChessState>(States::ChessState);
 	Engine::pushFirstState(States::TestingState);
 	Engine::pushOverlay(States::ImGuiLayer);
 

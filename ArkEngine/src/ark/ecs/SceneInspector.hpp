@@ -12,6 +12,15 @@
 
 namespace ark
 {
+	struct EditorOptions {
+		std::string_view property_name;
+		float drag_speed = 0.5;
+		float drag_min = 0;
+		float drag_max = 0;
+		// merg doar pentru float
+		float drag_power = 1;
+		const char* format = "%.2f";
+	};
 	class EntityManager;
 
 	class SceneInspector : public SystemT<SceneInspector>, public Renderer {
@@ -36,9 +45,10 @@ namespace ark
 		static bool renderPropertiesOfType(int* widgetId, void* pValue);
 
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
+		static inline constexpr std::string_view serviceOptions = "ark_inspector_options";
 
 	private:
-		using RenderPropFunc = std::function<std::any(std::string_view, const void*)>;
+		using RenderPropFunc = std::function<std::any(std::string_view, const void*, EditorOptions)>;
 		static std::unordered_map<std::type_index, RenderPropFunc> sPropertyRendererTable;
 
 	};
@@ -67,11 +77,12 @@ namespace ark
 	template <typename TComp>
 	bool SceneInspector::renderPropertiesOfType(int* widgetId, void* pValue)
 	{
+		const auto* options = ark::meta::getService<std::vector<EditorOptions>>(typeid(TComp), serviceOptions);
 		TComp& valueToRender = *static_cast<TComp*>(pValue);
 		std::any newValue;
 		bool modified = false; // used in recursive call to check if the property was modified
 
-		meta::doForAllProperties<TComp>([widgetId, &modified, &newValue, &valueToRender, &table = sPropertyRendererTable](auto& property) mutable {
+		meta::doForAllProperties<TComp>([options, widgetId, &modified, &newValue, &valueToRender, &table = sPropertyRendererTable](auto& property) mutable {
 			using PropType = meta::get_member_type<decltype(property)>;
 			ImGui::PushID(*widgetId);
 
@@ -107,11 +118,19 @@ namespace ark
 				 // render field using predefined table
 				auto& renderProperty = table.at(typeid(PropType));
 
+				// find custom editor options for field
+				auto editopt = EditorOptions{};
+				if (options) {
+					for (auto& opt : *options)
+						if (opt.property_name == property.getName())
+							editopt = opt;
+				}
+
 				if (property.canGetConstRef())
-					newValue = renderProperty(property.getName(), &property.get(valueToRender));
+					newValue = renderProperty(property.getName(), &property.get(valueToRender), editopt);
 				else {
 					PropType local = property.getCopy(valueToRender);
-					newValue = renderProperty(property.getName(), &local);
+					newValue = renderProperty(property.getName(), &local, editopt);
 				}
 
 				if (newValue.has_value()) {

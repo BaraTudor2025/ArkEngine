@@ -25,11 +25,19 @@ public:
 
 	void removeScript(std::string_view name);
 
+	static auto onConstruction(LuaScriptingSystem* sys) // -> std::function<void(ScriptingComponent& comp, ark::Entity e, ark::Registry& reg)>
+	{
+		return [sys](LuaScriptingComponent& comp, ark::Entity e) {
+			comp._setEntity(e);
+			comp._setSystem(sys);
+		};
+	}
+
 	void _setEntity(ark::Entity e) { mEntity = e; }
 	void _setSystem(LuaScriptingSystem* s) { mSystem = s; }
 
 private:
-	void loadScript(int index);
+	//void loadScript(int index);
 	ark::Entity mEntity;
 	//std::vector<std::pair<bool, sol::table>> mScripts;
 	std::vector<sol::table> mScripts;
@@ -74,7 +82,6 @@ public:
 
 	void update() override
 	{
-
 #if LUA_SCRIPT_UPDATING
 		for (const auto& [path, lastWrite] : scriptLastWrites) {
 			const auto realLastWrite = std::filesystem::last_write_time(path);

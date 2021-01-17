@@ -46,7 +46,7 @@ private:
 	friend class LuaScriptingSystem;
 };
 
-ARK_REGISTER_COMPONENT(LuaScriptingComponent, registerServiceDefault<LuaScriptingComponent>()) { return members(); }
+ARK_REGISTER_COMPONENT(LuaScriptingComponent, registerServiceDefault<LuaScriptingComponent>()) { return members<LuaScriptingComponent>(); }
 
 namespace fs = std::filesystem;
 class LuaScriptingSystem : public ark::SystemT<LuaScriptingSystem> {

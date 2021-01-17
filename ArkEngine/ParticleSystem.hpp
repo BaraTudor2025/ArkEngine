@@ -111,7 +111,7 @@ ARK_REGISTER_COMPONENT(PointParticles, registerServiceDefault<PointParticles>(),
 	ark::meta::service<PointParticles>("lua_table_from_pointer", tableFromPointer<PointParticles>))
 {
 	using PP = PointParticles;
-	return members(
+	return members<PointParticles>(
 		member_property("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
 		member_property("lifeTime", &PP::getLifeTime, &PP::setLifeTime),
 		member_property("spawn", &PP::spawn),
@@ -185,7 +185,7 @@ private:
 
 ARK_REGISTER_COMPONENT_WITH_TAG(sf::FloatRect, floatrect ,registerServiceDefault<sf::FloatRect>())
 {
-	constexpr auto m = members(
+	auto m = members<sf::FloatRect>(
 		member_property("top", &sf::FloatRect::top),
 		member_property("left", &sf::FloatRect::left),
 		member_property("height", &sf::FloatRect::height),
@@ -196,7 +196,7 @@ ARK_REGISTER_COMPONENT_WITH_TAG(sf::FloatRect, floatrect ,registerServiceDefault
 
 ARK_REGISTER_COMPONENT_WITH_NAME_TAG(PixelParticles::Colors, "ColorPair", pixelcolorpair, registerServiceDefault<PixelParticles>())
 {
-	return members(
+	return members<PixelParticles::Colors>(
 		member_property("dominant", &PixelParticles::Colors::first),
 		member_property("subdominant", &PixelParticles::Colors::second)
 	);
@@ -204,7 +204,7 @@ ARK_REGISTER_COMPONENT_WITH_NAME_TAG(PixelParticles::Colors, "ColorPair", pixelc
 
 ARK_REGISTER_COMPONENT(PixelParticles, registerServiceDefault<PixelParticles>())
 {
-	return members(
+	return members<PixelParticles>(
 		member_property("particle_number", &PixelParticles::getParticleNumber, &PixelParticles::setParticleNumber),
 		member_property("particles_per_second", &PixelParticles::particlesPerSecond),
 		member_property("spawn", &PixelParticles::spawn),

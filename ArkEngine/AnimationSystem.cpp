@@ -85,7 +85,7 @@ void MeshSystem::onEntityAdded(ark::Entity entity)
 	mesh.texture = ark::Resources::load<sf::Texture>(mesh.fileName);
 	mesh.texture->setRepeated(mesh.repeatTexture);
 	mesh.texture->setSmooth(mesh.smoothTexture);
-	trans.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
+	//trans.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
 	//mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
 	auto[a, b, c, d] = mesh.uvRect;
 	if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect

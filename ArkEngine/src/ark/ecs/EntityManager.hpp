@@ -227,7 +227,7 @@ namespace ark {
 			const auto end = this->componentIds.end();
 			auto pos = std::find(this->componentIds.begin(), end, type);
 			if (pos == end) {
-				EngineLog(LogSource::ComponentM, LogLevel::Critical, "type not found (%s) ", type.name());
+				EngineLog(LogSource::ComponentM, LogLevel::Warning, "type not found (%s) ", type.name());
 				return ArkInvalidIndex;
 			}
 			else 
@@ -242,10 +242,10 @@ namespace ark {
 		{
 			if (idFromType(type) != ArkInvalidIndex)
 				return;
-			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", meta::getMetadata(type)->name);
+			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", type.name());
 			if (componentIds.size() == MaxComponentTypes) {
 				EngineLog(LogSource::ComponentM, LogLevel::Error, 
-					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, meta::getMetadata(type)->name);
+					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, type.name());
 				// TODO: add abort with grace
 				std::abort();
 			}

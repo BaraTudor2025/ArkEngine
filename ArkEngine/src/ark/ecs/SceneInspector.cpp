@@ -146,6 +146,70 @@ namespace ark {
 	}
 #endif
 
+	bool SceneInspector::renderPropertiesOfType(std::type_index type, int* widgetId, void* pValue)
+	{
+		const auto* options = ark::meta::getService<std::vector<EditorOptions>>(type, serviceOptions);
+		auto newValue = std::any{};
+		bool modified = false; // used in recursive call to check if the property was modified
+
+		for(const auto& property : *ark::meta::getRuntimeProperties(type)) {
+			ImGui::PushID(*widgetId);
+
+			if (ark::meta::isRegistered(property.type)) {
+				// recursively render members that are registered
+				std::any propValue = property.get(pValue);
+				ImGui::Text("%s:", property.name.data());
+				if (renderPropertiesOfType(property.type, widgetId, property.fromAny(propValue))) {
+					property.set(pValue, propValue);
+					modified = true;
+				}
+			}
+			else if (property.isEnum) {
+				std::any propValue = property.get(pValue);
+				const auto& fields = meta::getEnumValues(property.type);
+				auto enumVal = *static_cast<ark::meta::EnumValue::value_type*>(property.fromAny(propValue));
+				const char* fieldName = meta::getNameOfEnumValue(property.type, enumVal).data();
+
+				// render enum values in a list
+				ArkSetFieldName(property.name);
+				if (ImGui::BeginCombo("", fieldName, 0)) {
+					for (const auto& field : *fields) {
+						if (ArkSelectable(field.name.data(), property.isEqual(propValue, &field.value))) {
+							propValue = field.value;
+							modified = true;
+							property.set(pValue, propValue);
+							break;
+						}
+					}
+					ImGui::EndCombo();
+				}
+			}
+			else {
+				// render field using predefined table
+				auto& renderProperty = sPropertyRendererTable.at(property.type);
+
+				// find custom editor options for field
+				auto editopt = EditorOptions{};
+				if (options) {
+					for (auto& opt : *options)
+						if (opt.property_name == property.name)
+							editopt = opt;
+				}
+				std::any local = property.get(pValue);
+				newValue = renderProperty(property.name, property.fromAny(local), editopt);
+
+				if (newValue.has_value()) {
+					property.set(pValue, newValue);
+					modified = true;
+				}
+				newValue.reset();
+			}
+			ImGui::PopID();
+			*widgetId += 1;
+		}
+		return modified;
+	}
+
 	bool AlignButtonToRight(const char* str, std::function<void()> callback)
 	{
 		const ImVec2 typeNameSize = ImGui::GetItemRectSize();
@@ -171,44 +235,44 @@ namespace ark {
 		if (ImGui::Begin("Entity editor", &_open)) {
 
 			// select an entity from list
-			static int selectedEntity = -1;
+			static ark::Entity selectedEntity;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
 			for (const auto entity : entityManager.entitiesView()) {
 				const auto& name = entity.getComponent<TagComponent>().name;
-				if (ImGui::Selectable(name.c_str(), selectedEntity == entity.getID()))
-					selectedEntity = entity.getID();
+				if (ImGui::Selectable(name.c_str(), selectedEntity == entity))
+					selectedEntity = entity;
 			}
 			ImGui::EndChild();
 			ImGui::SameLine();
 
 			// edit selected entity
 			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
-			if (selectedEntity != -1) {
-				auto entity = entityManager.entityFromId(selectedEntity);
+			if (selectedEntity.isValid()) {
 
 				int widgetId = 0;
 				ImGui::TextUnformatted("Components:");
 				// edit component
-				for (ark::RuntimeComponent component : entity.runtimeComponentView()) {
-					if (auto render = ark::meta::getService<bool(int*, void*)>(component.type, serviceName)) {
-						ImGui::AlignTextToFramePadding();
-						const auto* mdata = ark::meta::getMetadata(component.type);
-						auto flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
-						if (ImGui::TreeNodeEx(mdata->name.c_str(), flags)) {
-							// can't delete Tag or Transform
-							if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
-								AlignButtonToRight("remove component", [&]() {
-									entityManager.safeRemoveComponent(entity, component.type);
-								});
-							}
-							render(&widgetId, component.ptr);
-							ImGui::TreePop();
+				for (ark::RuntimeComponent component : selectedEntity.runtimeComponentView()) {
+					ImGui::AlignTextToFramePadding();
+					const auto* mdata = ark::meta::getMetadata(component.type);
+					auto flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
+					if (ImGui::TreeNodeEx(mdata->name.c_str(), flags)) {
+						// can't delete Tag or Transform
+						if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
+							AlignButtonToRight("remove component", [&]() {
+								entityManager.safeRemoveComponent(selectedEntity, component.type);
+							});
 						}
+						if(ark::meta::isRegistered(component.type))
+							renderPropertiesOfType(component.type, &widgetId, component.ptr);
+						else if (auto render = ark::meta::getService<bool(int*, void*)>(component.type, serviceName))
+							render(&widgetId, component.ptr);
+						ImGui::TreePop();
 					}
 					ImGui::Separator();
 				}
 
-				// add components list
+				// list of components that can be added
 				const auto& types = entityManager.getComponentTypes();
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
 					using CompVecT = std::decay_t<decltype(std::declval<Registry>().getComponentTypes())>;
@@ -218,9 +282,11 @@ namespace ark {
 				};
 				int componentItemIndex;
 				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
-					Entity e = entityManager.entityFromId(selectedEntity);
-					e.addComponent(types.at(componentItemIndex));
+					selectedEntity.addComponent(types.at(componentItemIndex));
 				}
+			}
+			else {
+				selectedEntity = {};
 			}
 			ImGui::EndChild();
 		}

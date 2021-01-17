@@ -36,7 +36,7 @@ private:
 	friend class TextSystem;
 };
 
-ARK_REGISTER_COMPONENT(Text, registerServiceDefault<Text>()) { return members(); }
+ARK_REGISTER_COMPONENT(Text, registerServiceDefault<Text>()) { return members<Text>(); }
 
 struct Button : sf::RectangleShape {
 
@@ -86,7 +86,7 @@ private:
 	friend class ButtonSystem;
 };
 
-ARK_REGISTER_COMPONENT(Button, registerServiceDefault<Button>()) { return members(); }
+ARK_REGISTER_COMPONENT(Button, registerServiceDefault<Button>()) { return members<Button>(); }
 
 class ButtonSystem : public ark::SystemT<ButtonSystem>, public ark::Renderer {
 

@@ -27,6 +27,11 @@ namespace ark {
 
 		ID getID() const { return id; }
 
+		[[nodiscard]]
+		bool isValid() const;
+
+		operator bool() const { return isValid(); }
+
 		template <ConceptComponent T, typename...Args>
 		T& addComponent(Args&& ... args);
 
@@ -82,9 +87,6 @@ namespace ark {
 	public:
 		[[nodiscard]]
 		auto getComponentMask() const -> const ComponentMask&;
-
-		[[nodiscard]]
-		bool isValid() const;
 
 #if 0 //disable entity children
 

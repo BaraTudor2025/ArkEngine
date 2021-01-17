@@ -9,6 +9,8 @@
 
 namespace ark {
 
+	class Registry;
+
 	class EntityQuerry {
 	public:
 

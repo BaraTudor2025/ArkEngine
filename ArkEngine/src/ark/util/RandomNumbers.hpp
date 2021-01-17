@@ -10,6 +10,7 @@ template<typename T>
 struct Distribution {
 	T a, b;
 	DistributionType type = DistributionType::uniform;
+	auto operator<=>(const Distribution&) const = default;
 };
 
 template<typename T> Distribution(T, T)->Distribution<T>;
@@ -17,32 +18,20 @@ template<typename T> Distribution(T, T, DistributionType)->Distribution<T>;
 
 ARK_REGISTER_COMPONENT_WITH_NAME_TAG(Distribution<float>, "Distribution", Distribution_float, registerServiceDefault<Distribution<float>>())
 {
-	return members(
+	return members<Distribution<float>>(
 		member_property("lower", &Distribution<float>::a),
 		member_property("upper", &Distribution<float>::b),
 		member_property("type", &Distribution<float>::type)
 	);
 }
 
-ARK_REGISTER_ENUM(DistributionType)
-{
-	return enumValues(
-		enumValue("uniform", DistributionType::uniform),
-		enumValue("normal", DistributionType::normal)
+inline auto _ark_reg_dist_type = []() { 
+	ark::meta::registerEnum<DistributionType>(
+		ark::meta::EnumValue("uniform", DistributionType::uniform),
+		ark::meta::EnumValue("normal", DistributionType::normal)
 	);
-}
-
-//namespace ark::meta {
-//
-//	//template <> inline auto registerMembers<Distribution<float>>()
-//	//{
-//	//}
-//
-//	template <> inline auto registerEnum<DistributionType>()
-//	{
-//	}
-//}
-
+	return 0; 
+}();
 
 namespace detail {
 

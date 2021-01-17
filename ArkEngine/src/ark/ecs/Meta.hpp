@@ -62,7 +62,9 @@ auto registerMembers<YourClass>()
 #include <unordered_map>
 #include <map>
 #include <any>
-
+#include <functional>
+#include <string_view>
+#include <optional>
 
 /* for example usage see the registration of ark::Transform for members and for enum see RandomNumbers.hpp */
 
@@ -155,8 +157,11 @@ namespace ark::meta
 
 		template <typename T>
 		friend void registerMetadata(std::string name) noexcept;
+		
+		// TODO (Meta) unified meta interface
+		//std::vector<RuntimeProperty> properties;
+		//std::vector<detail::ServiceData> functions;
 	};
-
 
 	namespace detail
 	{
@@ -421,7 +426,6 @@ namespace ark::meta
 			detail::guard::sServiceTable[{typeid(T), name}].func_ptr = static_cast<func_ptr_t>(std::forward<U>(serviceArg));
 		}
 		else if constexpr (std::is_object_v<U>) {
-			detail::guard::sServiceTable[{typeid(T), name}].type = typeid(U);
 			detail::guard::sServiceTable[{typeid(T), name}].value = serviceArg;
 		}
 		else
@@ -437,22 +441,17 @@ namespace ark::meta
 	{
 		if constexpr (std::is_function_v<T>) {
 			using func_ptr_t = detail::make_func_ptr_t<T>;
-			if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
-				it != detail::guard::sServiceTable.end()) 
-			{
-				auto func_type = std::type_index(typeid(func_ptr_t));
-				assert(func_type == it->second.type);
+			if (auto it = detail::guard::sServiceTable.find({ type, serviceName }); it != detail::guard::sServiceTable.end())  {
+				//auto func_type = std::type_index();
+				//assert(typeid(func_ptr_t) == it->second.type);
 				return reinterpret_cast<func_ptr_t>(it->second.func_ptr);
 			}
-			else {
+			else
 				return static_cast<func_ptr_t>(nullptr);
-			}
 		}
 		else if constexpr (std::is_object_v<T>) {
-			if (auto it = detail::guard::sServiceTable.find({ type, serviceName });
-				it != detail::guard::sServiceTable.end()) {
+			if (auto it = detail::guard::sServiceTable.find({ type, serviceName }); it != detail::guard::sServiceTable.end())
 				return std::any_cast<T>(&it->second.value);
-			}
 			else
 				return static_cast<T*>(nullptr);
 		}
@@ -465,7 +464,7 @@ namespace ark::meta
 			vec.push_back(type);
 	}
 
-	inline const std::vector<std::type_index>& getTypeGroup(std::string_view groupName) noexcept
+	inline auto getTypeGroup(std::string_view groupName) noexcept -> const std::vector<std::type_index>&
 	{
 		auto it = detail::guard::sTypeGroups.find(groupName);
 		if (it != detail::guard::sTypeGroups.end())
@@ -474,72 +473,328 @@ namespace ark::meta
 			return {};
 	}
 
+	struct EnumValue {
+		using value_type = std::int64_t;
+
+		const std::type_index type;
+		const std::string_view name;
+		const value_type value;
+
+		template<typename EnumT>
+		EnumValue(std::string_view name, EnumT value) : type(typeid(EnumT)), name(name), value(static_cast<std::int64_t>(value)){}
+
+		template <typename EnumT>
+		requires std::is_enum_v<EnumT>
+		operator EnumT() const { assert(type == typeid(EnumT)); return static_cast<EnumT>(value); }
+
+		template <typename EnumT>
+		friend bool operator==(EnumT val, const EnumValue& This) {
+			assert(This.type == typeid(EnumT));
+			return val == static_cast<EnumT>(This.value);
+		}
+		template <typename EnumT>
+		friend bool operator==(const EnumValue& This, EnumT val) {
+			assert(This.type == typeid(EnumT));
+			return val == static_cast<EnumT>(This.value);
+		}
+		template <typename EnumT>
+		friend bool operator!=(const EnumValue& This, EnumT val) {
+			return !(val == This);
+		}
+		template <typename EnumT>
+		friend bool operator!=(EnumT val, const EnumValue& This) {
+			return !(val == This);
+		}
+	};
+
+
+	template <typename Class, typename T>
+	using member_ptr_t = T Class::*;
+
+	template <typename Class, typename T>
+	using ref_getter_func_ptr_t = const T& (Class::*)() const;
+
+	template <typename Class, typename T>
+	using ref_setter_func_ptr_t = void (Class::*)(const T&);
+
+	template <typename Class, typename T>
+	using val_getter_func_ptr_t = T(Class::*)() const;
+
+	template <typename Class, typename T>
+	using val_setter_func_ptr_t = void (Class::*)(T);
+
+	template <typename Class, typename T>
+	using nonconst_ref_getter_func_ptr_t = T & (Class::*)();
+
+
+	template <typename Class, typename Ret, typename... Args>
+	using function_ptr_t = Ret(Class::*)(Args...);
+
+	template <typename Class, typename Ret, typename... Args>
+	using const_function_ptr_t = Ret(Class::*)(Args...) const;
+
+
+	class RuntimeProperty {
+
+	public:
+		const std::type_index type;
+		const std::string_view name;
+		const bool isEnum;
+
+		// helper
+		void* fromAny(std::any& any) const {
+			return m_fromAny(any);
+		}
+		void toIntFromEnum(std::any& any) const {
+			m_toIntFromEnum(any);
+		}
+		void toEnumFromInt(std::any& any) const {
+			m_toEnumFromInt(any);
+		}
+
+		bool isEqual(const std::any& any, const void* data) const {
+			return m_isEq(any, data);
+		}
+
+		void get(const void* instance, void* out_value) const {
+			m_getter(instance, out_value);
+		}
+		void get(const void* instance, std::any& out_value) const {
+			m_getter_any(instance, out_value);
+		}
+		auto get(const void* instance) const -> std::any {
+			auto value = std::any{};
+			get(instance, value);
+			return value;
+		}
+
+		void set(void* instance, void* in_value) const {
+			m_setter(instance, in_value);
+		}
+		void set(void* instance, std::any in_value) const {
+			if (isEnum && in_value.type() == typeid(EnumValue::value_type))
+				this->toEnumFromInt(in_value);
+			m_setter_any(instance, std::move(in_value));
+		}
+		void set(void* instance, std::any&& in_value) const {
+			if (isEnum && in_value.type() == typeid(EnumValue::value_type))
+				this->toEnumFromInt(in_value);
+			m_setter_any(instance, std::move(in_value));
+		}
+		
+		template <typename Class, typename Property>
+		RuntimeProperty(std::string_view name, ark::meta::member_ptr_t<Class, Property> ptr)
+			: RuntimeProperty(name, std::type_identity<Property>{})
+		{ 
+			m_getter = [ptr](const void* instance, void* out_value) {
+				*static_cast<Property*>(out_value) = static_cast<const Class*>(instance)->*ptr;
+			};
+			m_setter = [ptr](void* instance, void* in_value) {
+				static_cast<Class*>(instance)->*ptr = *static_cast<Property*>(in_value);
+			};
+			m_getter_any = [ptr](const void* instance, std::any& out_value) {
+				out_value = static_cast<const Class*>(instance)->*ptr;
+			};
+			m_setter_any = [ptr](void* instance, std::any&& in_value) {
+				static_cast<Class*>(instance)->*ptr = std::any_cast<Property>(in_value);
+			};
+		}
+
+		template <typename Class, typename Property>
+		RuntimeProperty(
+			std::string_view name,
+			ark::meta::ref_getter_func_ptr_t<Class, Property> ptrGet,
+			ark::meta::ref_setter_func_ptr_t<Class, Property> ptrSet)
+			: RuntimeProperty(name, std::type_identity<Property>{})
+		{
+			m_getter = [ptrGet](const void* instance, void* out_value) {
+				*static_cast<Property*>(out_value) = (static_cast<const Class*>(instance)->*ptrGet)();
+			};
+			m_setter = [ptrSet](void* instance, void* in_value) {
+				(static_cast<Class*>(instance)->*ptrSet)(*static_cast<Property*>(in_value));
+			};
+			m_getter_any = [ptrGet](const void* instance, std::any& out_value) {
+				out_value = (static_cast<const Class*>(instance)->*ptrGet)();
+			};
+			m_setter_any = [ptrSet](void* instance, std::any&& in_value) {
+				(static_cast<Class*>(instance)->*ptrSet)(std::any_cast<Property>(std::move(in_value)));
+			};
+		}
+
+		template <typename Class, typename Property>
+		RuntimeProperty(
+			std::string_view name,
+			ark::meta::val_getter_func_ptr_t<Class, Property> ptrGet,
+			ark::meta::val_setter_func_ptr_t<Class, Property> ptrSet)
+			: RuntimeProperty(name, std::type_identity<Property>{})
+		{
+			m_getter = [ptrGet](const void* instance, void* out_value) {
+				*static_cast<Property*>(out_value) = (static_cast<const Class*>(instance)->*ptrGet)();
+			};
+			m_setter = [ptrSet](void* instance, void* in_value) {
+				(static_cast<Class*>(instance)->*ptrSet)(*static_cast<Property*>(in_value));
+			};
+			m_getter_any = [ptrGet](const void* instance, std::any& out_value) {
+				out_value = (static_cast<const Class*>(instance)->*ptrGet)();
+			};
+			m_setter_any = [ptrSet](void* instance, std::any&& in_value) {
+				(static_cast<Class*>(instance)->*ptrSet)(std::any_cast<Property>(std::move(in_value)));
+			};
+		}
+
+	private:
+		template <typename Property>
+		RuntimeProperty(std::string_view name, std::type_identity<Property> nush) 
+			: name(name), type(typeid(Property)), isEnum(std::is_enum_v<Property>),
+			m_fromAny([](std::any& data) { return static_cast<void*>(&std::any_cast<Property&>(data)); }),
+			m_toIntFromEnum([](std::any& any) {
+			if constexpr (std::is_enum_v<Property>)
+				any = static_cast<EnumValue::value_type>(std::any_cast<Property>(any));
+		}),
+			m_toEnumFromInt([](std::any& any) {
+			if constexpr (std::is_enum_v<Property>)
+				any = static_cast<Property>(std::any_cast<EnumValue::value_type>(any));
+		}),
+			m_isEq([](const std::any& any, const void* p) {
+			return *static_cast<const Property*>(p) == std::any_cast<const Property&>(any);
+		}) {}
+
+		void (* const m_toIntFromEnum)(std::any&);
+		void (* const m_toEnumFromInt)(std::any&);
+		void* (* const m_fromAny)(std::any&);
+		bool (* const m_isEq)(const std::any&, const void*);
+		std::function<void(const void*, void*)> m_getter;
+		std::function<void(void*, void*)>  m_setter;
+		std::function<void(const void*, std::any&)> m_getter_any;
+		std::function<void(void*, std::any&&)> m_setter_any;
+	};
+
+	struct detail_prop_s {
+		static inline auto s_RuntimePropertiesTable = std::unordered_map<std::type_index, std::vector<RuntimeProperty>>();
+	};
+
+	inline void addRuntimeProperty(std::type_index type, RuntimeProperty property) {
+		detail_prop_s::s_RuntimePropertiesTable[type].emplace_back(std::move(property));
+	}
+	inline void registerRuntimeProperties(std::type_index type, std::vector<RuntimeProperty> properties) {
+		detail_prop_s::s_RuntimePropertiesTable[type] = std::move(properties);
+	}
+	template <typename T>
+	inline void registerRuntimeProperties(std::vector<RuntimeProperty> properties) {
+		registerRuntimeProperties(typeid(T), std::move(properties));
+	}
+	template <typename... Args>
+	inline void registerRuntimeProperties(std::type_index type, Args&&... properties) {
+		registerRuntimeProperties(type, std::vector<RuntimeProperty>{std::forward<Args>(properties)...});
+	}
+	template <typename T, typename... Args>
+	inline void registerRuntimeProperties(Args&&... properties) {
+		registerRuntimeProperties(typeid(T), std::forward<Args>(properties)...);
+	}
+
+	inline auto getRuntimeProperties(std::type_index type) -> const std::vector<RuntimeProperty>* {
+		auto it = detail_prop_s::s_RuntimePropertiesTable.find(type);
+		if (it != detail_prop_s::s_RuntimePropertiesTable.end())
+			return &it->second;
+		else
+			return nullptr;
+	}
+	template <typename T>
+	inline auto getRuntimeProperties() -> const std::vector<RuntimeProperty>* {
+		return getRuntimeProperties(typeid(T));
+	}
+
+	inline bool isRegistered(std::type_index type) {
+		return getRuntimeProperties(type) != nullptr;
+	}
+
 
 	/* Enum stuff */
 
-	template <typename T>
-	struct EnumValueHolder {
-		using enum_type = T;
-		const char* name;
-		T value;
+	struct detail_enum_s {
+		static inline auto s_EnumValuesTable = std::unordered_map<std::type_index, std::vector<EnumValue>>();
 	};
 
+	inline void registerEnum(std::type_index type, std::vector<EnumValue> enumValues) {
+		detail_enum_s::s_EnumValuesTable[type] = std::move(enumValues);
+	}
 	template <typename T>
-	auto enumValue(const char* name, T value)
-	{
-		static_assert(std::is_enum_v<T>, "tre sa fie valoare de enum");
-		return EnumValueHolder<T>{name, value};
+	inline void registerEnum(std::vector<EnumValue> enumValues) {
+		registerEnum(typeid(T), std::move(enumValues));
+	}
+	template <typename... Args>
+	inline void registerEnum(std::type_index type, Args&&... enumValues) {
+		registerEnum(type, std::vector<EnumValue>{std::forward<Args>(enumValues)...});
+	}
+	template <typename T, typename... Args>
+	inline void registerEnum(Args&&... enumValues) {
+		registerEnum(typeid(T), std::forward<Args>(enumValues)...);
 	}
 
-	template <typename... Ts>
-	auto enumValues(Ts&&... args)
-	{
-		static_assert(detail::areTheSameType<Ts...>(), "de ce plm sunt doua enum-uri diferite???");
-		using EnumValueH = detail::getFirstArg<Ts...>;
-		using EnumT = typename EnumValueH::enum_type;
-		return std::array<EnumValueHolder<EnumT>, sizeof...(Ts)> { std::forward<Ts>(args)... };
+	inline auto getEnumValues(std::type_index type) -> const std::vector<EnumValue>* {
+		auto it = detail_enum_s::s_EnumValuesTable.find(type);
+		if (it != detail_enum_s::s_EnumValuesTable.end())
+			return &it->second;
+		else
+			return nullptr;
+	}
+	template <typename T>
+	inline auto getEnumValues() -> const std::vector<EnumValue>* {
+		return getEnumValues(typeid(T));
 	}
 
-	template <typename T> inline auto registerEnum()
+	inline auto getNameOfEnumValue(std::type_index type, EnumValue::value_type value) -> std::string_view
 	{
-		static_assert(false, "T wasn't registered");
-		return std::array<T, 0>{};
-	}
-
-	template <typename T> inline const auto& getEnumValues() /* -> array<T,N> */
-	{
-		static auto enumVals = registerEnum<T>();
-		return enumVals;
-	}
-
-	template <typename EnumT>
-	const char* getNameOfEnumValue(const EnumT& value)
-	{
-		const auto& fields = getEnumValues<EnumT>();
-		const char* fieldName = nullptr;
-		for (const auto& field : fields)
+		const auto& fields = getEnumValues(type);
+		auto fieldName = std::string_view{};
+		for (const auto& field : *fields)
 			if (field.value == value)
 				fieldName = field.name;
 		return fieldName;
 	}
 
 	template <typename EnumT>
-	EnumT getValueOfEnumName(const char* name)
+	inline auto getNameOfEnumValue(EnumT value) -> std::string_view {
+		return getNameOfEnumValue(typeid(EnumT), static_cast<EnumValue::value_type>(value));
+	}
+
+	inline auto getValueOfEnumName(std::type_index type, std::string_view name) -> EnumValue::value_type
 	{
-		const auto& fields = getEnumValues<EnumT>();
-		for (const auto& field : fields)
-			if (std::strcmp(name, field.name) == 0)
+		const auto& fields = getEnumValues(type);
+		for (const auto& field : *fields)
+			if (field.name == name)
 				return field.value;
+		assert(false);
 		return {};
+	}
+
+	template <typename EnumT>
+	inline auto getValueOfEnumName(std::string_view name) -> EnumT
+	{
+		return static_cast<EnumT>(getValueOfEnumName(typeid(EnumT), name));
 	}
 
 
 	/* class members stuff */
 
-	template <typename... Args>
+	template <typename T, typename... Args>
 	constexpr auto members(Args&&... args) noexcept
 	{
-		return std::make_tuple(std::forward<Args>(args)...);
+		auto tup = std::make_tuple(std::forward<Args>(args)...);
+		detail::property_for_tuple([](auto& member) {
+			if (member.hasPtr())
+				ark::meta::addRuntimeProperty(typeid(T), RuntimeProperty(member.getName(), member.getPtr()));
+			else if (member.hasRefFuncPtrs()) {
+				auto [get, set] = member.getRefFuncPtrs();
+				ark::meta::addRuntimeProperty(typeid(T), RuntimeProperty(member.getName(), get, set));
+			}
+			else if (member.hasValFuncPtrs()) {
+				auto [get, set] = member.getValFuncPtrs();
+				ark::meta::addRuntimeProperty(typeid(T), RuntimeProperty(member.getName(), get, set));
+			}
+		}, tup);
+		return tup;
+		//return std::make_tuple(std::forward<Args>(args)...);
 	}
 
 	// function used for registration of classes by user
@@ -611,6 +866,9 @@ namespace ark::meta
 	template <typename MemberType>
 	using get_member_type = typename std::decay_t<MemberType>::member_type;
 
+	template <typename MemberType>
+	using get_class_type = typename std::decay_t<MemberType>::class_type;
+
 	// Do F for member named 'name' with type T. It's important to pass correct type of the member
 	template <typename Class, typename T, typename F>
 	void doForProperty(const char* name, F&& f)
@@ -672,33 +930,6 @@ namespace ark::meta
 		}
 		);
 	}
-
-
-	template <typename Class, typename T>
-	using member_ptr_t = T Class::*;
-
-	template <typename Class, typename T>
-	using ref_getter_func_ptr_t = const T& (Class::*)() const;
-
-	template <typename Class, typename T>
-	using ref_setter_func_ptr_t = void (Class::*)(const T&);
-
-	template <typename Class, typename T>
-	using val_getter_func_ptr_t = T(Class::*)() const;
-
-	template <typename Class, typename T>
-	using val_setter_func_ptr_t = void (Class::*)(T);
-
-	template <typename Class, typename T>
-	using nonconst_ref_getter_func_ptr_t = T & (Class::*)();
-
-
-	template <typename Class, typename Ret, typename... Args>
-	using function_ptr_t = Ret(Class::*)(Args...);
-
-	template <typename Class, typename Ret, typename... Args>
-	using const_function_ptr_t = Ret(Class::*)(Args...) const;
-
 
 
 	template <typename Class, typename Ret, typename... Args>
@@ -828,6 +1059,7 @@ namespace ark::meta
 		union {
 			member_ptr_t<Class, T> mPtr;
 			struct {
+
 				ref_getter_func_ptr_t<Class, T> mRefGetter;
 				ref_setter_func_ptr_t<Class, T> mRefSetter;
 			};

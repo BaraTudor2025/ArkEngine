@@ -79,7 +79,7 @@ namespace Util
 	template <typename R, typename T>
 	inline R reinterpretCast(T in)
 	{
-		static_assert(sizeof(T) == sizeof(R));
+		//static_assert(sizeof(T) == sizeof(R));
 		union {
 			T in;
 			R ret;

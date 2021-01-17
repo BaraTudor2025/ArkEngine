@@ -145,7 +145,7 @@ public:
 ARK_REGISTER_TYPE_WITH_NAME(gScriptGroupName, MovePlayer, "MovePlayerAnimated", registerServiceDefault<MovePlayer>(),
 	registerServiceInspectorOptions<MovePlayer>({ {.property_name="scale", .drag_speed=0.001} }))
 {
-	return ark::meta::members(
+	return members<MovePlayer>(
 		member_property("speed", &MovePlayer::speed),
 		member_property("scale", &MovePlayer::getScale, &MovePlayer::setScale)
 	);
@@ -154,7 +154,7 @@ ARK_REGISTER_TYPE_WITH_NAME(gScriptGroupName, MovePlayer, "MovePlayerAnimated", 
 ARK_REGISTER_MEMBERS(ParticleScripts::RotateEmitter)
 {
 	using namespace ParticleScripts;
-	return members(
+	return members<ParticleScripts::RotateEmitter>(
 		member_property("distance", &RotateEmitter::distance),
 		member_property("angular_speed", &RotateEmitter::angleSpeed),
 		member_property("origin", &RotateEmitter::around)
@@ -308,7 +308,7 @@ private:
 
 	friend class DelayedActionSystem;
 };
-ARK_REGISTER_COMPONENT(DelayedAction, registerServiceDefault<DelayedAction>()) { return members(); }
+ARK_REGISTER_COMPONENT(DelayedAction, registerServiceDefault<DelayedAction>()) { return members<DelayedAction>(); }
 
 class DelayedActionSystem : public ark::SystemT<DelayedActionSystem> {
 public:
@@ -366,7 +366,7 @@ public:
 		}
 	}
 };
-ARK_REGISTER_MEMBERS(SaveEntityScript) { return members(member_property("key", &SaveEntityScript::key)); }
+ARK_REGISTER_MEMBERS(SaveEntityScript) { return members<SaveEntityScript>(member_property("key", &SaveEntityScript::key)); }
 
 class TestingState : public BasicState {
 	Entity player;
@@ -690,7 +690,7 @@ public:
 
 ARK_REGISTER_TYPE(gScriptGroupName, MoveEntityScript, registerServiceDefault<MoveEntityScript>())
 {
-	return ark::meta::members(
+	return members<MoveEntityScript>(
 		member_property("speed", &MoveEntityScript::speed),
 		member_property("rotation_speed", &MoveEntityScript::rotationSpeed)
 	);
@@ -701,91 +701,101 @@ struct ChessPlayer {
 	std::string color;
 };
 
+
+struct BoardPositionComponent {
+	int x, y;
+};
+
 struct ChessPieceComponent {
-	int x, y; // position
+	//int x, y; // position on board
 	int type;
+	int dx, dy;
 	std::function<bool(int, int)> canMoveTo;
 	ChessPlayer* player;
-};
-
-struct SelectableComponent {
-	sf::FloatRect rect;
-};
-
-enum class ChessColor {
-	White,
-	Black
+	sf::FloatRect selectArea;
 };
 
 struct ChessBoard {
 	std::vector<std::vector<ChessPieceComponent>> board;
 };
 
-struct MessageIsSelected {
-	ark::Entity entity;
-};
+ARK_REGISTER_COMPONENT(ChessPieceComponent, registerServiceDefault<ChessPieceComponent>()) { 
+	return members<ChessPieceComponent>(
+		member_property("selectArea", &ChessPieceComponent::selectArea)
+	); 
+}
 
-ARK_REGISTER_COMPONENT(ChessPieceComponent, registerServiceDefault<ChessPieceComponent>()) { return members(); }
-
-class ChessSystemBoard : public ark::SystemT<ChessSystemBoard> {
-	std::vector<std::vector<ChessPieceComponent>> board;
+class ChessSystem : public ark::SystemT<ChessSystem> {
+	std::vector<std::vector<ChessPieceComponent>> board = { { } };
 	ChessPlayer playerInTurn;
 	ark::Entity selectedPiece;
 public:
 
-	void init() override {
-		querry = entityManager.makeQuerry<Transform, ChessPieceComponent, SelectableComponent>();
-	}
+	constexpr static inline int kSize = 75;
 
-	void handleMessage(const ark::Message& message) override {
-		if (message.is<MessageIsSelected>()) {
-			Entity selectedEntity = message.data<MessageIsSelected>().entity;
-			ChessPlayer* player = selectedEntity.getComponent<ChessPieceComponent>().player;
-			GameLog("apasat \n ");
-			//if (playerInTurn == ) {
-			//}
-		}
+	void init() override {
+		querry = entityManager.makeQuerry<Transform, ChessPieceComponent>();
+		//querry.onEntityAdd([](ark::Entity entity) {
+		//});
 	}
 
 	void handleEvent(sf::Event ev) override {
-	}
-
-	void update() override {
-
-	}
-};
-
-ARK_REGISTER_COMPONENT(SelectableComponent, registerServiceDefault<SelectableComponent>()) { return members(); }
-
-// when its click-ed
-class SelectableSystem : public SystemT<SelectableSystem> {
-public:
-	void init() override {
-		querry = this->entityManager.makeQuerry<Transform, SelectableComponent>();
-	}
-
-	void handleEvent(sf::Event ev) override {
-		switch (ev.type) {
-		case sf::Event::MouseButtonPressed:
-			if (ev.mouseButton.button == sf::Mouse::Button::Left) {
-				int x = ev.mouseButton.x;
-				int y = ev.mouseButton.y;
-				for (Entity entity : querry.getEntities()) {
-					auto& rect = entity.getComponent<SelectableComponent>().rect;
-					if (rect.contains(x, y)) {
-						postMessage<MessageIsSelected>(entity);
+		if (ev.type == sf::Event::MouseButtonPressed 
+			&& ev.mouseButton.button == sf::Mouse::Button::Left) {
+			for (Entity entity : querry.getEntities()) {
+				auto& piece = entity.getComponent<ChessPieceComponent>();
+				if (piece.selectArea.contains(ev.mouseButton.x, ev.mouseButton.y)) {
+					if (true/*daca poate fi mutat*/) {
+						selectedPiece = entity;
+						auto [x, y] = entity.getComponent<Transform>().getPosition();
+						piece.dx = ev.mouseButton.x - x;
+						piece.dy = ev.mouseButton.y - y;
 					}
 				}
+			}
+		}
+		else if (ev.type == sf::Event::MouseButtonReleased) {
+			if (selectedPiece) {
+				auto& trans = selectedPiece.getComponent<Transform>();
+				auto p = trans.getPosition() + sf::Vector2f{ kSize / 2, kSize / 2 };
+				trans.setPosition(kSize * int(p.x / kSize), kSize * int(p.y / kSize));
+				selectedPiece = {};
 			}
 		}
 	}
 
 	void update() override {
-		for (Entity entity : querry.getEntities()) {
-			auto [trans, select] = entity.getComponents<Transform, SelectableComponent>();
-			select.rect.left = trans.getPosition().x;
-			select.rect.top = trans.getPosition().y;
+		if (selectedPiece) {
+			auto& trans = selectedPiece.getComponent<Transform>();
+			auto& piece = selectedPiece.getComponent<ChessPieceComponent>();
+			auto [x, y] = ark::Engine::mousePositon();
+			trans.setPosition(x - piece.dx, y - piece.dy);
 		}
+		for (Entity entity : querry.getEntities()) {
+			auto [trans, piece] = entity.getComponents<Transform, ChessPieceComponent>();
+			piece.selectArea.left = trans.getPosition().x;
+			piece.selectArea.top = trans.getPosition().y;
+		}
+	}
+};
+
+struct TestProp {
+	int type;
+	const int& getType() const {
+	//int getType() const {
+		return type;
+	}
+	void setType(const int& type) {
+	//void setType(int type) {
+		this->type = type;
+	}
+
+	std::string name;
+	const std::string& getName() const {
+		return name;
+	}
+	void setName(const std::string& name) {
+		this->name = name;
 	}
 };
 
@@ -795,42 +805,102 @@ public:
 	ChessState(ark::MessageBus& mb) : BasicState(mb) {}
 
 	int getStateId() override { return States::ChessState; }
+	
+	std::vector<std::vector<int>> board = 
+	{	{-1, -2, -3, -4, -5, -3, -2, -1},
+		{-6, -6, -6, -6, -6, -6, -6, -6},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0},
+		{6, 6, 6, 6, 6, 6, 6, 6},
+		{1, 2, 3, 4, 5, 3, 2, 1}
+	};
 
 	void init() override {
+		{
+			//auto prop = ark::meta::RuntimeProperty("type", &TestProp::getType, &TestProp::setType);
+			ark::meta::registerRuntimeProperties<TestProp>(ark::meta::RuntimeProperty("type", &TestProp::getType, &TestProp::setType));
+			auto prop = ark::meta::getRuntimeProperties<TestProp>()->front();
+			auto comp = TestProp();
+			comp.type = 10;
+			int type;
+			prop.get(&comp, &type);
+			std::cout << "\n property read:" << type;
+			type = 50;
+			prop.set(&comp, &type);
+			std::cout << "\n property write: " << comp.type;
+
+			auto any = prop.get(&comp);
+			int& ref_type = std::any_cast<int&>(any);
+			std::cout << "\n property read:" << ref_type;
+			ref_type = 100;
+			prop.set(&comp, any);
+			std::cout << "\n property write: " << comp.type;
+			std::cout << '\n';
+
+			auto propStr = ark::meta::RuntimeProperty("str", &TestProp::getName, &TestProp::setName);
+			comp.name = "init name";
+			any = propStr.get(&comp);
+			std::string& refStr = std::any_cast<std::string&>(any);
+			std::cout << "\n property read:" << refStr;
+			refStr = "schimbare 1";
+			propStr.set(&comp, any);
+			std::cout << "\n property write: " << comp.name;
+			std::cout << '\n';
+			//std::string testStr = *(std::string*)propStr.fromAny(any);
+			void* vptr = (void*)&std::any_cast<std::string&>(any);
+			std::string testStr = *(std::string*)vptr;
+			std::cout << "\n property conv: " << testStr;
+			std::cout << '\n';
+
+		}
+
 		manager.addDefaultComponent<TagComponent>();
 		manager.addDefaultComponent<Transform>();
 
-		systems.addSystem<SelectableSystem>();
 		systems.addSystem<MeshSystem>();
-		systems.addSystem<ChessSystemBoard>();
+		systems.addSystem<ChessSystem>();
 		systems.addSystem<SceneInspector>();
 		systems.addSystem<FpsCounterDirector>();
 		systems.addSystem<ScriptingSystem>();
 		systems.addSystem<RenderSystem>();
 
-		manager.onConstruction<ScriptingComponent>();
 		manager.onConstruction<TagComponent>();
-		manager.onConstruction<LuaScriptingComponent>(this->systems.getSystem<LuaScriptingSystem>());
+		manager.onCopy<TagComponent>(TagComponent::onCopy);
+		manager.onConstruction<ScriptingComponent>();
+		manager.onCopy<ScriptingComponent>(ScriptingComponent::onCopy);
+		//manager.onConstruction<LuaScriptingComponent>(this->systems.getSystem<LuaScriptingSystem>());
+		const int size = ChessSystem::kSize;
 
-		Entity piesa = manager.createEntity();
-		auto& trans = piesa.getComponent<Transform>(); 
-		trans.setOrigin(0, 0);
-		trans.setPosition(400, 400);
-		piesa.addComponent<ChessPieceComponent>();
-		auto& select = piesa.addComponent<SelectableComponent>();
-		select.rect.width = 100;
-		select.rect.height = 100;
-		//auto& draw = piesa.addComponent<Drawable>("chess_pieces.png");
-		//auto [x, y] = draw.getTexture()->getSize();
-		//draw.setCroppingArea();
-		piesa.addComponent<MeshComponent>("chess_pieces.png", true);
-		//{
-		//	auto& scripts = piesa.addComponent<ScriptingComponent>();
-		//	scripts.addScript<MoveEntityScript>();
-		//}
+		for (int i = 0; i < 8; i++) {
+			for (int j = 0; j < 8; j++) {
+				if (board[i][j] == 0)
+					continue;
+				int x = std::abs(board[i][j]) - 1;
+				int y = board[i][j] > 0 ? 1 : 0;
+
+				Entity piesa = manager.createEntity();
+
+				auto& trans = piesa.getComponent<Transform>();
+				trans.setPosition(size * j, size * i);
+				//trans.setOrigin(0, 0);
+				//trans.setPosition(400, 400);
+
+				auto& mesh = piesa.addComponent<MeshComponent>("chess_pieces.png", true);
+				mesh.setTextureRect(sf::IntRect{ size * x, size * y, size, size });
+
+				auto& piece = piesa.addComponent<ChessPieceComponent>();
+				piece.selectArea.width = size;
+				piece.selectArea.height = size;
+				//piece.x = i;
+				//piece.y = j;
+			}
+		}
 	}
 };
 /**/
+
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -883,7 +953,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::registerState<class TestingState>(States::TestingState);
 	Engine::registerState<class ImGuiLayer>(States::ImGuiLayer);
 	Engine::registerState<class ChessState>(States::ChessState);
-	Engine::pushFirstState(States::TestingState);
+	Engine::pushFirstState(States::ChessState);
 	Engine::pushOverlay(States::ImGuiLayer);
 
 	Engine::run();

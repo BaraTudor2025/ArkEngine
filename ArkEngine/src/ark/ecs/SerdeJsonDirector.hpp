@@ -95,7 +95,7 @@ namespace ark::serde
 			else if constexpr (std::is_enum_v<PropType> /*&& is registered */) {
 				auto propValue = property.getCopy(value);
 				const auto& fields = meta::getEnumValues<PropType>();
-				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
+				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue).data();
 				jsonObj[property.getName()] = fieldName;
 			}
 			else if constexpr (std::is_same_v<char, PropType>) {

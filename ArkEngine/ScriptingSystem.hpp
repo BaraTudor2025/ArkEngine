@@ -280,7 +280,7 @@ ARK_REGISTER_COMPONENT(ScriptingComponent,
 	ark::meta::service<ScriptingComponent>(ark::serde::serviceDeserializeName, deserializeScriptComponents)
 )
 {
-	return members(); 
+	return members<ScriptingComponent>(); 
 }
 
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {

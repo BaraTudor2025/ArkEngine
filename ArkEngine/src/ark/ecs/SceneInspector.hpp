@@ -43,6 +43,7 @@ namespace ark
 
 		template <typename T>
 		static bool renderPropertiesOfType(int* widgetId, void* pValue);
+		static bool renderPropertiesOfType(std::type_index type, int* widgetId, void* pValue);
 
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
 		static inline constexpr std::string_view serviceOptions = "ark_inspector_options";
@@ -98,14 +99,14 @@ namespace ark
 			else if constexpr (std::is_enum_v<PropType> /* && is registered*/) {
 				auto propValue = property.getCopy(valueToRender);
 				const auto& fields = meta::getEnumValues<PropType>();
-				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
+				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue).data();
 
 				// render enum values in a list
 				ArkSetFieldName(property.getName());
 				if (ImGui::BeginCombo("", fieldName, 0)) {
-					for (const auto& field : fields) {
-						if (ArkSelectable(field.name, field.value == propValue)) {
-							propValue = field.value;
+					for (const auto& field : *fields) {
+						if (ArkSelectable(field.name.data(), propValue == field)) {
+							propValue = field;
 							modified = true;
 							property.set(valueToRender, propValue);
 							break;
@@ -115,7 +116,7 @@ namespace ark
 				}
 			}
 			else {
-				 // render field using predefined table
+				// render field using predefined table
 				auto& renderProperty = table.at(typeid(PropType));
 
 				// find custom editor options for field

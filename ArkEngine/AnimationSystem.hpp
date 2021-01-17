@@ -72,7 +72,7 @@ private:
 };
 
 ARK_REGISTER_COMPONENT(MeshComponent, registerServiceDefault<MeshComponent>()) {
-	return members(
+	return members<MeshComponent>(
 		member_property("texture", &MeshComponent::getTexture, &MeshComponent::setTexture),
 		member_property("mesh_size", &MeshComponent::getMeshSize, &MeshComponent::setMeshSize),
 		member_property("texture_rect", &MeshComponent::getTextureRect, &MeshComponent::setTextureRect)
@@ -167,7 +167,7 @@ private:
 
 ARK_REGISTER_COMPONENT(Animation, registerServiceDefault<Animation>())
 {
-	return members(
+	return members<Animation>(
 		member_property("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
 		member_property("texture", &Animation::getTexture, &Animation::setTexture),
 		member_property("frame_time", &Animation::frameTime),

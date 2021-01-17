@@ -29,8 +29,13 @@ namespace ark
 		static auto onConstruction() {
 			return [](TagComponent& tag, ark::Entity e) {
 				tag._setEntity(e);
-				tag.name = "";
+				if(tag.name.empty())
+					tag.name = "";
 			};
+		}
+
+		static void onCopy(TagComponent& tag, const TagComponent&) {
+			tag.name = "";
 		}
 
 		const std::string& _getName() const

@@ -68,7 +68,7 @@ namespace ark {
 			if (!system->getQuerry().isValid())
 				return;
 			ImGui::TextUnformatted("Components:");
-			system->getQuerry().forComponents([](std::type_index type) {
+			system->getQuerry().forComponentTypes([](std::type_index type) {
 				auto* meta = ark::meta::getMetadata(type);
 				ImGui::BulletText(meta->name.c_str());
 			});

@@ -29,8 +29,8 @@ namespace ark
 		static auto onConstruction() {
 			return [](TagComponent& tag, ark::Entity e) {
 				tag._setEntity(e);
-				if(tag.name.empty())
-					tag.name = "";
+				if (tag.name.empty())
+					tag._setName("");
 			};
 		}
 
@@ -170,12 +170,12 @@ namespace ark
 	};
 }
 
-ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, registerServiceDefault<ark::Transform>(),
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, registerServiceSerde<ark::Transform>(),
 	registerServiceInspectorOptions<ark::Transform>({ 
 		{.property_name="scale", .drag_speed=0.001f, .format="%.3f"},
 		{.property_name="rotation", .drag_speed=0.1f}}))
 {
-	return members(
+	return members<ark::Transform>(
 		member_property("position", &ark::Transform::getPosition, &ark::Transform::setPosition),
 		member_property("scale", &ark::Transform::getScale, &ark::Transform::setScale),
 		member_property("rotation", &ark::Transform::getRotation, &ark::Transform::setRotation),
@@ -187,5 +187,5 @@ ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, reg
 
 ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::TagComponent, "Tag", tag, registerServiceDefault<ark::TagComponent>())
 {
-	return members(member_property("name", &ark::TagComponent::_getName, &ark::TagComponent::_setName));
+	return members<ark::TagComponent>(member_property("name", &ark::TagComponent::_getName, &ark::TagComponent::_setName));
 }

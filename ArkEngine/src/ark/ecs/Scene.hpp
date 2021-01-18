@@ -272,7 +272,7 @@ namespace ark {
 
 	template <typename F> 
 	requires std::invocable<F, std::type_index>
-	void EntityQuerry::forComponents(F f) const {
+	void EntityQuerry::forComponentTypes(F f) const {
 		if (!data)
 			return;
 		for (int i = 0; i < data->componentMask.size(); i++)

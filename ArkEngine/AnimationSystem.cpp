@@ -67,9 +67,7 @@ void AnimationSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
 	for (auto entity : getEntities()) {
-		auto& animation = entity.getComponent<Animation>();
-		auto& transform = entity.getComponent<ark::Transform>();
-
+		auto [transform, animation] = entity.getComponents<ark::Transform, Animation>();
 		animation.texture->setSmooth(animation.smoothTexture);
 		rs.texture = animation.texture;
 		rs.transform = transform.getTransform();
@@ -113,11 +111,9 @@ void MeshSystem::onEntityAdded(ark::Entity entity)
 void MeshSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
-	for (auto entity : getEntities()) {
-		auto& mesh = entity.getComponent<MeshComponent>();
-		const auto& transform = entity.getComponent<ark::Transform>();
+	querry.each<ark::Transform, MeshComponent>([&](const auto& transform, auto& mesh) {
 		rs.texture = mesh.texture;
 		rs.transform = transform.getTransform();
 		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);
-	}
+	});
 }

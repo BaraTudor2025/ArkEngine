@@ -541,21 +541,7 @@ namespace ark::meta
 		const std::string_view name;
 		const bool isEnum;
 
-		// helper
-		void* fromAny(std::any& any) const {
-			return m_fromAny(any);
-		}
-		void toIntFromEnum(std::any& any) const {
-			m_toIntFromEnum(any);
-		}
-		void toEnumFromInt(std::any& any) const {
-			m_toEnumFromInt(any);
-		}
-
-		bool isEqual(const std::any& any, const void* data) const {
-			return m_isEq(any, data);
-		}
-
+		// works on class instances
 		void get(const void* instance, void* out_value) const {
 			m_getter(instance, out_value);
 		}
@@ -568,6 +554,7 @@ namespace ark::meta
 			return value;
 		}
 
+		// works on class instances
 		void set(void* instance, void* in_value) const {
 			m_setter(instance, in_value);
 		}
@@ -580,6 +567,25 @@ namespace ark::meta
 			if (isEnum && in_value.type() == typeid(EnumValue::value_type))
 				this->toEnumFromInt(in_value);
 			m_setter_any(instance, std::move(in_value));
+		}
+
+		/* helpers for the property itself*/
+
+		// get underlying pointer from any
+		void* fromAny(std::any& propertyValue) const {
+			return m_fromAny(propertyValue);
+		}
+
+		/* conversions */
+		void toIntFromEnum(std::any& propertyValue) const {
+			m_toIntFromEnum(propertyValue);
+		}
+		void toEnumFromInt(std::any& propertyValue) const {
+			m_toEnumFromInt(propertyValue);
+		}
+
+		bool isEqual(const std::any& any, const void* data) const {
+			return m_isEq(any, data);
 		}
 		
 		template <typename Class, typename Property>
@@ -644,7 +650,7 @@ namespace ark::meta
 
 	private:
 		template <typename Property>
-		RuntimeProperty(std::string_view name, std::type_identity<Property> nush) 
+		RuntimeProperty(std::string_view name, std::type_identity<Property>) 
 			: name(name), type(typeid(Property)), isEnum(std::is_enum_v<Property>),
 			m_fromAny([](std::any& data) { return static_cast<void*>(&std::any_cast<Property&>(data)); }),
 			m_toIntFromEnum([](std::any& any) {

@@ -34,7 +34,20 @@ namespace ark {
 
 		template <typename F> 
 		requires std::invocable<F, std::type_index>
-		void forComponents(F f) const;
+		void forComponentTypes(F f) const;
+
+		template <ConceptComponent... Components, typename F>
+		requires std::invocable<F, ark::Entity, Components&...>
+			|| std::invocable<F, Components&...>
+		void each(F f) const {
+			if(data)
+				for (Entity entity : data->entities) {
+					if constexpr (std::invocable<F, Components&...>)
+						f(entity.getComponent<Components>()...);
+					else
+						f(entity, entity.getComponent<Components>()...);
+				}
+		}
 
 		template <typename F>
 		requires std::invocable<F, Entity>

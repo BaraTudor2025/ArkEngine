@@ -32,7 +32,7 @@ namespace ark {
 			componentIds.reserve(MaxComponentTypes);
 		}
 
-		EntityManager(EntityManager&&) = default;
+		EntityManager(EntityManager&&) noexcept = default;
 
 		/// 
 		/// use cloneManager instead

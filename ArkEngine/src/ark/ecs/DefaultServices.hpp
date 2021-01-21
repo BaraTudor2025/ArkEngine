@@ -5,18 +5,22 @@
 
 template <typename T>
 inline void registerServiceInspector() {
-	ark::meta::service<T>(ark::SceneInspector::serviceName, &ark::SceneInspector::renderPropertiesOfType<T>);
-}
-
-template <typename T>
-inline void registerServiceInspectorOptions(std::vector<ark::EditorOptions> options) {
-	ark::meta::service<T, std::vector<ark::EditorOptions>>(ark::SceneInspector::serviceOptions,  options );
+	auto* type = ark::meta::getMetadata(typeid(T));
+	type->func(ark::SceneInspector::serviceName, ark::SceneInspector::renderPropertiesOfType<T>);
 }
 
 template <typename T>
 inline void registerServiceSerde() {
-	ark::meta::service<T>(ark::serde::serviceSerializeName, ark::serde::serialize_value<T>);
-	ark::meta::service<T>(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<T>);
+	auto* type = ark::meta::getMetadata(typeid(T));
+	type->func(ark::serde::serviceSerializeName, ark::serde::serialize_value<T>);
+	type->func(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<T>);
+}
+
+template <typename T>
+inline void addSerdeFunctions() {
+	auto* type = ark::meta::getMetadata(typeid(T));
+	type->func(ark::serde::serviceSerializeName, ark::serde::serialize_value<T>);
+	type->func(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<T>);
 }
 
 template <typename T>

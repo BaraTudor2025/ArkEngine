@@ -106,10 +106,11 @@ private:
 	friend class PointParticleSystem;
 };
 
-ARK_REGISTER_COMPONENT(PointParticles, registerServiceDefault<PointParticles>(), 
-	ark::meta::service<PointParticles>("export_to_lua", exportTypeToLua<PointParticles>), 
-	ark::meta::service<PointParticles>("lua_table_from_pointer", tableFromPointer<PointParticles>))
+ARK_REGISTER_COMPONENT(PointParticles, registerServiceDefault<PointParticles>())
 {
+	auto* type = ark::meta::getMetadata(typeid(PointParticles));
+	type->func("export_to_lua", exportTypeToLua<PointParticles>);
+	type->func("lua_table_from_pointer", tableFromPointer<PointParticles>);
 	using PP = PointParticles;
 	return members<PointParticles>(
 		member_property("particleNumber", &PP::getParticleNumber, &PP::setParticleNumber),
@@ -194,7 +195,7 @@ ARK_REGISTER_COMPONENT_WITH_TAG(sf::FloatRect, floatrect ,registerServiceDefault
 	return m;
 }
 
-ARK_REGISTER_COMPONENT_WITH_NAME_TAG(PixelParticles::Colors, "ColorPair", pixelcolorpair, registerServiceDefault<PixelParticles>())
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(PixelParticles::Colors, "ColorPair", pixelcolorpair, registerServiceDefault<PixelParticles::Colors>())
 {
 	return members<PixelParticles::Colors>(
 		member_property("dominant", &PixelParticles::Colors::first),

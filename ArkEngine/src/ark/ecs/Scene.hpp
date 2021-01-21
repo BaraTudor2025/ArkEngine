@@ -28,7 +28,7 @@ namespace ark {
 		Registry(std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
 			: entityManager(mComponentsAdded, upstreamComponent)
 		{}
-		Registry(Registry&&) = default;
+		Registry(Registry&&) noexcept = default;
 		~Registry() = default;
 
 		template <ConceptComponent T>

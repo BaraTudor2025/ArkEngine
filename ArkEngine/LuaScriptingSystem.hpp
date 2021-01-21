@@ -70,12 +70,12 @@ public:
 			auto mdata = ark::meta::getMetadata(componentName);
 			auto entity = selfScript["entity"].get<ark::Entity>();
 			void* pComp = entity.getComponent(mdata->type);
-			auto tableFromPtr = ark::meta::getService<sol::table(sol::state_view, void*)>(mdata->type, "lua_table_from_pointer");
+			auto tableFromPtr = mdata->func<sol::table(sol::state_view, void*)>("lua_table_from_pointer");
 			return tableFromPtr(luaState, pComp);
 		};
 
 		for (auto compType : entityManager.getComponentTypes()) {
-			if (auto exportType = ark::meta::getService<void(sol::state_view)>(compType, "export_to_lua"))
+			if (auto exportType = ark::meta::getMetadata(compType)->func<void(sol::state_view)>("export_to_lua"))
 				exportType(lua);
 		}
 	}

@@ -22,8 +22,8 @@ namespace ark::serde
 		auto& jsonComps = jsonEntity["components"];
 
 		for (const auto component : entity.runtimeComponentView()) {
-			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(component.type, serviceSerializeName)) {
-				const auto* mdata = ark::meta::getMetadata(component.type);
+			auto mdata = ark::meta::getMetadata(component.type);
+			if (auto serialize = mdata->func<nlohmann::json(const void*)>(serviceSerializeName)) {
 				jsonComps[mdata->name] = serialize(component.ptr);
 			}
 		}
@@ -46,8 +46,8 @@ namespace ark::serde
 		}
 		// then initialize
 		for (auto component : entity.runtimeComponentView()) {
-			if (auto deserialize = ark::meta::getService<void(Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
-				const auto* mdata = ark::meta::getMetadata(component.type);
+			auto mdata = ark::meta::getMetadata(component.type);
+			if (auto deserialize = mdata->func<void(Entity & e, const nlohmann::json&, void*)>(serviceDeserializeName)) {
 				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())
 					deserialize(entity, *it, component.ptr);
 				else

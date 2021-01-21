@@ -47,6 +47,7 @@ namespace ark
 
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
 		static inline constexpr std::string_view serviceOptions = "ark_inspector_options";
+		using VectorOptions = std::vector<EditorOptions>;
 
 	private:
 		using RenderPropFunc = std::function<std::any(std::string_view, const void*, EditorOptions)>;
@@ -78,7 +79,7 @@ namespace ark
 	template <typename TComp>
 	bool SceneInspector::renderPropertiesOfType(int* widgetId, void* pValue)
 	{
-		const auto* options = ark::meta::getService<std::vector<EditorOptions>>(typeid(TComp), serviceOptions);
+		const auto* options = ark::meta::getMetadata(typeid(type))->data<VectorOptions>(serviceOptions);
 		TComp& valueToRender = *static_cast<TComp*>(pValue);
 		std::any newValue;
 		bool modified = false; // used in recursive call to check if the property was modified

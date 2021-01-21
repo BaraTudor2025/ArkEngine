@@ -148,7 +148,7 @@ namespace ark {
 
 	bool SceneInspector::renderPropertiesOfType(std::type_index type, int* widgetId, void* pValue)
 	{
-		const auto* options = ark::meta::getService<std::vector<EditorOptions>>(type, serviceOptions);
+		const auto* options = ark::meta::getMetadata(type)->data<VectorOptions>(serviceOptions);
 		auto newValue = std::any{};
 		bool modified = false; // used in recursive call to check if the property was modified
 
@@ -265,7 +265,7 @@ namespace ark {
 						}
 						if(ark::meta::isRegistered(component.type))
 							renderPropertiesOfType(component.type, &widgetId, component.ptr);
-						else if (auto render = ark::meta::getService<bool(int*, void*)>(component.type, serviceName))
+						else if (auto render = mdata->func<bool(int*, void*)>(serviceName))
 							render(&widgetId, component.ptr);
 						ImGui::TreePop();
 					}

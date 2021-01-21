@@ -49,7 +49,7 @@ class ColisionSystem : public System {
 
 #endif
 
-class MovePlayer : public ScriptT<MovePlayer, true> {
+class MoveAnimatedPlayer : public ScriptT<MoveAnimatedPlayer, true> {
 	Animation* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
@@ -69,8 +69,8 @@ class MovePlayer : public ScriptT<MovePlayer, true> {
 public:
 	float speed = 400;
 
-	MovePlayer() = default;
-	MovePlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) {}
+	MoveAnimatedPlayer() = default;
+	MoveAnimatedPlayer(float speed, float rotationSpeed) : speed(speed), rotationSpeed(rotationSpeed) {}
 
 	void setScale(sf::Vector2f scale)
 	{
@@ -142,12 +142,15 @@ public:
 	}
 };
 
-ARK_REGISTER_TYPE_WITH_NAME(gScriptGroupName, MovePlayer, "MovePlayerAnimated", registerServiceDefault<MovePlayer>(),
-	registerServiceInspectorOptions<MovePlayer>({ {.property_name="scale", .drag_speed=0.001} }))
+ARK_REGISTER_TYPE(gScriptGroupName, MoveAnimatedPlayer, registerServiceDefault<MoveAnimatedPlayer>())
 {
-	return members<MovePlayer>(
-		member_property("speed", &MovePlayer::speed),
-		member_property("scale", &MovePlayer::getScale, &MovePlayer::setScale)
+	auto* type = ark::meta::getMetadata(typeid(MoveAnimatedPlayer));
+	type->data<ark::SceneInspector::VectorOptions>(ark::SceneInspector::serviceOptions, {
+			{.property_name = "scale", .drag_speed = 0.001}
+		});
+	return members<MoveAnimatedPlayer>(
+		member_property("speed", &MoveAnimatedPlayer::speed),
+		member_property("scale", &MoveAnimatedPlayer::getScale, &MoveAnimatedPlayer::setScale)
 	);
 }
 
@@ -454,7 +457,7 @@ private:
 		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
 		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
 		auto& playerScripting = player.addComponent<ScriptingComponent>();
-		auto moveScript = playerScripting.addScript<MovePlayer>(400, 180);
+		auto moveScript = playerScripting.addScript<MoveAnimatedPlayer>(400, 180);
 
 		transform.move(Engine::center());
 		transform.setOrigin(animation.frameSize() / 2.f);
@@ -820,8 +823,9 @@ public:
 	void init() override {
 		{
 			//auto prop = ark::meta::RuntimeProperty("type", &TestProp::getType, &TestProp::setType);
-			ark::meta::registerRuntimeProperties<TestProp>(ark::meta::RuntimeProperty("type", &TestProp::getType, &TestProp::setType));
-			auto prop = ark::meta::getRuntimeProperties<TestProp>()->front();
+			//ark::meta::registerRuntimeProperties<TestProp>(ark::meta::RuntimeProperty("type", &TestProp::getType, &TestProp::setType));
+			//auto prop = ark::meta::getRuntimeProperties<TestProp>()->front();
+			auto prop = ark::meta::RuntimeProperty("type", &TestProp::getType, &TestProp::setType);
 			auto comp = TestProp();
 			comp.type = 10;
 			int type;
@@ -853,7 +857,6 @@ public:
 			std::string testStr = *(std::string*)vptr;
 			std::cout << "\n property conv: " << testStr;
 			std::cout << '\n';
-
 		}
 
 		manager.addDefaultComponent<TagComponent>();
@@ -901,6 +904,31 @@ public:
 };
 /**/
 
+//template<typename... Component>
+//[[nodiscard]] bool has(const entity_type entity) const {
+//	ENTT_ASSERT(valid(entity));
+//	return [entity](auto *... cpool) { return ((cpool && cpool->contains(entity)) && ...); }(assure<Component>()...);
+//}
+
+template <typename F, typename... Args, std::size_t... Indexes>
+//decltype(auto) 
+std::any arkImplInvoke(F fun, std::any* args, std::index_sequence<Indexes...>) {
+	return std::invoke(fun, std::any_cast<Args>(args[Indexes])...);
+}
+
+template <typename F, typename... Args>
+void call(F fun, Args&&... args) {
+	std::array<std::any, sizeof...(Args)> anyArgs{std::forward<Args>(args)...};
+	fun(anyArgs.data());
+}
+
+template <typename F, typename... Args>
+auto decalre(F fun) {
+	return[fun](std::any* args) {
+		return arkImplInvoke<decltype(fun), Args...>(fun, args, std::index_sequence_for<sizeof...(Args)>);
+	};
+}
+
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -943,6 +971,13 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	//map.emplace("nush ceva string mai lung6", 3);
 	////map["nush ceva string mai lung"] = 3;
 
+	{
+		auto* type = ark::meta::getMetadata(typeid(ScriptingComponent));
+		type->func(ark::SceneInspector::serviceName, renderScriptComponents);
+		type->func(ark::serde::serviceSerializeName, serializeScriptComponents);
+		type->func(ark::serde::serviceDeserializeName, deserializeScriptComponents);
+	}
+
 
 	sf::ContextSettings settings = sf::ContextSettings();
 	settings.antialiasingLevel = 16;
@@ -953,7 +988,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::registerState<class TestingState>(States::TestingState);
 	Engine::registerState<class ImGuiLayer>(States::ImGuiLayer);
 	Engine::registerState<class ChessState>(States::ChessState);
-	Engine::pushFirstState(States::ChessState);
+	Engine::pushFirstState(States::TestingState);
 	Engine::pushOverlay(States::ImGuiLayer);
 
 	Engine::run();

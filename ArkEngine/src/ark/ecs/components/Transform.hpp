@@ -113,7 +113,7 @@ namespace ark
 			if (&child == this)
 				return;
 			child.m_parent = nullptr;
-			Util::erase(m_children, &child);
+			std::erase(m_children, &child);
 		}
 
 		const std::vector<Transform*>& getChildren() const { return m_children; }

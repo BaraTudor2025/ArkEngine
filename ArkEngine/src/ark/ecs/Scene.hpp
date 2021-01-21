@@ -176,8 +176,8 @@ namespace ark {
 				index++;
 			}
 			for (int i = 0; i < cleanup; i++) {
-				Util::erase_if(querries, [](auto& q) { return q.expired(); });
-				Util::erase(querryMasks, querryMasks[pos[i]]);
+				std::erase_if(querries, [](auto& q) { return q.expired(); });
+				std::erase(querryMasks, querryMasks[pos[i]]);
 			}
 			// create new querry if one does not exist and populate it
 			auto querry = EntityQuerry(std::make_shared<EntityQuerry::SharedData>(), this);
@@ -214,7 +214,7 @@ namespace ark {
 			for (auto [entityId, rmask] : mComponentsRemoved) {
 				Entity entity = entityFromId(entityId);
 				forQuerries(entity.getComponentMask(), rmask, [this, entity](auto* data) mutable { 
-					Util::erase_if(data->entities, [&](Entity e) {
+					std::erase_if(data->entities, [&](Entity e) {
 						if (entity == e) {
 							for (auto& f : data->removeEntityCallbacks)
 								f(entity);

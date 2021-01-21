@@ -242,7 +242,7 @@ public:
 	void do_deallocate(void* p, size_t bytes, size_t align) override {
 		if (secondaryPtrs.empty() || secondaryPtrs.end() == std::find(secondaryPtrs.begin(), secondaryPtrs.end(), p)) {
 			primary->deallocate(p, bytes, align);
-			Util::erase(secondaryPtrs, p);
+			std::erase(secondaryPtrs, p);
 		}
 		else
 			secondary->deallocate(p, bytes, align);

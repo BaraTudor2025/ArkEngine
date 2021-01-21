@@ -76,17 +76,6 @@ namespace Util
 
 	template <typename...Ts> overloaded(Ts...)->overloaded<Ts...>;
 
-	template <typename R, typename T>
-	inline R reinterpretCast(T in)
-	{
-		//static_assert(sizeof(T) == sizeof(R));
-		union {
-			T in;
-			R ret;
-		}u{ in };
-		return u.ret;
-	}
-
 	template <typename T1, typename T2>
 	auto set_difference(const T1& range1, const T2& range2) -> std::vector<typename T1::value_type>
 	{
@@ -117,30 +106,10 @@ namespace Util
 		return v;
 	}
 
-	template <typename T, typename U>
-	inline void erase(T& range, const U& elem)
-	{
-		range.erase(std::remove(range.begin(), range.end(), elem), range.end());
-	}
-
-	template <typename T, typename F>
-	inline void erase_if(T& range, F predicate)
-	{
-		range.erase(std::remove_if(range.begin(), range.end(), predicate), range.end());
-	}
-
 	template <typename T>
 	inline void erase_at(T& range, int index)
 	{
 		range.erase(range.begin() + index);
-	}
-
-	// return std::optional<U&> or std::optional<U> if U is pointer
-	template <typename T, typename U>
-	inline bool contains(const T& range, const U& elem)
-	{
-		static_assert(std::is_same_v<typename T::value_type, U>, "'elem' must have the same type as the range elements");
-		return std::end(range) != std::find(std::begin(range), std::end(range), elem);
 	}
 
 	// return index of the element, InvalidIndex if not found

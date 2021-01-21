@@ -910,30 +910,56 @@ public:
 //	return [entity](auto *... cpool) { return ((cpool && cpool->contains(entity)) && ...); }(assure<Component>()...);
 //}
 
-template <typename F, typename... Args, std::size_t... Indexes>
-//decltype(auto) 
-std::any arkImplInvoke(F fun, std::any* args, std::index_sequence<Indexes...>) {
-	return std::invoke(fun, std::any_cast<Args>(args[Indexes])...);
-}
+// inspirat de entt::meta si entt::delegate
+class any_function {
 
-template <typename F, typename... Args>
-void call(F fun, Args&&... args) {
-	std::array<std::any, sizeof...(Args)> anyArgs{std::forward<Args>(args)...};
-	fun(anyArgs.data());
-}
+	std::function<std::any(std::any*)> m_fun;
 
-template <typename F, typename... Args>
-auto decalre(F fun) {
-	return[fun](std::any* args) {
-		return arkImplInvoke<decltype(fun), Args...>(fun, args, std::index_sequence_for<sizeof...(Args)>);
+	template <typename... Args, typename F, std::size_t... Indexes>
+	static std::any arkImplInvoke(F fun, std::any* args, std::index_sequence<Indexes...>) {
+		return std::invoke(fun, std::any_cast<Args>(args[Indexes])...);
+	}
+
+public:
+
+	template <typename... Args>
+	std::any operator()(Args&&... args)
+	{
+		std::array<std::any, sizeof...(Args)> anyArgs{std::forward<Args>(args)...};
+		return m_fun(anyArgs.data());
+	}
+
+	template <typename... Args, typename F>
+	static auto make(F fun) -> any_function
+	{
+		auto func = any_function();
+		func.m_fun = [fun](std::any* args) -> std::any {
+			return any_function::arkImplInvoke<Args...>(fun, args, std::index_sequence_for<Args...>{});
+		};
+		return func;
+		// lambda used to expand index_seq
+		//return [&, fun, args]<std::size_t... Indexes>(std::index_sequence<Indexes...>) {
+		//	return std::invoke(fun, std::any_cast<Args>(args[Indexes])...);
+		//}(std::index_sequence_for<Args...>{});
+	}
+};
+
+template <typename F, typename...Args>
+auto bind_args(F&& fun, Args&&... capt) {
+	return[fun = std::forward<F>(fun), ...capt = std::forward<Args>(capt)](auto&&... args) -> decltype(auto) { 
+		return fun(std::forward<Args>(capt)..., std::forward<decltype(args)>(args)...);
 	};
 }
 
+int test(int i) { return i + i; }
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
 	auto default_memory_res = makePrintingMemoryResource("Rogue PMR Allocation!", std::pmr::null_memory_resource());
 	std::pmr::set_default_resource(&default_memory_res);
+	any_function fun = any_function::make<int>(test);
+	auto res = fun(48);
+	std::cout << std::any_cast<int>(res) << '\n';
 
 	//auto buff_size = 1000;
 	//auto buffer = std::make_unique<std::byte[]>(buff_size);

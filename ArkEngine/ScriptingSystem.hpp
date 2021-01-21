@@ -300,7 +300,7 @@ public:
 			// delete script from previous frame
 			if (not scriptComp.mToBeDeleted.empty()) {
 				for (Script* pScript : scriptComp.mToBeDeleted) {
-					Util::erase_if(scriptComp.mScripts, [type = pScript->mType](const auto& script) { return script->mType == type; });
+					std::erase_if(scriptComp.mScripts, [type = pScript->mType](const auto& script) { return script->mType == type; });
 				}
 				scriptComp.mToBeDeleted.clear();
 			}

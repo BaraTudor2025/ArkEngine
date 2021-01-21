@@ -187,6 +187,7 @@
     <ClInclude Include="ArchetypeManager.hpp" />
     <ClInclude Include="CommandSystem.hpp" />
     <ClInclude Include="const_string.hpp" />
+    <ClInclude Include="DrawableSystem.hpp" />
     <ClInclude Include="extlibs\imgui-sfml\imconfig-SFML.h" />
     <ClInclude Include="extlibs\imgui-sfml\imgui-SFML.h" />
     <ClInclude Include="extlibs\imgui-sfml\imgui-SFML_export.h" />

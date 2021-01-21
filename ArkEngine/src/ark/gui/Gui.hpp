@@ -53,7 +53,7 @@ namespace ark {
 
 		static void removeTab(std::string name)
 		{
-			Util::erase_if(tabs, [name](const auto& tab) {return tab.name == name; });
+			std::erase_if(tabs, [name](const auto& tab) {return tab.name == name; });
 		}
 
 	private:

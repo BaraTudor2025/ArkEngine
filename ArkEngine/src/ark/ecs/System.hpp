@@ -141,9 +141,9 @@ namespace ark
 		{
 			static_assert(std::is_base_of_v<System, T>, " T not a system type");
 			if (std::is_base_of_v<Renderer, T>)
-				Util::erase(renderers, getSystem<T>());
+				std::erase(renderers, getSystem<T>());
 			if (auto system = getSystem<T>(); system) {
-				Util::erase_if(systems, [system](auto& sys) {
+				std::erase_if(systems, [system](auto& sys) {
 					return sys.get() == system;
 				});
 			}
@@ -166,10 +166,10 @@ namespace ark
 			if (!system)
 				return;
 
-			auto isCurrentlyActive = Util::contains(activeSystems, system);
+			auto isCurrentlyActive = activeSystems.end() != std::find(activeSystems.begin(), activeSystems.end(), system);
 
 			if (isCurrentlyActive && !active) {
-				Util::erase(activeSystems, system);
+				std::erase(activeSystems, system);
 				system->active = false;
 			}
 			else if (!isCurrentlyActive && active) {
@@ -180,10 +180,10 @@ namespace ark
 			if (std::is_base_of_v<Renderer, T>) {
 				System* system = getSystem<T>();
 				if (active) {
-					if (!Util::contains(renderers, system))
+					if (renderers.end() == std::find(renderers.begin(), renderers.end(), system))
 						renderers.push_back(system);
 				} else {
-					Util::erase(renderers, system);
+					std::erase(renderers, system);
 				}
 			}
 		}

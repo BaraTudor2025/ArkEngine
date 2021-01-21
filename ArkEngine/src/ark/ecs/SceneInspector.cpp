@@ -159,7 +159,7 @@ namespace ark {
 			if (ark::meta::hasProperties(property.type)) {
 				// recursively render members that are registered
 				std::any propValue = property.get(pValue);
-				ImGui::Text("->%s:", property.name.data());
+				ImGui::Text("--%s:", property.name.data());
 				if (renderPropertiesOfType(property.type, widgetId, property.fromAny(propValue))) {
 					property.set(pValue, propValue);
 					modified = true;

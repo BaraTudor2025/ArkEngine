@@ -7,6 +7,7 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/DefaultServices.hpp"
+#include "ark/ecs/SceneInspector.hpp"
 #include "ark/ecs/Entity.hpp"
 
 namespace ark
@@ -170,7 +171,7 @@ namespace ark
 	};
 }
 
-ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, registerServiceSerde<ark::Transform>())
+ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, addSerdeFunctions<ark::Transform>())
 {
 	auto* type = ark::meta::getMetadata(typeid(ark::Transform));
 	type->func(ark::serde::serviceSerializeName, ark::serde::serialize_value<ark::Transform>);

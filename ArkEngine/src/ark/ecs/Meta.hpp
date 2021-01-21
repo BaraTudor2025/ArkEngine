@@ -389,6 +389,11 @@ namespace ark::meta
 		template <typename T>
 		friend Metadata* registerMetadata(std::string name) noexcept;
 
+		Metadata& prop(RuntimeProperty&& runProp) {
+			m_props.emplace_back(std::move(runProp));
+			return *this;
+		}
+
 		// takes a member pointer or pair of getter and setter
 		// see RuntimeProperty constructors
 		template <typename... Args>
@@ -669,6 +674,11 @@ namespace ark::meta
 			return nullptr;
 	}
 
+	inline bool hasProperties(std::type_index type) {
+		auto mdata = getMetadata(type); 
+		return mdata && !mdata->prop().empty();
+	}
+
 	inline auto getMetadata(std::string_view name) noexcept -> Metadata*
 	{
 		for (auto& [type, mdata] : detail::guard::sTypeTable) {
@@ -693,32 +703,6 @@ namespace ark::meta
 		else
 			return {};
 	}
-
-
-	struct detail_prop_s {
-		static inline auto s_RuntimePropertiesTable = std::unordered_map<std::type_index, std::vector<RuntimeProperty>>();
-	};
-
-	inline void addRuntimeProperty(std::type_index type, RuntimeProperty property) {
-		detail_prop_s::s_RuntimePropertiesTable[type].emplace_back(std::move(property));
-	}
-
-	inline auto getRuntimeProperties(std::type_index type) -> const std::vector<RuntimeProperty>* {
-		auto it = detail_prop_s::s_RuntimePropertiesTable.find(type);
-		if (it != detail_prop_s::s_RuntimePropertiesTable.end())
-			return &it->second;
-		else
-			return nullptr;
-	}
-	template <typename T>
-	inline auto getRuntimeProperties() -> const std::vector<RuntimeProperty>* {
-		return getRuntimeProperties(typeid(T));
-	}
-
-	inline bool isRegistered(std::type_index type) {
-		return getRuntimeProperties(type) != nullptr;
-	}
-
 
 	/* Enum stuff */
 
@@ -792,20 +776,20 @@ namespace ark::meta
 	constexpr auto members(Args&&... args) noexcept
 	{
 		auto tup = std::make_tuple(std::forward<Args>(args)...);
-		detail::property_for_tuple([](auto& member) {
+		auto* mdata = getMetadata(typeid(T));
+		detail::property_for_tuple([&mdata](auto& member) {
 			if (member.hasPtr())
-				ark::meta::addRuntimeProperty(typeid(T), RuntimeProperty(member.getName(), member.getPtr()));
+				mdata->prop(RuntimeProperty(member.getName(), member.getPtr()));
 			else if (member.hasRefFuncPtrs()) {
 				auto [get, set] = member.getRefFuncPtrs();
-				ark::meta::addRuntimeProperty(typeid(T), RuntimeProperty(member.getName(), get, set));
+				mdata->prop(RuntimeProperty(member.getName(), get, set));
 			}
 			else if (member.hasValFuncPtrs()) {
 				auto [get, set] = member.getValFuncPtrs();
-				ark::meta::addRuntimeProperty(typeid(T), RuntimeProperty(member.getName(), get, set));
+				mdata->prop(RuntimeProperty(member.getName(), get, set));
 			}
 		}, tup);
 		return tup;
-		//return std::make_tuple(std::forward<Args>(args)...);
 	}
 
 	// function used for registration of classes by user

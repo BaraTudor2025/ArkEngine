@@ -148,17 +148,18 @@ namespace ark {
 
 	bool SceneInspector::renderPropertiesOfType(std::type_index type, int* widgetId, void* pValue)
 	{
-		const auto* options = ark::meta::getMetadata(type)->data<VectorOptions>(serviceOptions);
+		auto* mdata = ark::meta::getMetadata(type);
+		const auto* options = mdata->data<VectorOptions>(serviceOptions);
 		auto newValue = std::any{};
 		bool modified = false; // used in recursive call to check if the property was modified
 
-		for(const auto& property : *ark::meta::getRuntimeProperties(type)) {
+		for(const auto& property : mdata->prop()) {
 			ImGui::PushID(*widgetId);
 
-			if (ark::meta::isRegistered(property.type)) {
+			if (ark::meta::hasProperties(property.type)) {
 				// recursively render members that are registered
 				std::any propValue = property.get(pValue);
-				ImGui::Text("%s:", property.name.data());
+				ImGui::Text("->%s:", property.name.data());
 				if (renderPropertiesOfType(property.type, widgetId, property.fromAny(propValue))) {
 					property.set(pValue, propValue);
 					modified = true;
@@ -263,10 +264,11 @@ namespace ark {
 								entityManager.safeRemoveComponent(selectedEntity, component.type);
 							});
 						}
-						if(ark::meta::isRegistered(component.type))
-							renderPropertiesOfType(component.type, &widgetId, component.ptr);
-						else if (auto render = mdata->func<bool(int*, void*)>(serviceName))
+						// maybe use custom function
+						if (auto render = mdata->func<bool(int*, void*)>(serviceName))
 							render(&widgetId, component.ptr);
+						else if(ark::meta::hasProperties(component.type))
+							renderPropertiesOfType(component.type, &widgetId, component.ptr);
 						ImGui::TreePop();
 					}
 					ImGui::Separator();

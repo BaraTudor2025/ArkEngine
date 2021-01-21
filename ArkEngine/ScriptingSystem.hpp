@@ -238,25 +238,21 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 	for (auto& script : scriptingComp->mScripts) {
 		const auto* mdata = ark::meta::getMetadata(script->type);
 
-		//ark::SceneInspector::renderPropertiesOfType
-		// TODO script ???
-		if (auto render = ark::meta::getMetadata(script->type)->func<bool(int*, void*)>(ark::SceneInspector::serviceName)) {
-			ImGui::AlignTextToFramePadding();
-			if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
-				bool deleted = ark::AlignButtonToRight("remove script", [&]() {
-					scriptingComp->removeScript(script->type);
-				});
-				if (!deleted) {
-					ImGui::PushID(*widgetId);
-					ark::ArkSetFieldName("is-active");
-					bool bIsActive = script->isActive();
-					if (ImGui::Checkbox("", &bIsActive))
-						script->setActive(bIsActive);
-					render(widgetId, script.get());
-					ImGui::PopID();
-				}
-				ImGui::TreePop();
+		ImGui::AlignTextToFramePadding();
+		if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+			bool deleted = ark::AlignButtonToRight("remove script", [&]() {
+				scriptingComp->removeScript(script->type);
+			});
+			if (!deleted) {
+				ImGui::PushID(*widgetId);
+				ark::ArkSetFieldName("is-active");
+				bool bIsActive = script->isActive();
+				if (ImGui::Checkbox("", &bIsActive))
+					script->setActive(bIsActive);
+				ark::SceneInspector::renderPropertiesOfType(script->type, widgetId, script.get());
+				ImGui::PopID();
 			}
+			ImGui::TreePop();
 		}
 		ImGui::Separator();
 
@@ -278,6 +274,7 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 	return false;
 }
 
+// ar trebui ca functiile sa fie date in main()
 ARK_REGISTER_COMPONENT(ScriptingComponent, 0)
 {
 	return members<ScriptingComponent>(); 

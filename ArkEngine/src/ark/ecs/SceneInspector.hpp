@@ -79,7 +79,7 @@ namespace ark
 	template <typename TComp>
 	bool SceneInspector::renderPropertiesOfType(int* widgetId, void* pValue)
 	{
-		const auto* options = ark::meta::getMetadata(typeid(type))->data<VectorOptions>(serviceOptions);
+		const auto* options = ark::meta::getMetadata(typeid(TComp))->data<VectorOptions>(serviceOptions);
 		TComp& valueToRender = *static_cast<TComp*>(pValue);
 		std::any newValue;
 		bool modified = false; // used in recursive call to check if the property was modified

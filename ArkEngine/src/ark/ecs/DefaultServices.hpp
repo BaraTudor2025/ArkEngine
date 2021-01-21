@@ -25,6 +25,5 @@ inline void addSerdeFunctions() {
 
 template <typename T>
 inline void registerServiceDefault() {
-	registerServiceInspector<T>();
 	registerServiceSerde<T>();
 }

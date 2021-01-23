@@ -17,6 +17,8 @@ namespace ark {
 	class EntitiesView;
 	class RuntimeComponentView;
 
+	class View;
+
 	class EntityManager final {
 	public:
 		EntityManager(			
@@ -219,7 +221,6 @@ namespace ark {
 		}
 
 		auto makeComponentView(Entity e) -> RuntimeComponentView;
-		auto makeComponentViewLive(Entity e)->RuntimeComponentViewLive;
 		auto entitiesView() -> EntitiesView;
 
 		int idFromType(std::type_index type) const
@@ -378,8 +379,8 @@ namespace ark {
 		template <typename F>
 		void forComponents(InternalEntityData& data, F&& f) {
 			int i = 0;
-			for (auto bits = bitsComponentFromMask(data.mask); bits; bits >>= 1, ++i)
-				if (bits & 1)
+			for (int i = 0; i < data.mask.size(); ++i)
+				if (data.mask.test(i))
 					f(data.components[i]);
 		}
 
@@ -412,42 +413,28 @@ namespace ark {
 		std::unordered_map<std::type_index, std::function<void(void*, Entity)>> onConstructionTable;
 		std::unordered_map<std::type_index, std::function<void(void*, const void*)>> onCopyTable;
 
-		template <bool> friend struct RuntimeComponentIterator;
+		friend struct RuntimeComponentIterator;
 		friend struct EntityIterator;
 		friend class RuntimeComponentView;
 		friend class RuntimeComponentViewLive;
 		friend class EntitiesView;
 		friend class Registry;
 		friend class Entity;
+		friend class View;
 	};
 
-	template <bool isLive = false>
 	struct RuntimeComponentIterator {
 		using InternalIterator = decltype(EntityManager::InternalEntityData::components)::iterator;
 		InternalIterator iter;
 		InternalIterator mEnd;
-		BitsComponentType mask;
 	public:
-		RuntimeComponentIterator(decltype(iter) iter, decltype(mEnd) mEnd, decltype(mask) mask) :iter(iter), mEnd(mEnd), mask(mask) {}
+		RuntimeComponentIterator(decltype(iter) iter, decltype(mEnd) mEnd) :iter(iter), mEnd(mEnd) {}
 
 		RuntimeComponentIterator& operator++()
 		{
-			if constexpr (isLive) {
+			++iter;
+			while (iter < mEnd && !iter->pComponent)
 				++iter;
-				while (iter < mEnd && !iter->pComponent)
-					++iter;
-			}
-			else {
-				// iterate over bits, nu e live pentru ca mask-ul este o copie 
-				++iter;
-				mask >>= 1;
-				if (!mask)
-					iter = mEnd;
-				while (iter < mEnd && !(mask & 1)) {
-					++iter;
-					mask >>= 1;
-				}
-			}
 			return *this;
 		}
 
@@ -471,18 +458,9 @@ namespace ark {
 		EntityManager::InternalEntityData& mData;
 	public:
 		RuntimeComponentView(decltype(mData) mData) : mData(mData) {}
-		auto begin() -> RuntimeComponentIterator<false> { return { mData.components.begin(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
-		auto end() -> RuntimeComponentIterator<false> { return { mData.components.end(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
+		auto begin() -> RuntimeComponentIterator { return { mData.components.begin(), mData.components.end() }; }
+		auto end() -> RuntimeComponentIterator { return { mData.components.end(), mData.components.end() }; }
 	};
-
-	class RuntimeComponentViewLive {
-		EntityManager::InternalEntityData& mData;
-	public:
-		RuntimeComponentViewLive(decltype(mData) mData) : mData(mData) {}
-		auto begin() -> RuntimeComponentIterator<true> { return { mData.components.begin(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
-		auto end() -> RuntimeComponentIterator<true> { return { mData.components.end(), mData.components.end(), bitsComponentFromMask(mData.mask) }; }
-	};
-
 
 	struct EntityIterator {
 		using InternalIter = decltype(EntityManager::entities)::iterator;
@@ -542,10 +520,6 @@ namespace ark {
 		auto end() const -> const EntityIterator { return {mManager.entities.end(), mManager.entities.end(), mManager}; }
 	};
 
-	inline auto EntityManager::makeComponentViewLive(Entity e) -> RuntimeComponentViewLive
-	{
-		return RuntimeComponentViewLive{getEntity(e)};
-	}
 	inline auto EntityManager::makeComponentView(Entity e) -> RuntimeComponentView
 	{
 		return RuntimeComponentView{getEntity(e)};
@@ -651,10 +625,6 @@ namespace ark {
 	inline auto Entity::runtimeComponentView() -> RuntimeComponentView 
 	{
 		return manager->makeComponentView(*this);
-	}
-	inline auto Entity::runtimeComponentViewLive() -> RuntimeComponentViewLive
-	{
-		return manager->makeComponentViewLive(*this);
 	}
 
 	inline auto Entity::getComponentMask() const -> const ComponentMask& { return manager->getComponentMaskOfEntity(*this); }

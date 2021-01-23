@@ -26,13 +26,4 @@ namespace ark {
 
 	static inline constexpr std::size_t MaxComponentTypes = 32;
 	using ComponentMask = std::bitset<MaxComponentTypes>;
-
-	using BitsComponentType = std::conditional_t<MaxComponentTypes <= 32, std::uint32_t, std::uint64_t>;
-
-	inline auto bitsComponentFromMask(ComponentMask mask) -> BitsComponentType {
-		if constexpr (MaxComponentTypes <= 32)
-			return mask.to_ulong();
-		else
-			return mask.to_ullong();
-	}
 }

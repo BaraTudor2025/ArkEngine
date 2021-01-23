@@ -99,13 +99,12 @@ namespace ark
 			return dynamic_cast<T*>(system);
 		}
 
-		template <typename T>
-		requires std::derived_from<T, System>
-		T* getSystem()
+		template <std::derived_from<System> SysT>
+		SysT* getSystem()
 		{
-			static_assert(std::is_base_of_v<System, T>, " T not a system type");
-			if (System* sys = getSystem(typeid(T)); sys)
-				return dynamic_cast<T*>(sys);
+			static_assert(std::is_base_of_v<System, SysT>, " T not a system type");
+			if (System* sys = getSystem(typeid(SysT)); sys)
+				return dynamic_cast<SysT*>(sys);
 			else
 				return nullptr;
 		}

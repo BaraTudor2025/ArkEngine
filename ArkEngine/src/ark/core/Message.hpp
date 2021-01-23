@@ -21,9 +21,14 @@ namespace ark {
 		const T& data() const
 		{
 			assert(typeid(T) == type);
-			if (sizeof(T) != m_size)
-				EngineLog(LogSource::Message, LogLevel::Warning, "Type (%s) with size %d doesn't have the message size of %d", typeid(T).name(), sizeof(T), m_size);
+			if (typeid(T) != type)
+				EngineLog(LogSource::Message, LogLevel::Error, "Type (%s) with size %d doesn't have the message size of %d", typeid(T).name(), sizeof(T), m_size);
 			return *static_cast<T*>(m_data);
+		}
+
+		template <typename T>
+		const T* tryData() const {
+			return this->is<T>() ? &this->data<T>() : nullptr;
 		}
 
 	private:

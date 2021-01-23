@@ -8,9 +8,9 @@
 
 namespace ark {
 
-	void State::requestStackPush(int stateId)
+	void State::requestStackPush(std::type_index type)
 	{
-		this->stateStack->pushState(stateId);
+		this->stateStack->pushState(type);
 	}
 
 	void State::requestStackPop()

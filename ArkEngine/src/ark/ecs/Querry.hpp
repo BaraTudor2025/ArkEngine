@@ -22,7 +22,7 @@ namespace ark {
 			if (data)
 				return data->entities;
 			else
-				return {};
+				return s_empty;
 		}
 
 		auto getMask() const -> ComponentMask { 
@@ -47,6 +47,27 @@ namespace ark {
 					else
 						f(entity, entity.getComponent<Components>()...);
 				}
+		}
+
+		auto each() const -> const std::vector<Entity>& { return getEntities(); }
+
+		template <ConceptComponent... Components>
+		auto each() const /*custom range: for(auto[ent, comp1, comp2] : query.each<Com1, Com2>()) */ //-> const std::vector<Entity>& 
+		{
+			return getEntities(); 
+		}
+
+		auto begin() const {
+			if (data)
+				return data->entities.begin();
+			else
+				return s_empty.begin();
+		}
+		auto end() const {
+			if (data)
+				return data->entities.end();
+			else
+				return s_empty.end();
 		}
 
 		template <typename F>
@@ -82,6 +103,7 @@ namespace ark {
 			std::vector<std::function<void(Entity)>> removeEntityCallbacks;
 
 		};
+		static inline std::vector<Entity> s_empty;
 		std::shared_ptr<SharedData> data;
 		Registry* mRegistry = nullptr;
 		EntityQuerry(std::shared_ptr<SharedData> data, Registry* reg) : data(std::move(data)), mRegistry(reg) {}

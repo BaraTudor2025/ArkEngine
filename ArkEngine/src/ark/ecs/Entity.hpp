@@ -21,6 +21,7 @@ namespace ark {
 
 	public:
 		using ID = int;
+
 		Entity() = default;
 		~Entity() = default;
 		Entity(ID id, EntityManager* m) : id(id), manager(m) {}
@@ -37,6 +38,15 @@ namespace ark {
 
 		void addComponent(std::type_index type);
 
+		template <ConceptComponent T, typename...Args>
+		T& add(Args&& ... args) {
+			return this->addComponent<T>(std::forward<Args>(args)...);
+		}
+
+		void add(std::type_index type) {
+			this->addComponent(type);
+		}
+
 		template <ConceptComponent T>
 		[[nodiscard]]
 		T& getComponent();
@@ -52,6 +62,15 @@ namespace ark {
 		auto getComponents() -> std::tuple<Cs&...>
 		{
 			return { this->getComponent<Cs>()... };
+		}
+
+		template <ConceptComponent... Ts>
+		decltype(auto) get() {
+			static_assert(sizeof...(Ts) > 0, "trebuie sa ai argumente");
+			if constexpr (sizeof...(Ts) == 1)
+				return this->getComponent<Ts...>();
+			else
+				return this->getComponents<Ts...>();
 		}
 
 		// returns nullptr if component is not found

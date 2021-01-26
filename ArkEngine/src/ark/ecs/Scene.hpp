@@ -71,6 +71,10 @@ namespace ark {
 				entity.addComponent(type);
 			return entity;
 		}
+
+		void reserveEntities(int num) {
+			this->entityManager.reserveEntities(num);
+		}
 		
 		auto entityFromId(int id) -> Entity
 		{
@@ -136,6 +140,12 @@ namespace ark {
 
 		auto entitiesView() -> EntitiesView {
 			return this->entityManager.entitiesView();
+		}
+
+		template <ConceptComponent... Cs>
+		auto view() -> View<Cs...> {
+			addComponentType<Cs...>();
+			return View<Cs...>(this->entityManager);
 		}
 
 		// get or create new querry and populate it if it's created;
@@ -231,7 +241,6 @@ namespace ark {
 					for (int i = 0; i < mask.size(); i++)
 						if (mask[i])
 							entityManager.removeComponentOfEntity(entity, entityManager.typeFromId(i));
-
 			}
 			for (Entity entity : mDestroyedEntities)
 				entityManager.destroyEntity(entity);
@@ -267,7 +276,6 @@ namespace ark {
 		// on call of Add/RemoveComponent, add or update mask with id of component added or removed
 		std::vector<std::pair<Entity::ID, ComponentMask>> mComponentsAdded;
 		std::vector<std::pair<Entity::ID, ComponentMask>> mComponentsRemoved;
-
 	}; // class Registry
 
 	template <typename F> 

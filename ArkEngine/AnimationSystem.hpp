@@ -17,7 +17,7 @@ struct MeshComponent {
 
 	MeshComponent() = default;
 
-	MeshComponent(std::string fileName, bool smoothTexture = false)
+	MeshComponent(std::string fileName, bool smoothTexture = true)
 		:fileName(fileName), smoothTexture(smoothTexture), uvRect(0,0,0,0), repeatTexture(false) 
 	{
 		setTexture(fileName);
@@ -53,6 +53,16 @@ struct MeshComponent {
 	{
 		fileName = name;
 		texture = ark::Resources::load<sf::Texture>(name);
+		texture->setRepeated(repeatTexture);
+		texture->setSmooth(smoothTexture);
+		//auto[a, b, c, d] = uvRect;
+		//if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
+		uvRect.width = texture->getSize().x;
+		uvRect.height = texture->getSize().y;
+		uvRect.left = 0;
+		uvRect.top = 0;
+		//}
+		vertices.updatePosTex(uvRect);
 	}
 
 	const std::string& getTexture() const {
@@ -61,7 +71,7 @@ struct MeshComponent {
 
 private:
 	bool repeatTexture = true;
-	bool smoothTexture = false;
+	bool smoothTexture = true;
 	//const bool flipX;
 	//const bool flipY;
 	std::string fileName = "";
@@ -178,11 +188,13 @@ ARK_REGISTER_COMPONENT(Animation, registerServiceDefault<Animation>())
 
 class AnimationSystem : public ark::SystemT<AnimationSystem>, public ark::Renderer {
 
+	ark::View<ark::Transform, Animation> view;
+
 public:
 
 	void init() override
 	{
-		querry = entityManager.makeQuerry<ark::Transform, Animation>();
+		view = entityManager.view<ark::Transform, Animation>();
 	}
 
 	void update() override;
@@ -191,17 +203,13 @@ public:
 };
 
 class MeshSystem : public ark::SystemT<MeshSystem>, public ark::Renderer {
+	//ark::View<ark::Transform, MeshComponent> view;
 public:
 
 	void init() override
 	{
-		querry = entityManager.makeQuerry<ark::Transform, MeshComponent>();
-		querry.onEntityAdd([this](ark::Entity entity) {
-			this->onEntityAdded(entity);
-		});
+		//view = entityManager.view<ark::Transform, MeshComponent>();
 	}
-
-	void onEntityAdded(ark::Entity);
 
 	void update() override {}
 

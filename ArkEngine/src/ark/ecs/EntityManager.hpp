@@ -17,8 +17,6 @@ namespace ark {
 	class EntitiesView;
 	class RuntimeComponentView;
 
-	class View;
-
 	class EntityManager final {
 	public:
 		EntityManager(			
@@ -28,7 +26,8 @@ namespace ark {
 			resComponentIds(std::make_unique<std::pmr::monotonic_buffer_resource>(buffComponentIds.data(), sizeof(buffComponentIds))),
 			componentIds(resComponentIds.get()),
 			componentPool(std::make_unique<std::pmr::unsynchronized_pool_resource>(
-				std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
+				//std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
+				//std::pmr::pool_options{.max_blocks_per_chunk = 100'000, .largest_required_pool_block = 1'000'000 * 1024},
 				upstreamComponent))
 		{
 			componentIds.reserve(MaxComponentTypes);
@@ -44,23 +43,27 @@ namespace ark {
 		{
 			Entity e;
 			e.manager = this;
-			if (auto it = std::find(isFree.begin(), isFree.end(), true); it != isFree.end()) {
-				e.id = it - isFree.begin();
-				*it = false;
+			if (mFreeEntities.size() > 0) {
+				e.id = mFreeEntities.back();
+				mFreeEntities.pop_back();
+				isFree[e.id] = false;
 			} else {
 				e.id = entities.size();
 				entities.emplace_back();
 				isFree.push_back(false);
+				mMasks.emplace_back();
 			}
 			auto& entity = getEntity(e);
 			entity.id = e.id;
-			EngineLog(LogSource::EntityM, LogLevel::Info, "created entity with id(%d)", entity.id);
+			//EngineLog(LogSource::EntityM, LogLevel::Info, "created entity with id(%d)", entity.id);
 			return e;
 		}
 
-		//EntityManager cloneThisManager(
-		//	std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded,
-		//	std::pmr::memory_resource* upstreamComponent);
+		void reserveEntities(int num) {
+			this->entities.reserve(num);
+			this->isFree.reserve(num);
+			this->mMasks.reserve(num);
+		}
 
 		auto cloneEntity(Entity e) -> Entity
 		{
@@ -68,6 +71,7 @@ namespace ark {
 			auto& entity = getEntity(e);
 			auto& clone = getEntity(hClone);
 			clone.mask = entity.mask;
+			mMasks[hClone.id] = mMasks[e.id];
 			forComponents(entity, [&, this](auto& compData) {
 				auto metadata = meta::getMetadata(compData.type);
 				void* newComponent = componentPool->allocate(metadata->size, metadata->align);
@@ -88,7 +92,7 @@ namespace ark {
 		void destroyEntity(Entity e)
 		{
 			auto& entity = getEntity(e);
-			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
+			//EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
 			forComponents(entity, [this](auto& compData) {
 				if (compData.pComponent) {
 					destroyComponent(compData.type, compData.pComponent);
@@ -96,7 +100,9 @@ namespace ark {
 				}
 			});
 			entity.mask.reset();
+			mMasks[entity.id].reset();
 			isFree[entity.id] = true;
+			mFreeEntities.push_back(entity.id);
 		}
 
 		template <typename T, typename F>
@@ -152,6 +158,7 @@ namespace ark {
 			if (entity.mask.test(compId))
 				return { getComponentOfEntity(e, type), true };
 			entity.mask.set(compId);
+			mMasks[entity.id].set(compId);
 
 			// for querries
 			auto index = Util::get_index_if(mComponentsAdded, [id = e.getID()](const auto& pair) { return pair.first == id; });
@@ -178,10 +185,12 @@ namespace ark {
 		{
 			auto& entity = getEntity(e);
 			int compId = idFromType(type);
+#if !NDEBUG
 			if (compId == ArkInvalidID || !entity.mask.test(compId)) {
 				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entity.id, meta::getMetadata(type)->name);
 				return nullptr;
 			}
+#endif
 			return entity.components[compId].pComponent;
 		}
 
@@ -197,6 +206,7 @@ namespace ark {
 			auto compId = idFromType(type);
 			if (entity.mask.test(compId)) {
 				entity.mask.set(compId, false);
+				mMasks[entity.id].set(compId, false);
 				destroyComponent(type, entity.components[compId].pComponent);
 				entity.components[compId] = {};
 			}
@@ -222,6 +232,18 @@ namespace ark {
 
 		auto makeComponentView(Entity e) -> RuntimeComponentView;
 		auto entitiesView() -> EntitiesView;
+
+		template <typename... Ts>
+		void idFromType(ComponentMask& mask) const
+		{
+			static_assert(sizeof...(Ts) > 0);
+			int id = 0;
+			for (auto [type] : this->componentIds) {
+				if (((type == typeid(Ts)) || ...))
+					mask.set(id, true);
+				++id;
+			}
+		}
 
 		int idFromType(std::type_index type) const
 		{
@@ -330,7 +352,7 @@ namespace ark {
 			int id = 0;
 			for (auto& entity : entities) {
 				// destroy components only for alive entities
-				if (isFree[entity.id]) {
+				if (!isFree[entity.id]) {
 					forComponents(entity, [this](auto& compData) {
 						auto metadata = meta::getMetadata(compData.type);
 						if (metadata->destructor)
@@ -372,7 +394,7 @@ namespace ark {
 				void* pComponent = nullptr;
 			};
 			ComponentMask mask;
-			int16_t id = ArkInvalidID;
+			int id = ArkInvalidID;
 			std::array<ComponentData, MaxComponentTypes> components;
 		};
 
@@ -409,6 +431,8 @@ namespace ark {
 		std::unique_ptr<std::pmr::unsynchronized_pool_resource> componentPool;
 		std::vector<InternalEntityData> entities;
 		std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded;
+		std::vector<Entity::ID> mFreeEntities;
+		std::vector<ComponentMask> mMasks; // used by View
 		std::vector<bool> isFree;
 		std::unordered_map<std::type_index, std::function<void(void*, Entity)>> onConstructionTable;
 		std::unordered_map<std::type_index, std::function<void(void*, const void*)>> onCopyTable;
@@ -420,7 +444,183 @@ namespace ark {
 		friend class EntitiesView;
 		friend class Registry;
 		friend class Entity;
-		friend class View;
+		template <typename...> friend class View;
+		template <bool, typename...> friend class IteratorView;
+		template <bool, typename...> friend class ProxyView;
+		template <typename T> struct comp_tag { int id; };
+	};
+
+	template <bool bRetEnt=false, typename... Cs>
+	class IteratorView {
+		using Iter = decltype(EntityManager::entities)::iterator;
+		using Self = IteratorView;
+		EntityManager* m_manager;
+		ComponentMask m_mask;
+		std::tuple<EntityManager::comp_tag<Cs>...>* m_ids;
+		Iter m_iter;
+		decltype(EntityManager::mMasks)::iterator m_iterMask;
+	public:
+
+		IteratorView(Iter iter, ComponentMask mask, EntityManager* man, decltype(m_ids) ids = nullptr)
+			: m_iter(iter), m_mask(mask), m_manager(man), m_ids(ids)
+		{
+			m_iterMask = m_manager->mMasks.begin();
+			if (m_iter != m_manager->entities.end() && (m_iter->mask & m_mask) != m_mask)
+				this->operator++();
+		}
+
+		auto operator++() noexcept {
+			++m_iter;
+			while (m_iter < m_manager->entities.end() && (*(++m_iterMask) & m_mask) != m_mask) {
+				++m_iter;
+			}
+			return *this;
+		}
+
+		[[nodiscard]]
+		decltype(auto) operator*() noexcept {
+
+			if constexpr (sizeof...(Cs) == 0) {
+				return ark::Entity{ m_iter->id, m_manager };
+			}
+			else if constexpr (bRetEnt) {
+				auto entity = ark::Entity{ m_iter->id, m_manager };
+				return std::tuple<ark::Entity, Cs&...>(entity,
+					*static_cast<Cs*>(m_iter->components[std::get<EntityManager::comp_tag<Cs>>(*m_ids).id].pComponent)...);
+			}
+			else {
+				if constexpr (sizeof...(Cs) == 1)
+					return (*static_cast<Cs*>(m_iter->components[std::get<EntityManager::comp_tag<Cs>>(*m_ids).id].pComponent), ...);
+				else
+					return std::tuple<Cs&...>(
+						*static_cast<Cs*>(m_iter->components[std::get<EntityManager::comp_tag<Cs>>(*m_ids).id].pComponent)...);
+			}
+		}
+
+		friend bool operator==(const Self& a, const Self& b) noexcept
+		{
+			return a.m_iter == b.m_iter;
+		}
+
+		friend bool operator!=(const Self& a, const Self& b) noexcept
+		{
+			return a.m_iter != b.m_iter;
+		}
+	};
+
+	template <bool bRetEnt, typename... Cs>
+	class ProxyView {
+		EntityManager* m_manager;
+		ComponentMask m_mask;
+		std::tuple<EntityManager::comp_tag<Cs>...> m_ids;
+	public:
+		ProxyView(ComponentMask mask, EntityManager* man, decltype(m_ids)* ids = nullptr) 
+			: m_mask(mask), m_manager(man)
+		{
+			if (ids)
+				m_ids = *ids;
+			else
+				((std::get<EntityManager::comp_tag<Cs>>(m_ids).id = m_manager->idFromType(typeid(Cs))), ...);
+		}
+		auto begin() {
+			return IteratorView<bRetEnt, Cs...>(m_manager->entities.begin(), m_mask, m_manager, &m_ids);
+		}
+		auto end() {
+			return IteratorView<bRetEnt, Cs...>(m_manager->entities.end(), m_mask, m_manager, &m_ids);
+		}
+	};
+
+	/*
+	* Folosire:
+	* auto view = manager.view<Comp1, ...>();
+	* 
+	* for(auto [c1, ...] : view)
+	* for(auto [ent, c1, ...] : view.each())
+	*
+	* custom args:
+	* for(auto [c1, ...] : view.each<C1...>()
+	* for(auto [ent, c1, ...] : view.each<Entity, C1...>())
+	* for(auto ent : view.each<Entity>())
+	*/
+	template <typename... Cs>
+	class View {
+		ComponentMask m_mask;
+		EntityManager* m_manager = nullptr;
+		std::tuple<EntityManager::comp_tag<Cs>...> m_ids;
+		template <typename T>
+		T* _getComp(Entity::ID id) {
+			return static_cast<T*>(m_manager->entities[id].components[std::get<EntityManager::comp_tag<T>>(m_ids).id].pComponent);
+		}
+	public:
+
+		View() = default;
+
+		View(EntityManager& man) : m_manager(&man) {
+			m_manager->idFromType<Cs...>(m_mask);
+			((std::get<EntityManager::comp_tag<Cs>>(m_ids).id = m_manager->idFromType(typeid(Cs))), ...);
+		}
+
+		auto begin() noexcept {
+			return IteratorView<false, Cs...>(m_manager->entities.begin(), m_mask, m_manager, &m_ids);
+		}
+		auto end() noexcept {
+			return IteratorView<false, Cs...>(m_manager->entities.end(), m_mask, m_manager, &m_ids);
+		}
+
+		auto each() {
+			return ProxyView<true, Cs...>(m_mask, m_manager, &m_ids);
+		}
+
+		template <std::same_as<ark::Entity> TEntity, ConceptComponent...  Ts>
+		auto each() {
+			if constexpr (sizeof...(Ts) == 0)
+				return ProxyView<true>(m_mask, m_manager);
+			else
+				return ProxyView<true, Ts...>(m_mask, m_manager);
+		}
+
+		template <ConceptComponent T, ConceptComponent... Ts>
+		requires !std::same_as<ark::Entity, T>
+		auto each() {
+			return ProxyView<false, T, Ts...>(m_mask, m_manager);
+		}
+
+		template <ConceptComponent... Ts>
+		decltype(auto) get(ark::Entity entity) {
+			if constexpr (sizeof...(Ts) == 0) {
+				if constexpr (sizeof...(Cs) == 1) {
+					return (*_getComp<Cs>(entity.getID()), ...);
+				}
+				else {
+					return std::tuple<Cs&...>(*_getComp<Cs>(entity.getID())...);
+				}
+			}
+			else if constexpr (sizeof... (Ts) == 1){
+				return (*_getComp<Ts>(entity.getID()), ...);
+			}
+			else {
+				return std::tuple<Ts&...>(*_getComp<Ts>(entity.getID())...);
+			}
+		}
+
+		template <typename F>
+		void each(F&& fun) noexcept {
+			int index = 0;
+			for (auto& data : m_manager->entities) {
+				if (!m_manager->isFree[index] && (data.mask & m_mask) == m_mask) {
+					auto entity = ark::Entity{ data.id, m_manager };
+					if constexpr (std::invocable<F, ark::Entity>)
+						fun(entity);
+					else if constexpr (std::invocable<F, ark::Entity, Cs&...>)
+						fun(entity, *_getComp<Cs>(entity.getID())...);
+					else if constexpr (std::invocable<F, Cs&...>)
+						fun(*_getComp<Cs>(entity.getID())...);
+					else
+						static_assert(std::invocable<F, ark::Entity>, "View.each error: callback-ul are argumnete gresite");
+				}
+				index++;
+			}
+		}
 	};
 
 	struct RuntimeComponentIterator {

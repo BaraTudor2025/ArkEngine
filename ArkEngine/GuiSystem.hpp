@@ -89,21 +89,21 @@ private:
 ARK_REGISTER_COMPONENT(Button, registerServiceDefault<Button>()) { return members<Button>(); }
 
 class ButtonSystem : public ark::SystemT<ButtonSystem>, public ark::Renderer {
-
+	ark::View<Button> view;
 public:
 	void init() override
 	{
-		querry = entityManager.makeQuerry<Button>();
+		//querry = entityManager.makeQuerry<Button>();
+		view = entityManager.view<Button>();
 	}
 
 	void update() override
 	{
-		for (auto entity : getEntities()) {
-			auto& b = entity.getComponent<Button>();
-			if (b.moveWithMouse && isLeftMouseButtonPressed) {
+		for (auto& button : view) {
+			if (button.moveWithMouse && isLeftMouseButtonPressed) {
 				auto mouse = ark::Engine::mousePositon();
-				if (b.getGlobalBounds().contains(mouse)) {
-					b.setPosition(mouse);
+				if (button.getGlobalBounds().contains(mouse)) {
+					button.setPosition(mouse);
 				}
 			}
 		}
@@ -115,8 +115,7 @@ public:
 		case sf::Event::MouseButtonPressed: {
 			if (event.mouseButton.button == sf::Mouse::Left) {
 				isLeftMouseButtonPressed = true;
-				for (auto entity : getEntities()) {
-					auto& b = entity.getComponent<Button>();
+				for (auto& b : view) {
 					if (b.getGlobalBounds().contains(event.mouseButton.x, event.mouseButton.y))
 						b.onClick();
 				}
@@ -141,8 +140,8 @@ public:
 
 	void render(sf::RenderTarget& target) override
 	{
-		for (auto entity : getEntities())
-			target.draw(entity.getComponent<Button>());
+		for (const auto& but : view)
+			target.draw(but);
 	}
 
 private:
@@ -153,19 +152,19 @@ private:
 };
 
 class TextSystem : public ark::SystemT<TextSystem>, public ark::Renderer {
-
+	ark::View<Text> view;
 public:
 	void init() override
 	{
-		querry = entityManager.makeQuerry<Text>();
+		view = entityManager.view<Text>();
 	}
 
 	void update() override {}
 
 	void render(sf::RenderTarget& target) override
 	{
-		for (auto entity : getEntities())
-			target.draw(entity.getComponent<Text>());
+		for (const auto& text : view)
+			target.draw(text);
 	}
 };
 

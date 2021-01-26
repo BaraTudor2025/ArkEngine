@@ -54,32 +54,31 @@ namespace ark {
 	bool _DrawVec2Control(std::string_view label, sf::Vector2f& values, float resetValue, float columnWidth);
 	void _Transform_editor_render(int* widgetId, void* pValue);
 
-
 	void SceneInspector::renderSystemInspector()
 	{
-		auto getLabel = [](const auto& usys) {
-			const System* system = usys.get();
-			auto count = system->getQuerry().isValid() ? system->getQuerry().getMask().count() : 0;
-			return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), count);
-		};
+		//auto getLabel = [](const auto& usys) {
+		//	const System* system = usys.get();
+		//	auto count = system->getQuerry().isValid() ? system->getQuerry().getMask().count() : 0;
+		//	return tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), count);
+		//};
 
-		auto renderElem = [this](const auto& usys) {
-			const System* system = usys.get();
-			if (!system->getQuerry().isValid())
-				return;
-			ImGui::TextUnformatted("Components:");
-			system->getQuerry().forComponentTypes([](std::type_index type) {
-				auto* meta = ark::meta::getMetadata(type);
-				ImGui::BulletText(meta->name.c_str());
-			});
+		//auto renderElem = [this](const auto& usys) {
+		//	const System* system = usys.get();
+		//	if (!system->getQuerry().isValid())
+		//		return;
+		//	ImGui::TextUnformatted("Components:");
+		//	system->getQuerry().forComponentTypes([](std::type_index type) {
+		//		auto* meta = ark::meta::getMetadata(type);
+		//		ImGui::BulletText(meta->name.c_str());
+		//	});
 
-			ImGui::TextUnformatted("Entities:");
-			for (Entity e : system->getEntities()) {
-				ImGui::BulletText(e.getComponent<TagComponent>().name.c_str());
-			}
-		};
+		//	ImGui::TextUnformatted("Entities:");
+		//	for (Entity e : system->getEntities()) {
+		//		ImGui::BulletText(e.getComponent<TagComponent>().name.c_str());
+		//	}
+		//};
 
-		treeWithSeparators("Systems:", systemManager.getSystems(), getLabel, renderElem);
+		//treeWithSeparators("Systems:", systemManager.getSystems(), getLabel, renderElem);
 	}
 
 #if 0

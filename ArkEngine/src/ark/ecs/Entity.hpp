@@ -37,6 +37,12 @@ namespace ark {
 
 		void addComponent(std::type_index type);
 
+		template <ConceptComponent T>
+		requires std::is_aggregate_v<T>
+		T& add(T&& comp = T{}) {
+			return this->addComponent<T>(std::forward<T>(comp));
+		}
+
 		template <ConceptComponent T, typename...Args>
 		T& add(Args&& ... args) {
 			return this->addComponent<T>(std::forward<Args>(args)...);
@@ -91,12 +97,9 @@ namespace ark {
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		// TODO: remove on postUpdate?
 
-	private:
-		// use Registry::safeRemoveComponent(Entity e, std::type_index componentType)
 		template <ConceptComponent T>
 		void removeComponent();
 
-		// use Registry::safeRemoveComponent(Entity e, std::type_index componentType)
 		void removeComponent(std::type_index type);
 
 	public:

@@ -54,6 +54,7 @@ class LuaScriptingSystem : public ark::SystemT<LuaScriptingSystem> {
 	sol::state lua;
 	std::map<std::filesystem::path, std::filesystem::file_time_type> scriptLastWrites;
 	fs::path luaPath;
+	ark::View<LuaScriptingComponent> view;
 public:
 	LuaScriptingSystem() = default;
 
@@ -63,7 +64,7 @@ public:
 
 	void init() override
 	{
-		querry = entityManager.makeQuerry<LuaScriptingComponent>();
+		view = entityManager.view<LuaScriptingComponent>();
 		luaPath = ark::Resources::resourceFolder + "lua/";
 		lua.open_libraries(sol::lib::base);
 		lua["getComponent"] = [](sol::table selfScript, std::string_view componentName, sol::this_state luaState) mutable -> sol::table {
@@ -111,8 +112,7 @@ public:
 			}
 		}
 #endif
-		for (auto entity : getEntities()) {
-			auto& comp = entity.getComponent<LuaScriptingComponent>();
+		for (auto& comp : view) {
 			for (auto& script : comp.mScripts) {
 				if (script["ark_has_errors"])
 					continue;

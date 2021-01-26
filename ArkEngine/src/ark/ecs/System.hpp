@@ -34,12 +34,8 @@ namespace ark
 
 		const std::string name;
 		const std::type_index type;
-		auto getEntities() const -> const std::vector<Entity>& { return querry.getEntities(); }
-		auto getQuerry() const -> const EntityQuerry& { return querry; }
 
 	protected:
-
-		EntityQuerry querry;
 
 		template <typename T, typename...Args>
 		T* postMessage(Args&&... args)
@@ -71,7 +67,7 @@ namespace ark
 	};
 
 
-	/* NOTE: recomand declararea managerului dupa cea a registrului/entity-manager, ca sa poata fi distrus dupa el */
+	/* NOTE: recomand declararea system-managerului dupa cea a registrului/entity-manager, ca sa poata fi distrus dupa el */
 	class SystemManager {
 
 	public:

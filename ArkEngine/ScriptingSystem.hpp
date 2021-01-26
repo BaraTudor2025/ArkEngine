@@ -281,19 +281,18 @@ ARK_REGISTER_COMPONENT(ScriptingComponent, 0)
 }
 
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {
+	ark::View<ScriptingComponent> view;
 public:
 	ScriptingSystem() = default;
 
 	void init() override
 	{
-		querry = entityManager.makeQuerry<ScriptingComponent>();
+		view = entityManager.view<ScriptingComponent>();
 	}
 
 	void update() override
 	{
-		for (ark::Entity e : getEntities()) {
-			auto& scriptComp = e.getComponent<ScriptingComponent>();
-
+		for (auto& scriptComp : view) {
 			// delete script from previous frame
 			if (not scriptComp.mToBeDeleted.empty()) {
 				for (Script* pScript : scriptComp.mToBeDeleted) {
@@ -301,7 +300,6 @@ public:
 				}
 				scriptComp.mToBeDeleted.clear();
 			}
-
 			// update
 			for (auto& script : scriptComp.mScripts) {
 				if (script->mIsActive)
@@ -326,8 +324,7 @@ private:
 	template <typename F>
 	void forEachScript(F f)
 	{
-		for (auto& e : getEntities()) {
-			auto& scriptComp = e.getComponent<ScriptingComponent>();
+		for (auto& scriptComp : view) {
 			for (auto& script : scriptComp.mScripts) {
 				if (script->mIsActive)
 					f(script);

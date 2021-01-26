@@ -308,21 +308,21 @@ private:
 ARK_REGISTER_COMPONENT(DelayedAction, registerServiceDefault<DelayedAction>()) { return members<DelayedAction>(); }
 
 class DelayedActionSystem : public ark::SystemT<DelayedActionSystem> {
+	ark::View<DelayedAction> view;
 public:
 	void init() override
 	{
-		querry = entityManager.makeQuerry<DelayedAction>();
+		view = entityManager.view<DelayedAction>();
 	}
 
 	void update() override
 	{
-		for (auto entity : getEntities()) {
-			auto& da = entity.getComponent<DelayedAction>();
+		for (auto [entity, da] : view.each()) {
 			da.time -= Engine::deltaTime();
 			if (da.time <= sf::Time::Zero) {
 				if (da.action) {
 					auto action = std::move(da.action);
-					entityManager.safeRemoveComponent(entity, typeid(DelayedAction));
+					entity.removeComponent<DelayedAction>();
 					action(entity);
 				}
 			}
@@ -712,7 +712,7 @@ ARK_REGISTER_COMPONENT(ChessPieceComponent, registerServiceDefault<ChessPieceCom
 	); 
 }
 
-ark::Entity createChessPiece(ark::Registry& manager, sf::Vector2i coord, class ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru);
+void createChessPiece(ark::Registry& manager, sf::Vector2i coord, class ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru);
 
 struct MousePickUpComponent {
 	sf::FloatRect selectArea;
@@ -736,15 +736,11 @@ class MousePickUpSystem : public ark::SystemT<MousePickUpSystem> {
 	int filters = 0;
 	int m_genFlags = 1;
 	ark::Entity selectedEntity;
+	ark::View<ark::Transform, MousePickUpComponent> view;
 
 public:
 	void init() override {
-		querry = entityManager.makeQuerry<MousePickUpComponent>();
-		querry.onEntityAdd([](ark::Entity entity) {
-			auto [trans, pick] = entity.getComponents<ark::Transform, MousePickUpComponent>();
-			pick.selectArea.left = trans.getPosition().x;
-			pick.selectArea.top = trans.getPosition().y;
-		});
+		view = entityManager.view<ark::Transform, MousePickUpComponent>();
 	}
 
 	void setFilter(int filt = 0) { filters = filt; }
@@ -757,15 +753,12 @@ public:
 
 	void handleEvent(sf::Event ev) override {
 		if (ev.type == sf::Event::MouseButtonPressed && ev.mouseButton.button == sf::Mouse::Button::Left) {
-			for (Entity entity : querry.getEntities()) {
-				auto& pick = entity.getComponent<MousePickUpComponent>();
-				if (pick.selectArea.contains(ev.mouseButton.x, ev.mouseButton.y)) {
-					if ((pick.filter & filters) == filters) {
-						selectedEntity = entity;
-						auto [x, y] = entity.getComponent<Transform>().getPosition();
-						pick.dx = ev.mouseButton.x - x;
-						pick.dy = ev.mouseButton.y - y;
-					}
+			for (auto [entity, pick] : view.each<ark::Entity, MousePickUpComponent>()) {
+				if ((pick.filter & filters) == filters && pick.selectArea.contains(ev.mouseButton.x, ev.mouseButton.y)) {
+					selectedEntity = entity;
+					auto [x, y] = view.get<Transform>(entity).getPosition();
+					pick.dx = ev.mouseButton.x - x;
+					pick.dy = ev.mouseButton.y - y;
 				}
 			}
 		}
@@ -782,14 +775,13 @@ public:
 
 	void update() override {
 		if (selectedEntity) {
-			auto [trans, pick] = selectedEntity.getComponents<Transform, MousePickUpComponent>();
+			auto [trans, pick] = selectedEntity.get<Transform, MousePickUpComponent>();
 			auto [x, y] = ark::Engine::mousePositon();
 			trans.setPosition(x - pick.dx, y - pick.dy);
 		}
 		// update-ul are sens doar pentru cele cu Transform-ul modificat
 		// TODO (ecs) poate adaug un flag m_dirty pentru componente cand le acceses prin ref, fara flag cand sunt 'const'
-		for (Entity entity : querry.getEntities()) {
-			auto [trans, pick] = entity.getComponents<Transform, MousePickUpComponent>();
+		for (auto [trans, pick] : view) {
 			pick.selectArea.left = trans.getPosition().x;
 			pick.selectArea.top = trans.getPosition().y;
 		}
@@ -846,30 +838,25 @@ public:
 			v.resize(kBoardLength);
 
 		playersQuery = entityManager.makeQuerry<ChessPlayerComponent>();
+
+		entityManager.onConstruction<ChessPieceComponent>([this](auto& piece, ark::Entity entity) {
+			this->board[piece.coord.x][piece.coord.y] = entity;
+		});
+
 		auto* pickSystem = systemManager.getSystem<MousePickUpSystem>();
-		playersQuery.onEntityAdd([this, pickSystem](ark::Entity entity) {
-			auto& player = entity.get<ChessPlayerComponent>();
+		entityManager.onConstruction<ChessPlayerComponent>([this, pickSystem](auto& player, ark::Entity entity)  {
 			player.id = pickSystem->generateBitFlag();
 			if (!this->playerInTurn) {
 				this->playerInTurn = entity;
 				pickSystem->setFilter(player.id);
 			}
 		});
-
-		querry = entityManager.makeQuerry<Transform, ChessPieceComponent>();
-		querry.onEntityAdd([this](ark::Entity entity) {
-			auto [piece, pick] = entity.get<ChessPieceComponent, MousePickUpComponent>();
-			auto id = piece.player.get<ChessPlayerComponent>().id;
-			pick.filter = id;
-			this->board[piece.coord.x][piece.coord.y] = entity;
-		});
 	}
 
 	void handleMessage(const ark::Message& msg) override {
 		if (auto* data = msg.tryData<MessagePickUp>(); data && data->isReleased) {
 			ark::Entity selectedPiece = data->entity;
-			auto& trans = selectedPiece.get<Transform>();
-			auto& piece = selectedPiece.get<ChessPieceComponent>();
+			auto [trans, piece] = selectedPiece.get<Transform, ChessPieceComponent>();
 			sf::Vector2i newCoord = toCoord(trans.getPosition());
 			if (!isCoordInBounds(newCoord)) {
 				trans.setPosition(toPos(piece.coord));
@@ -898,7 +885,7 @@ public:
 	void update() override { }
 };
 
-ark::Entity createChessPiece(ark::Registry& manager, sf::Vector2i coord, ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru)
+void createChessPiece(ark::Registry& manager, sf::Vector2i coord, ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru)
 {
 	Entity entity = manager.createEntity();
 
@@ -907,20 +894,25 @@ ark::Entity createChessPiece(ark::Registry& manager, sf::Vector2i coord, ChessSy
 	trans.move(sys->kBoardOffset, sys->kBoardOffset);
 	//trans.setOrigin(0, 0);
 
-	auto& mesh = entity.add<MeshComponent>("chess_pieces.png", true);
+	auto& mesh = entity.add<MeshComponent>("chess_pieces.png");
 	int size = sys->kPieceMeshSize;
 	mesh.setTextureRect(sf::IntRect{ size * meshX, size * playerAlb, size, size });
 
-	auto& piece = entity.add<ChessPieceComponent>();
-	piece.player = playerAlb ? alb : negru;
-	piece.coord = coord;
+	ark::Entity player = playerAlb ? alb : negru;
 
-	auto& pick = entity.add<MousePickUpComponent>();
-	pick.selectArea.width = size;
-	pick.selectArea.height = size;
-	return entity;
+	entity.add<MousePickUpComponent>({
+		.selectArea = sf::FloatRect(trans.getPosition().x, trans.getPosition().y, size, size),
+		.filter = player.get<ChessPlayerComponent>().id
+	});
+
+	entity.add<ChessPieceComponent>({
+		.player = player,
+		.coord = coord
+	});
+	//return entity;
 }
 
+/* de implementat moduri */
 class ChessState : public BasicState {
 
 public:
@@ -1037,42 +1029,6 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	auto res = fun(48);
 	std::cout << std::any_cast<int>(res) << '\n';
 
-	//auto buff_size = 1000;
-	//auto buffer = std::make_unique<std::byte[]>(buff_size);
-	//auto track_new_del = makePrintingMemoryResource("new-del", std::pmr::new_delete_resource());
-	//auto monotonic_res = std::pmr::monotonic_buffer_resource(buffer.get(), buff_size, &track_new_del);
-	//auto track_monoton = makePrintingMemoryResource("monoton", &monotonic_res);
-	////auto uptr = makeUniqueFromResource<int>(&monotonic_res);
-	////auto pool = std::pmr::unsynchronized_pool_resource(&monotonic_res);
-
-	//std::cout << "vector:\n";
-	////auto vec = std::pmr::vector<std::unique_ptr<bool, PmrResourceDeleter>>(&track_monoton);
-	//auto track_monoton2 = makePrintingMemoryResource("vec", &monotonic_res);
-	//auto vec = std::pmr::vector<bool*>(&track_monoton2);
-	//auto _deleter = ContainerResourceDeleterGuard(vec);
-	//auto builder = VectorBuilderWithResource(vec);
-	////builder.addUnique<bool>(true);
-	////builder.addUnique<bool>(true);
-	////builder.addUnique<bool>(true);
-	////builder.addUnique<bool>(true);
-	//builder.add<bool>(true);
-	//builder.add<bool>(true);
-	//builder.add<bool>(true);
-	//builder.add<bool>(true);
-	//std::cout << "build\n";
-	//builder.build();
-	//std::cout << "map:\n";
-
-	//auto map = std::pmr::map<std::pmr::string, int>(&track_monoton);
-	//map.emplace("nush ceva string mai lung", 3);
-	//map.emplace("nush ceva string mai lung1", 3);
-	//map.emplace("nush ceva string mai lung2", 3);
-	//map.emplace("nush ceva string mai lung3", 3);
-	//map.emplace("nush ceva string mai lung4", 3);
-	//map.emplace("nush ceva string mai lung5", 3);
-	//map.emplace("nush ceva string mai lung6", 3);
-	////map["nush ceva string mai lung"] = 3;
-
 	{
 		auto* type = ark::meta::getMetadata(typeid(ScriptingComponent));
 		type->func(ark::SceneInspector::serviceName, renderScriptComponents);
@@ -1092,7 +1048,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::registerState<ChessState>();
 
 	Engine::pushOverlay<ImGuiLayer>();
-	Engine::pushFirstState<ChessState>();
+	Engine::pushFirstState<TestingState>();
 
 	Engine::run();
 

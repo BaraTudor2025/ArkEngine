@@ -7,277 +7,303 @@
 #include <bitset>
 #include <tuple>
 #include <set>
+#include <array>
+#include <span>
 
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/Entity.hpp"
+#include "ark/core/Signal.hpp"
 
 namespace ark {
 
-	class Registry;
-	class EntitiesView;
-	class RuntimeComponentView;
+	class ProxyEntitiesView;
+	class ProxyRuntimeComponentView;
+
+	template <typename...> class View;
+
+	class seq_type {
+		static inline std::size_t counter{};
+	public:
+		template<typename>
+		static inline const std::size_t id = counter++;
+	};
+
+	using EntityId = int;
 
 	class EntityManager final {
+
 	public:
 		EntityManager(			
-			std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded, 
-			std::pmr::memory_resource* upstreamComponent)
-			: mComponentsAdded(mComponentsAdded),
-			resComponentIds(std::make_unique<std::pmr::monotonic_buffer_resource>(buffComponentIds.data(), sizeof(buffComponentIds))),
-			componentIds(resComponentIds.get()),
-			componentPool(std::make_unique<std::pmr::unsynchronized_pool_resource>(
+			std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
+			: m_componentPool(std::make_unique<std::pmr::unsynchronized_pool_resource>(
 				//std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
 				//std::pmr::pool_options{.max_blocks_per_chunk = 100'000, .largest_required_pool_block = 1'000'000 * 1024},
 				upstreamComponent))
 		{
-			componentIds.reserve(MaxComponentTypes);
+			for (auto& type : componentIds())
+				type = typeid(void);
 		}
 
 		EntityManager(EntityManager&&) noexcept = default;
 
-		/// 
-		/// use cloneManager instead
 		EntityManager(const EntityManager&) = delete;
 
 		auto createEntity() -> Entity
 		{
-			Entity e;
-			e.manager = this;
-			if (mFreeEntities.size() > 0) {
-				e.id = mFreeEntities.back();
-				mFreeEntities.pop_back();
-				isFree[e.id] = false;
+			EntityId id;
+			if (m_freeEntities.size() > 0) {
+				id = m_freeEntities.back();
+				m_freeEntities.pop_back();
+				m_isFree[id] = false;
 			} else {
-				e.id = entities.size();
-				entities.emplace_back();
-				isFree.push_back(false);
-				mMasks.emplace_back();
+				id = m_entities.size();
+				m_entities.emplace_back();
+				m_isFree.push_back(false);
+				m_masks.emplace_back();
 			}
+			auto e = Entity(id, this);
 			auto& entity = getEntity(e);
-			entity.id = e.id;
-			//EngineLog(LogSource::EntityM, LogLevel::Info, "created entity with id(%d)", entity.id);
+			entity.id = id;
+			m_signalCreate.publish(*this, e);
 			return e;
 		}
 
+		bool isValid(EntityId entity) const {
+			return entity != ArkInvalidID && entity >= 0 && !m_isFree[entity];
+		}
+
 		void reserveEntities(int num) {
-			this->entities.reserve(num);
-			this->isFree.reserve(num);
-			this->mMasks.reserve(num);
+			m_entities.reserve(num);
+			m_isFree.reserve(num);
+			m_masks.reserve(num);
 		}
 
-		auto cloneEntity(Entity e) -> Entity
+		auto cloneEntity(EntityId entityId) -> Entity
 		{
-			Entity hClone = createEntity();
-			auto& entity = getEntity(e);
-			auto& clone = getEntity(hClone);
-			clone.mask = entity.mask;
-			mMasks[hClone.id] = mMasks[e.id];
-			forComponents(entity, [&, this](auto& compData) {
-				auto metadata = meta::getMetadata(compData.type);
-				void* newComponent = componentPool->allocate(metadata->size, metadata->align);
-				if (metadata->copy_constructor) {
-					metadata->copy_constructor(newComponent, compData.pComponent);
-				}
-				else
-					metadata->default_constructor(newComponent);
-
-				clone.components[idFromType(compData.type)] = { compData.type, newComponent };
-				onConstruction(compData.type, newComponent, hClone);
-				onCopy(compData.type, newComponent, compData.pComponent);
+			Entity clone = createEntity();
+			this->eachComponent(entityId, [&, this](RuntimeComponent comp) {
+				this->add(clone, comp.type, entityId);
 			});
-			mComponentsAdded.push_back({clone.id, clone.mask});
-			return hClone;
+			return clone;
 		}
 
-		void destroyEntity(Entity e)
+		// function type should be void(EntityManager&, Entity/EntityId)
+		auto onCreate() {
+			return Sink{m_signalCreate};
+		}
+		auto onDestroy() {
+			return Sink{ m_signalDestroy };
+		}
+		template <ConceptComponent T>
+		auto onAdd() {
+			return Sink{ m_tableAdd[typeid(T)] };
+		}
+		template <ConceptComponent T>
+		auto onCopy() {
+			return Sink{ m_tableClone[typeid(T)] };
+		}
+		template <ConceptComponent T>
+		auto onRemove() {
+			return Sink{ m_tableRemove[typeid(T)] };
+		}
+
+		// function type should be void(EntityManager&, EntityId, std::type_index componenetType)
+		auto onAdd(){
+			return Sink{ m_signalAdd };
+		}
+		auto onRemove(){
+			return Sink{ m_signalRemove };
+		}
+
+		void addAllComponentTypesFromMetaGroup() {
+			const auto& types = ark::meta::getTypeGroup(ARK_META_COMPONENT_GROUP);
+			for (auto type : types)
+				addType(type);
+		}
+
+		void destroyEntity(EntityId entityId)
 		{
-			auto& entity = getEntity(e);
-			//EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity.id);
-			forComponents(entity, [this](auto& compData) {
-				if (compData.pComponent) {
-					destroyComponent(compData.type, compData.pComponent);
-					compData = {};
-				}
+			auto& entity = getEntity(entityId);
+			m_signalDestroy.publish(*this, Entity{ entityId, this });
+			this->eachComponent(entityId, [&, this](RuntimeComponent comp) {
+				this->remove(entityId, comp.type);
 			});
-			entity.mask.reset();
-			mMasks[entity.id].reset();
-			isFree[entity.id] = true;
-			mFreeEntities.push_back(entity.id);
+			m_isFree[entityId] = true;
+			m_freeEntities.push_back(entityId);
 		}
 
-		template <typename T, typename F>
-		void addOnConstruction(F&& f, Registry* reg) {
-			onConstructionTable[typeid(T)] = [f = std::forward<F>(f), reg](void* ptr, ark::Entity e) {
-				if constexpr (std::invocable<F, T&>)
-					f(*static_cast<T*>(ptr));
-				else if constexpr (std::invocable<F, T&, ark::Entity>)
-					f(*static_cast<T*>(ptr), e);
-				else
-					f(*static_cast<T*>(ptr), e, *reg);
-			};
-		}
-
-		template <typename T, typename F>
-		void addOnCopy(F&& f) {
-			onCopyTable[typeid(T)] = [f = std::forward<F>(f)](void* This, const void* That) {
-				f(*static_cast<T*>(This), *static_cast<const T*>(That));
-			};
-		}
+		template <ConceptComponent... Ts>
+		auto view() -> ark::View<Ts...>;
 
 		// if component already exists, then the existing component is returned
 		// if no ctor-args are provided then it's default constructed
-		template <typename T, typename... Args>
-		T& addComponentOnEntity(Entity e, Args&&... args)
-		{
-			//static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-			addComponentType(typeid(T));
-			bool bDefaultConstruct = sizeof...(args) == 0 ? true : false;
-			auto [comp, isAlready] = implAddComponentOnEntity(e, typeid(T), bDefaultConstruct);
-			if (!isAlready) {
-				if (not bDefaultConstruct)
-					new(comp)T(std::forward<Args>(args)...);
-				onConstruction(typeid(T), comp, e);
-			}
-			return *static_cast<T*>(comp);
+		template <ConceptComponent T, typename... Args>
+		T& add(EntityId entityId, Args&&... args) {
+			addType(typeid(T));
+			return implStaticAdd<T>(entityId, std::forward<Args>(args)...);
 		}
 
-		void* addComponentOnEntity(Entity e, std::type_index type)
+		void* add(EntityId entityId, std::type_index type, EntityId toClone = ArkInvalidID)
 		{
-			addComponentType(type);
-			auto [comp, isAlready] = implAddComponentOnEntity(e, type, true);
-			if(!isAlready)
-				onConstruction(type, comp, e);
-			return comp;
+			addType(type);
+			return implRuntimeAdd(entityId, type, toClone);
 		}
 
-		// returns: component pointer, exists?
-		auto implAddComponentOnEntity(Entity e, std::type_index type, bool defaultConstruct, const void* otherComponent = nullptr) -> std::pair<void*, bool>
+		void* get(EntityId entityId, std::type_index type) const
 		{
-			int compId = idFromType(type);
-			auto& entity = getEntity(e);
-			if (entity.mask.test(compId))
-				return { getComponentOfEntity(e, type), true };
-			entity.mask.set(compId);
-			mMasks[entity.id].set(compId);
-
-			// for querries
-			auto index = Util::get_index_if(mComponentsAdded, [id = e.getID()](const auto& pair) { return pair.first == id; });
-			if (index == ArkInvalidIndex) {
-				auto& [id, mask] = mComponentsAdded.emplace_back();
-				id = entity.id;
-				mask.set(compId);
-			}
-			else
-				mComponentsAdded[index].second.set(compId);
-
-			auto metadata = meta::getMetadata(type);
-			void* newComponent = componentPool->allocate(metadata->size, metadata->align);
-			if (otherComponent && metadata->copy_constructor)
-				metadata->copy_constructor(newComponent, otherComponent);
-			else if(defaultConstruct)
-				metadata->default_constructor(newComponent);
-
-			entity.components[compId] = { type, newComponent };
-			return { newComponent, false };
-		}
-
-		void* getComponentOfEntity(Entity e, std::type_index type)
-		{
-			auto& entity = getEntity(e);
+			auto& entity = getEntity(entityId);
 			int compId = idFromType(type);
 #if !NDEBUG
 			if (compId == ArkInvalidID || !entity.mask.test(compId)) {
-				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entity.id, meta::getMetadata(type)->name);
+				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entityId, meta::getMetadata(type)->name);
 				return nullptr;
 			}
 #endif
-			return entity.components[compId].pComponent;
+			return entity.components[compId].ptr;
 		}
 
 		template <typename T>
-		T* getComponentOfEntity(Entity e)
+		T& get(EntityId entityId)
 		{
-			return reinterpret_cast<T*>(getComponentOfEntity(e, typeid(T)));
+			return *tryGet<T>(entityId);
 		}
 
-		void removeComponentOfEntity(Entity e, std::type_index type)
+		bool has(EntityId entity, std::type_index type) const {
+			return this->get(entity, type) != nullptr;
+		}
+
+		bool has(EntityId entity, std::span<std::type_index> types) const {
+			return std::all_of(types.begin(), types.end(), [&](auto type) { return has(entity, type); });
+		}
+
+		template <typename... Ts>
+		bool has(EntityId entity) const {
+			return (this->has(entity, typeid(Ts)) && ...);
+		}
+
+		bool has(EntityId entity, ComponentMask compIds) const {
+			return (mask(entity) & compIds) == compIds;
+		}
+
+		template <typename T>
+		T* tryGet(EntityId entityId)
 		{
-			auto& entity = getEntity(e);
+			return static_cast<T*>(get(entityId, typeid(T)));
+			//return static_cast<T*>(entities[entityId].components[idFromType<T>()].pComponent);
+		}
+
+		template <typename T>
+		void remove(EntityId entityId) {
+			remove(entityId, typeid(T));
+		}
+
+		void remove(EntityId entityId, std::type_index type)
+		{
+			auto& entity = getEntity(entityId);
 			auto compId = idFromType(type);
 			if (entity.mask.test(compId)) {
+				signalTable(m_tableRemove, type, *this, Entity{ entityId, this });
+				m_signalRemove.publish(*this, Entity{ entityId, this }, type);
 				entity.mask.set(compId, false);
-				mMasks[entity.id].set(compId, false);
-				destroyComponent(type, entity.components[compId].pComponent);
+				m_masks[entityId].set(compId, false);
+				destroyComponent(type, entity.components[compId].ptr);
 				entity.components[compId] = {};
 			}
 		}
 
-		auto getComponentMaskOfEntity(Entity e) -> const ComponentMask&
+		auto mask(EntityId entityId) const -> ComponentMask
 		{
-			auto& entity = getEntity(e);
-			return entity.mask;
+			return getEntity(entityId).mask;
 		}
 
-		template <typename F>
-		void forEachComponentOfEntity(Entity e, F&& f)
-		{
-			auto& entity = getEntity(e);
-			forComponents(entity, [&](auto& compData) {
-				RuntimeComponent comp;
-				comp.type = compData.type;
-				comp.ptr = compData.pComponent;
-				f(comp);
-			});
+		auto each() -> ProxyEntitiesView;
+		auto eachComponent(EntityId entity) -> ProxyRuntimeComponentView;
+
+		template <std::invocable<EntityId> F>
+		void each(F&& fun) {
+			for (int i = 0; i < m_entities.size(); i++) {
+				if (this->isValid(i))
+					fun(i);
+			}
 		}
 
-		auto makeComponentView(Entity e) -> RuntimeComponentView;
-		auto entitiesView() -> EntitiesView;
+		template <std::invocable<RuntimeComponent> F>
+		void eachComponent(EntityId entityId, F&& fun)
+		{
+			auto& entity = getEntity(entityId);
+			for (int i = 0; i < entity.mask.size(); ++i)
+				if (entity.mask.test(i))
+					fun(entity.components[i]);
+		}
+
+		//auto eachComponent(Entity entity) {
+		//	return this->entities[entity.id].components
+		//		| std::views::filter([](const auto& compData) { return compData.ptr != nullptr; })
+		//		| std::views::transform([](auto& compData) {return RuntimeComponent(compData.type, compData.ptr); }); // poate nu am nevoie de asta
+		//}
+
+		//auto each() {
+		//	return this->entities
+		//		| std::views::filter([this](const auto& entityData) { return !this->m_isFree[entityData.id]; })
+		//		| std::views::transform([this](auto& data) { return ark::Entity(data.id, this); });
+		//}
 
 		template <typename... Ts>
 		void idFromType(ComponentMask& mask) const
 		{
 			static_assert(sizeof...(Ts) > 0);
 			int id = 0;
-			for (auto [type] : this->componentIds) {
+			for (auto type : this->getTypes()) {
 				if (((type == typeid(Ts)) || ...))
 					mask.set(id, true);
 				++id;
 			}
 		}
 
+		template <typename T>
+		int idFromType() const {
+			//return seq_type::id<T>;
+			return idFromType(typeid(T));
+		}
+
 		int idFromType(std::type_index type) const
 		{
-			const auto end = this->componentIds.end();
-			auto pos = std::find(this->componentIds.begin(), end, type);
-			if (pos == end) {
+			auto ids = getTypes();
+			auto pos = std::find(ids.begin(), ids.end(), type);
+			if (pos == ids.end()) {
 				EngineLog(LogSource::ComponentM, LogLevel::Warning, "type not found (%s) ", type.name());
 				return ArkInvalidIndex;
 			}
 			else 
-				return pos - this->componentIds.begin();
+				return pos - ids.begin();
 		}
 
 		auto typeFromId(int id) const -> std::type_index {
-			return this->componentIds[id];
+			return componentIds()[id];
 		}
 
-		void addComponentType(std::type_index type)
+		//template <typename T>
+		//void addType() {
+		//	//this->componentIds()[seq_type::id<T>] = typeid(T);
+		//}
+
+		void addType(std::type_index type)
 		{
 			if (idFromType(type) != ArkInvalidIndex)
 				return;
 			EngineLog(LogSource::ComponentM, LogLevel::Info, "adding type (%s)", type.name());
-			if (componentIds.size() == MaxComponentTypes) {
+			if (m_componentsNum == MaxComponentTypes) {
 				EngineLog(LogSource::ComponentM, LogLevel::Error, 
 					"aborting... nr max of components is &d, trying to add type (%s), no more space", MaxComponentTypes, type.name());
 				// TODO: add abort with grace
 				std::abort();
 			}
-			this->componentIds.emplace_back(type);
+			this->componentIds()[m_componentsNum++] = type;
 		}
 
-		const auto& getTypes() const
+		auto getTypes() const -> std::span<const std::type_index>
 		{
-			return this->componentIds;
+			return { componentIds().data(), static_cast<std::size_t>(m_componentsNum) };
 		}
 
 #if 0 // disable entity children
@@ -296,7 +322,7 @@ namespace ark {
 				childrenTree.at(parent.childrenIndex).push_back(c);
 			} else {
 				childrenTree.emplace_back();
-				parent.childrenIndex = childrenTree.size() - 1;
+				parent.childrenIndex = childrenTree.m_size() - 1;
 				childrenTree.back().push_back(c);
 			}
 		}
@@ -349,129 +375,230 @@ namespace ark {
 
 		~EntityManager()
 		{
-			int id = 0;
-			for (auto& entity : entities) {
-				// destroy components only for alive entities
-				if (!isFree[entity.id]) {
-					forComponents(entity, [this](auto& compData) {
-						auto metadata = meta::getMetadata(compData.type);
-						if (metadata->destructor)
-							metadata->destructor(compData.pComponent);
-					});
-				}
-				id += 1;
-			}
+			this->each([this](EntityId id){
+				this->destroyEntity(id);
+			});
 		}
 
 	private:
+		template <typename T, typename... Args>
+		T& implStaticAdd(EntityId entityId, Args&&... args) {
+			int compId = idFromType<T>();
+			auto& entity = getEntity(entityId);
+			if (entity.mask[compId])
+				return *static_cast<T*>(entity.components[compId].ptr);
+
+			entity.mask.set(compId);
+			m_masks[entity.id].set(compId);
+
+			void* newComponent = m_componentPool->allocate(sizeof(T), alignof(T));
+			new(newComponent) T(std::forward<Args>(args)...);
+			entity.components[compId] = { typeid(T), newComponent };
+
+			signalTable(m_tableAdd, typeid(T), *this, Entity{ entityId, this });
+			m_signalAdd.publish(*this, Entity{ entityId, this }, typeid(T));
+			return *static_cast<T*>(newComponent);
+		}
+
+		void* implRuntimeAdd(EntityId entityId, std::type_index type, EntityId toClone)
+		{
+			int compId = idFromType(type);
+			auto& entity = getEntity(entityId);
+			if (entity.mask.test(compId))
+				return entity.components[compId].ptr;
+			entity.mask.set(compId);
+			m_masks[entity.id].set(compId);
+
+			auto metadata = meta::getMetadata(type);
+			void* newComponent = m_componentPool->allocate(metadata->size, metadata->align);
+			entity.components[compId] = { type, newComponent };
+
+			const void* compToClone = isValid(toClone) ? get(toClone, type) : nullptr;
+			if(compToClone && metadata->copy_constructor)
+				metadata->copy_constructor(newComponent, compToClone);
+			else
+				metadata->default_constructor(newComponent);
+			signalTable(m_tableAdd, type, *this, Entity{ entityId, this });
+			m_signalAdd.publish(*this, Entity{ entityId, this }, type);
+			if (compToClone)
+				signalTable(m_tableClone, type, Entity{ entityId, this }, Entity{ toClone, this });
+			return newComponent;
+		}
+
+		using compIds_t = std::array<std::type_index, MaxComponentTypes>;
+
+		const compIds_t& componentIds() const {
+			return *reinterpret_cast<const compIds_t*>(&m_storageCompIDs);
+		}
+
+		compIds_t& componentIds() {
+			return *reinterpret_cast<compIds_t*>(&m_storageCompIDs);
+		}
+
 		void destroyComponent(std::type_index type, void* component)
 		{
 			auto metadata = meta::getMetadata(type);
 			if(metadata->destructor)
 				metadata->destructor(component);
-			componentPool->deallocate(component, metadata->size, metadata->align);
+			m_componentPool->deallocate(component, metadata->size, metadata->align);
 		}
 
-		void onConstruction(std::type_index type, void* ptr, Entity e)
-		{
-			if (auto it = onConstructionTable.find(type); it != onConstructionTable.end()) {
-				if (auto& func = it->second; func)
-					func(ptr, e);
-			}
-		}
-		void onCopy(std::type_index type, void* ptr, const void* that)
-		{
-			if (auto it = onCopyTable.find(type); it != onCopyTable.end()) {
-				if (auto& func = it->second; func)
-					func(ptr, that);
+		template <typename Table, typename... Args>
+		void signalTable(Table& table, std::type_index type, Args&&... args) {
+			if (auto it = table.find(type); it != table.end()) {
+				auto& func = it->second;
+				func.publish(std::forward<Args>(args)...);
 			}
 		}
 
-	private:
 		struct InternalEntityData {
-			struct ComponentData {
-				std::type_index type = typeid(void);
-				void* pComponent = nullptr;
-			};
 			ComponentMask mask;
 			int id = ArkInvalidID;
-			std::array<ComponentData, MaxComponentTypes> components;
+			std::array<RuntimeComponent, MaxComponentTypes> components;
 		};
 
-		template <typename F>
-		void forComponents(InternalEntityData& data, F&& f) {
-			int i = 0;
-			for (int i = 0; i < data.mask.size(); ++i)
-				if (data.mask.test(i))
-					f(data.components[i]);
-		}
-
-		auto getEntity(Entity e) -> InternalEntityData&
+		auto getEntity(EntityId id) -> InternalEntityData&
 		{
-			return entities.at(e.id);
+			return m_entities.at(id);
+		}
+		auto getEntity(EntityId id) const -> const InternalEntityData&
+		{
+			return m_entities.at(id);
 		}
 
 		using ComponentVector = decltype(InternalEntityData::components);
 
 	private:
-		struct CompTypeWrapper {
-			std::type_index type = typeid(void);
-			inline operator std::type_index() const { return type; }
-		};
-#ifdef NDEBUG
-		std::array<CompTypeWrapper, MaxComponentTypes> buffComponentIds;
-#else
-		// msvc mai aloca 16 bytes in debug wtf???
-		std::array<CompTypeWrapper, MaxComponentTypes + 2> buffComponentIds;
-#endif
-		// component ID is the index
-		// wrapper pentru std::type_index deoarece el nu are default ctor, asa ca i dam typeid(void)
-		std::unique_ptr<std::pmr::monotonic_buffer_resource> resComponentIds;
-		std::pmr::vector<CompTypeWrapper> componentIds;
-		std::unique_ptr<std::pmr::unsynchronized_pool_resource> componentPool;
-		std::vector<InternalEntityData> entities;
-		std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded;
-		std::vector<Entity::ID> mFreeEntities;
-		std::vector<ComponentMask> mMasks; // used by View
-		std::vector<bool> isFree;
-		std::unordered_map<std::type_index, std::function<void(void*, Entity)>> onConstructionTable;
-		std::unordered_map<std::type_index, std::function<void(void*, const void*)>> onCopyTable;
+		using storageCompIds_t = std::aligned_storage_t<sizeof(compIds_t), alignof(compIds_t)>;
+		storageCompIds_t m_storageCompIDs;
+		int m_componentsNum = 0;
+		std::unique_ptr<std::pmr::unsynchronized_pool_resource> m_componentPool;
+		std::vector<InternalEntityData> m_entities;
+		std::vector<ComponentMask> m_masks; // used by View
+		std::vector<Entity::ID> m_freeEntities; // as putea folosi un implicit list (int m_nextFree;) vezi entt: you dont have to store free entitites sau ceva de genu
+		std::vector<bool> m_isFree; // pentru verificate rapida
 
-		friend struct RuntimeComponentIterator;
-		friend struct EntityIterator;
-		friend class RuntimeComponentView;
-		friend class RuntimeComponentViewLive;
-		friend class EntitiesView;
-		friend class Registry;
+		Signal<void(EntityManager&, Entity)> m_signalCreate;
+		Signal<void(EntityManager&, Entity)> m_signalDestroy;
+		Signal<void(EntityManager&, Entity, std::type_index)> m_signalAdd; // any comp. add, type_index is type of component added
+		Signal<void(EntityManager&, Entity, std::type_index)> m_signalRemove; // any comp. remove, analog
+
+		template <typename F>
+		using SignalTable = std::unordered_map<std::type_index, Signal<F>>;
+
+		SignalTable<void(EntityManager&, Entity)> m_tableAdd;
+		SignalTable<void(EntityManager&, Entity)> m_tableRemove;
+		SignalTable<void(Entity, Entity)> m_tableClone;
+
+		friend struct ProxyRuntimeComponentIterator;
+		friend struct ProxyEntityIterator;
+		friend class ProxyRuntimeComponentView;
+		friend class ProxyEntitiesView;
 		friend class Entity;
 		template <typename...> friend class View;
 		template <bool, typename...> friend class IteratorView;
 		template <bool, typename...> friend class ProxyView;
-		template <typename T> struct comp_tag { int id; };
+		template <typename...> friend struct IdTable;
+	};
+
+	template <typename T> struct _tag { int id; };
+
+	template <typename ...Ts>
+	struct IdTable {
+		std::tuple<_tag<Ts>...> m_ids;
+		EntityManager* m_manager = nullptr;
+	public:
+		IdTable() = default;
+
+		void set(EntityManager& man) { 
+			m_manager = &man; 
+			((std::get<_tag<Ts>>(m_ids).id = m_manager->idFromType(typeid(Ts))), ...);
+		}
+		void set(EntityManager* man) {
+			set(*man);
+		}
+
+		IdTable(EntityManager* man) : m_manager(man) { 
+			set(man);
+		}
+
+		IdTable(const IdTable&) = default;
+		IdTable& operator=(const IdTable&) = default;
+
+		template <typename... Us>
+		IdTable(IdTable<Us...> table) {
+			m_manager = table.m_manager;
+			static_assert(sizeof...(Us) >= sizeof...(Ts), "copia nu poate sa aiba mai multe argumente");
+			((std::get<_tag<Ts>>(m_ids).id = std::get<_tag<Ts>>(table.m_ids).id), ...);
+		}
+
+		template <typename... Us>
+		IdTable& operator=(IdTable<Us...> table) {
+			m_manager = table.m_manager;
+			static_assert(sizeof...(Us) >= sizeof...(Ts), "copia nu poate sa aiba mai multe argumente");
+			((std::get<_tag<Ts>>(m_ids).id = std::get<_tag<Ts>>(table.m_ids).id), ...);
+			return *this;
+		}
+
+		template <typename T>
+		bool has(ark::EntityId id) {
+			return m_manager->m_entities[id].mask.test(std::get<_tag<T>>(m_ids).id);
+		}
+
+		template <typename T>
+		T* impl_get(ark::EntityId id) {
+			return static_cast<T*>(m_manager->m_entities[id].components[std::get<_tag<T>>(m_ids).id].ptr);
+		}
+
+		template <typename T>
+		T* get(decltype(EntityManager::m_entities)::iterator iter) {
+			return static_cast<T*>(iter->components[std::get<_tag<T>>(m_ids).id].ptr);
+		}
+
+		//template <typename... Us>
+		//decltype(auto) get(ark::Entity entity) {
+		//	static_assert(sizeof...(Us) > 0);
+		//	if constexpr (sizeof...(Us) == 1)
+		//		return ((*get<Us>(entity.getID())), ...);
+		//	else
+		//		return std::tuple<Us&...>(*get<Us>(entity.getID())...);
+		//}
+
+		template <typename... Us>
+		decltype(auto) get(ark::EntityId entity) {
+			if constexpr (sizeof...(Us) == 1)
+				return ((*impl_get<Us>(entity)), ...);
+			else if constexpr (sizeof...(Us) > 1)
+				return std::tuple<Us&...>(*impl_get<Us>(entity)...);
+			else if constexpr (sizeof...(Ts) == 1)
+				return ((*impl_get<Ts>(entity)), ...);
+			else
+				return std::tuple<Ts&...>(*impl_get<Ts>(entity)...);
+		}
 	};
 
 	template <bool bRetEnt=false, typename... Cs>
 	class IteratorView {
-		using Iter = decltype(EntityManager::entities)::iterator;
+		using Iter = decltype(EntityManager::m_entities)::iterator;
 		using Self = IteratorView;
 		EntityManager* m_manager;
 		ComponentMask m_mask;
-		std::tuple<EntityManager::comp_tag<Cs>...>* m_ids;
+		IdTable<Cs...>* m_ids;
 		Iter m_iter;
-		decltype(EntityManager::mMasks)::iterator m_iterMask;
+		decltype(EntityManager::m_masks)::iterator m_iterMask;
 	public:
 
 		IteratorView(Iter iter, ComponentMask mask, EntityManager* man, decltype(m_ids) ids = nullptr)
 			: m_iter(iter), m_mask(mask), m_manager(man), m_ids(ids)
 		{
-			m_iterMask = m_manager->mMasks.begin();
-			if (m_iter != m_manager->entities.end() && (m_iter->mask & m_mask) != m_mask)
+			m_iterMask = m_manager->m_masks.begin();
+			if (m_iter != m_manager->m_entities.end() && (m_iter->mask & m_mask) != m_mask)
 				this->operator++();
 		}
 
 		auto operator++() noexcept {
 			++m_iter;
-			while (m_iter < m_manager->entities.end() && (*(++m_iterMask) & m_mask) != m_mask) {
+			while (m_iter < m_manager->m_entities.end() && (*(++m_iterMask) & m_mask) != m_mask) {
 				++m_iter;
 			}
 			return *this;
@@ -485,15 +612,13 @@ namespace ark {
 			}
 			else if constexpr (bRetEnt) {
 				auto entity = ark::Entity{ m_iter->id, m_manager };
-				return std::tuple<ark::Entity, Cs&...>(entity,
-					*static_cast<Cs*>(m_iter->components[std::get<EntityManager::comp_tag<Cs>>(*m_ids).id].pComponent)...);
+				return std::tuple<ark::Entity, Cs&...>(entity, *m_ids->get<Cs>(m_iter)...);
 			}
 			else {
 				if constexpr (sizeof...(Cs) == 1)
-					return (*static_cast<Cs*>(m_iter->components[std::get<EntityManager::comp_tag<Cs>>(*m_ids).id].pComponent), ...);
+					return (*m_ids->get<Cs>(m_iter), ...);
 				else
-					return std::tuple<Cs&...>(
-						*static_cast<Cs*>(m_iter->components[std::get<EntityManager::comp_tag<Cs>>(*m_ids).id].pComponent)...);
+					return std::tuple<Cs&...>(*m_ids->get<Cs>(m_iter)...);
 			}
 		}
 
@@ -512,21 +637,20 @@ namespace ark {
 	class ProxyView {
 		EntityManager* m_manager;
 		ComponentMask m_mask;
-		std::tuple<EntityManager::comp_tag<Cs>...> m_ids;
+		IdTable<Cs...> m_ids;
+
 	public:
-		ProxyView(ComponentMask mask, EntityManager* man, decltype(m_ids)* ids = nullptr) 
-			: m_mask(mask), m_manager(man)
-		{
-			if (ids)
-				m_ids = *ids;
-			else
-				((std::get<EntityManager::comp_tag<Cs>>(m_ids).id = m_manager->idFromType(typeid(Cs))), ...);
-		}
+		ProxyView(ComponentMask mask, EntityManager* man, IdTable<Cs...> ids) 
+			: m_mask(mask), m_manager(man), m_ids(ids) { }
+
+		ProxyView(ComponentMask mask, EntityManager* man) 
+			: m_mask(mask), m_manager(man) { }
+
 		auto begin() {
-			return IteratorView<bRetEnt, Cs...>(m_manager->entities.begin(), m_mask, m_manager, &m_ids);
+			return IteratorView<bRetEnt, Cs...>(m_manager->m_entities.begin(), m_mask, m_manager, &m_ids);
 		}
 		auto end() {
-			return IteratorView<bRetEnt, Cs...>(m_manager->entities.end(), m_mask, m_manager, &m_ids);
+			return IteratorView<bRetEnt, Cs...>(m_manager->m_entities.end(), m_mask, m_manager, &m_ids);
 		}
 	};
 
@@ -546,75 +670,68 @@ namespace ark {
 	class View {
 		ComponentMask m_mask;
 		EntityManager* m_manager = nullptr;
-		std::tuple<EntityManager::comp_tag<Cs>...> m_ids;
-		template <typename T>
-		T* _getComp(Entity::ID id) {
-			return static_cast<T*>(m_manager->entities[id].components[std::get<EntityManager::comp_tag<T>>(m_ids).id].pComponent);
-		}
+		IdTable<Cs...> m_ids;
 	public:
 
 		View() = default;
 
-		View(EntityManager& man) : m_manager(&man) {
+		View(EntityManager& man) : m_manager(&man), m_ids(&man) {
 			m_manager->idFromType<Cs...>(m_mask);
-			((std::get<EntityManager::comp_tag<Cs>>(m_ids).id = m_manager->idFromType(typeid(Cs))), ...);
 		}
 
 		auto begin() noexcept {
-			return IteratorView<false, Cs...>(m_manager->entities.begin(), m_mask, m_manager, &m_ids);
+			return IteratorView<false, Cs...>(m_manager->m_entities.begin(), m_mask, m_manager, &m_ids);
 		}
 		auto end() noexcept {
-			return IteratorView<false, Cs...>(m_manager->entities.end(), m_mask, m_manager, &m_ids);
+			return IteratorView<false, Cs...>(m_manager->m_entities.end(), m_mask, m_manager, &m_ids);
 		}
 
 		auto each() {
-			return ProxyView<true, Cs...>(m_mask, m_manager, &m_ids);
+			return ProxyView<true, Cs...>(m_mask, m_manager, m_ids);
 		}
+
+		//auto filter_view() {
+		//	return m_manager->entities 
+		//		| std::views::filter([this](const auto& entity) { return (entity.mask & this->m_mask) == this->m_mask; });
+		//}
+
+		//auto each() {
+		//	return filer_view()| std::views::transform([this](auto& entity) {
+		//		return std::tuple<ark::Entity, Cs&...>(ark::Entity(entity.id, this->m_manager), *m_ids.get<Cs>()...);
+		//	});
+		//}
 
 		template <std::same_as<ark::Entity> TEntity, ConceptComponent...  Ts>
 		auto each() {
 			if constexpr (sizeof...(Ts) == 0)
 				return ProxyView<true>(m_mask, m_manager);
 			else
-				return ProxyView<true, Ts...>(m_mask, m_manager);
+				return ProxyView<true, Ts...>(m_mask, m_manager, m_ids);
 		}
 
 		template <ConceptComponent T, ConceptComponent... Ts>
 		requires !std::same_as<ark::Entity, T>
 		auto each() {
-			return ProxyView<false, T, Ts...>(m_mask, m_manager);
+			return ProxyView<false, T, Ts...>(m_mask, m_manager, m_ids);
 		}
 
 		template <ConceptComponent... Ts>
-		decltype(auto) get(ark::Entity entity) {
-			if constexpr (sizeof...(Ts) == 0) {
-				if constexpr (sizeof...(Cs) == 1) {
-					return (*_getComp<Cs>(entity.getID()), ...);
-				}
-				else {
-					return std::tuple<Cs&...>(*_getComp<Cs>(entity.getID())...);
-				}
-			}
-			else if constexpr (sizeof... (Ts) == 1){
-				return (*_getComp<Ts>(entity.getID()), ...);
-			}
-			else {
-				return std::tuple<Ts&...>(*_getComp<Ts>(entity.getID())...);
-			}
+		decltype(auto) get(ark::EntityId entity) {
+			return m_ids.get<Ts...>(entity);
 		}
 
 		template <typename F>
 		void each(F&& fun) noexcept {
 			int index = 0;
-			for (auto& data : m_manager->entities) {
-				if (!m_manager->isFree[index] && (data.mask & m_mask) == m_mask) {
+			for (auto& data : m_manager->m_entities) {
+				if (!m_manager->m_isFree[index] && (data.mask & m_mask) == m_mask) {
 					auto entity = ark::Entity{ data.id, m_manager };
 					if constexpr (std::invocable<F, ark::Entity>)
 						fun(entity);
 					else if constexpr (std::invocable<F, ark::Entity, Cs&...>)
-						fun(entity, *_getComp<Cs>(entity.getID())...);
+						fun(entity, m_ids.get<Cs>(entity)...);
 					else if constexpr (std::invocable<F, Cs&...>)
-						fun(*_getComp<Cs>(entity.getID())...);
+						fun(m_ids.get<Cs>(entity)...);
 					else
 						static_assert(std::invocable<F, ark::Entity>, "View.each error: callback-ul are argumnete gresite");
 				}
@@ -623,209 +740,194 @@ namespace ark {
 		}
 	};
 
-	struct RuntimeComponentIterator {
-		using InternalIterator = decltype(EntityManager::InternalEntityData::components)::iterator;
-		InternalIterator iter;
-		InternalIterator mEnd;
-	public:
-		RuntimeComponentIterator(decltype(iter) iter, decltype(mEnd) mEnd) :iter(iter), mEnd(mEnd) {}
+	template <ConceptComponent... Ts>
+	auto EntityManager::view() -> ark::View<Ts...> {
+		(addType(typeid(Ts)), ...);
+		return View<Ts...>(*this);
+	}
 
-		RuntimeComponentIterator& operator++()
+	struct ProxyRuntimeComponentIterator {
+		using InternalIterator = decltype(EntityManager::InternalEntityData::components)::iterator;
+		InternalIterator m_iter;
+		InternalIterator m_end;
+	public:
+		auto& operator++()
 		{
-			++iter;
-			while (iter < mEnd && !iter->pComponent)
-				++iter;
+			++m_iter;
+			while (m_iter < m_end && !m_iter->ptr)
+				++m_iter;
 			return *this;
 		}
+
+		ProxyRuntimeComponentIterator(decltype(m_iter) iter, decltype(m_end) mEnd) :m_iter(iter), m_end(mEnd) { 
+			if (m_iter != m_end && !m_iter->ptr)
+				++(*this);
+		}
+
 
 		RuntimeComponent operator*()
 		{
-			return { iter->type, iter->pComponent };
+			return *m_iter;
 		}
 
-		friend bool operator==(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
+		friend bool operator==(const ProxyRuntimeComponentIterator& a, const ProxyRuntimeComponentIterator& b) noexcept
 		{
-			return a.iter == b.iter;
+			return a.m_iter == b.m_iter;
 		}
 
-		friend bool operator!=(const RuntimeComponentIterator& a, const RuntimeComponentIterator& b) noexcept
+		friend bool operator!=(const ProxyRuntimeComponentIterator& a, const ProxyRuntimeComponentIterator& b) noexcept
 		{
-			return a.iter != b.iter;
+			return a.m_iter != b.m_iter;
 		}
 	};
 
-	class RuntimeComponentView {
-		EntityManager::InternalEntityData& mData;
+	class ProxyRuntimeComponentView {
+		EntityManager::InternalEntityData& m_data;
 	public:
-		RuntimeComponentView(decltype(mData) mData) : mData(mData) {}
-		auto begin() -> RuntimeComponentIterator { return { mData.components.begin(), mData.components.end() }; }
-		auto end() -> RuntimeComponentIterator { return { mData.components.end(), mData.components.end() }; }
+		ProxyRuntimeComponentView(decltype(m_data) data) : m_data(data) {}
+		auto begin() -> ProxyRuntimeComponentIterator { return { m_data.components.begin(), m_data.components.end() }; }
+		auto end() -> ProxyRuntimeComponentIterator { return { m_data.components.end(), m_data.components.end() }; }
 	};
 
-	struct EntityIterator {
-		using InternalIter = decltype(EntityManager::entities)::iterator;
-		mutable InternalIter mIter;
-		mutable InternalIter mEnd;
-		EntityManager& mManager;
+	struct ProxyEntityIterator {
+		using InternalIter = decltype(EntityManager::m_entities)::iterator;
+		mutable InternalIter m_iter;
+		mutable InternalIter m_end;
+		EntityManager& m_manager;
 	public:
-		EntityIterator(InternalIter iter, InternalIter end, EntityManager& manager) 
-			:mIter(iter), mEnd(end), mManager(manager) {}
 
-		EntityIterator& operator++() noexcept
+		auto& operator++() noexcept
 		{
-			++mIter;
-			while(mIter < mEnd && mManager.isFree[mIter->id])
-				++mIter;
+			++m_iter;
+			while(m_iter < m_end && m_manager.m_isFree[m_iter->id])
+				++m_iter;
 			return *this;
 		}
 
-		const EntityIterator& operator++() const noexcept
+		ProxyEntityIterator(InternalIter iter, InternalIter end, EntityManager& manager) 
+			: m_iter(iter), m_end(end), m_manager(manager) {
+			if(m_iter < m_end && m_manager.m_isFree[m_iter->id])
+				++(*this);
+		}
+
+		const auto& operator++() const noexcept
 		{
-			++mIter;
-			while(mIter < mEnd && mManager.isFree[mIter->id])
-				++mIter;
+			++m_iter;
+			while(m_iter < m_end && m_manager.m_isFree[m_iter->id])
+				++m_iter;
 			return *this;
 		}
 
 		Entity operator*() noexcept
 		{
-			return { mIter->id, &mManager };
+			return { m_iter->id, &m_manager };
 		}
 
 		const Entity operator*() const noexcept
 		{
-			return { mIter->id, &mManager };
+			return { m_iter->id, &m_manager };
 		}
 
-		friend bool operator==(const EntityIterator& a, const EntityIterator& b) noexcept
+		friend bool operator==(const ProxyEntityIterator& a, const ProxyEntityIterator& b) noexcept
 		{
-			return a.mIter == b.mIter;
+			return a.m_iter == b.m_iter;
 		}
 
-		friend bool operator!=(const EntityIterator& a, const EntityIterator& b) noexcept
+		friend bool operator!=(const ProxyEntityIterator& a, const ProxyEntityIterator& b) noexcept
 		{
-			return a.mIter != b.mIter;
+			return a.m_iter != b.m_iter;
 		}
 	};
 
 	// live view
-	class EntitiesView {
-		EntityManager& mManager;
+	class ProxyEntitiesView {
+		EntityManager& m_manager;
 	public:
-		EntitiesView(EntityManager& m) : mManager(m) {}
+		ProxyEntitiesView(EntityManager& m) : m_manager(m) {}
 
-		auto begin() -> EntityIterator { return {mManager.entities.begin(), mManager.entities.end(), mManager}; }
-		auto end() -> EntityIterator { return {mManager.entities.end(), mManager.entities.end(), mManager}; }
-		auto begin() const -> const EntityIterator { return {mManager.entities.begin(), mManager.entities.end(), mManager}; }
-		auto end() const -> const EntityIterator { return {mManager.entities.end(), mManager.entities.end(), mManager}; }
+		auto begin() -> ProxyEntityIterator { return {m_manager.m_entities.begin(), m_manager.m_entities.end(), m_manager}; }
+		auto end() -> ProxyEntityIterator { return {m_manager.m_entities.end(), m_manager.m_entities.end(), m_manager}; }
+		auto begin() const -> const ProxyEntityIterator { return {m_manager.m_entities.begin(), m_manager.m_entities.end(), m_manager}; }
+		auto end() const -> const ProxyEntityIterator { return {m_manager.m_entities.end(), m_manager.m_entities.end(), m_manager}; }
 	};
 
-	inline auto EntityManager::makeComponentView(Entity e) -> RuntimeComponentView
-	{
-		return RuntimeComponentView{getEntity(e)};
-	}
-	inline auto EntityManager::entitiesView() -> EntitiesView
-	{
-		return EntitiesView{*this};
+	inline ProxyRuntimeComponentView EntityManager::eachComponent(EntityId entityId){
+		return {getEntity(entityId)};
 	}
 
-	//inline EntityManager EntityManager::cloneThisManager(
-	//	std::vector<std::pair<Entity::ID, ComponentMask>>& mComponentsAdded,
-	//	std::pmr::memory_resource* upstreamComponent)
-	//{
-	//	auto manager = EntityManager(mComponentsAdded, upstreamComponent);
-	//	manager.componentIds = this->componentIds;
-	//	// tre facut MANUAL?!
-	//	//manager.onConstructionTable = this->onConstructionTable;
-	//	for (Entity entity : this->entitiesView()) {
-	//		Entity clone = manager.createEntity();
-	//		for (auto [type, ptr] : entity.runtimeComponentView()) {
-	//			auto [newComp, /*isAlready*/_] = manager.implAddComponentOnEntity(clone, type, false, ptr);
-	//			manager.onConstruction(type, newComp, clone);
-	//			// ar trebui si asta pe langa .onCtor()
-	//			//manager.onCopy(type, newComp, clone, ptr);
-	//		}
-	//	}
-	//	return manager;
-	//}
+	inline ProxyEntitiesView EntityManager::each()
+	{
+		return ProxyEntitiesView{*this};
+	}
 
 	/* Entity handle definitions */
 
 	inline bool Entity::isValid() const {
-		return manager != nullptr && !manager->isFree[this->id];
+		return manager != nullptr && manager->isValid(*this);
+	}
+
+	template <ConceptComponent T>
+	requires std::is_aggregate_v<T>
+	inline T& Entity::add(T&& comp)
+	{
+		return manager->add<T>(*this, std::forward<T>(comp));
 	}
 
 	template<ConceptComponent T, typename ...Args>
-	inline T& Entity::addComponent(Args&& ...args)
+	inline T& Entity::add(Args&& ...args)
 	{
-		return manager->addComponentOnEntity<T>(*this, std::forward<Args>(args)...);
+		return manager->add<T>(*this, std::forward<Args>(args)...);
+	} 
+
+	inline void Entity::add(std::type_index type, Entity entity)
+	{
+		manager->add(*this, type, entity);
 	}
 
-	template<ConceptComponent T>
-	inline T& Entity::getComponent()
+	inline void* Entity::get(std::type_index type)
 	{
-		auto comp = manager->getComponentOfEntity<T>(*this);
-		if (!comp)
-			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
-		return *comp;
-	}
-
-	template<ConceptComponent T>
-	inline const T& Entity::getComponent() const
-	{
-		auto comp = manager->getComponentOfEntity<T>(*this);
-		if (!comp)
-			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
-		return *comp;
-	}
-
-	inline void* Entity::getComponent(std::type_index type)
-	{
-		auto comp = manager->getComponentOfEntity(*this, type);
+		auto comp = manager->get(*this, type);
 		if(!comp)
 			EngineLog(LogSource::EntityM, LogLevel::Error, ">:( \n going to crash..."); // going to crash...
 		return comp;
 	}
 
-	inline void Entity::addComponent(std::type_index type)
-	{
-		manager->addComponentOnEntity(*this, type);
-	}
-
 	template <typename F>
 	requires std::invocable<F, RuntimeComponent>
-	inline void Entity::forEachComponent(F&& f)
+	inline void Entity::eachComponent(F&& f)
 	{
-		manager->forEachComponentOfEntity(*this, std::forward<F>(f));
+		manager->eachComponent(*this, std::forward<F>(f));
 	}
 
 	template<ConceptComponent T>
-	inline T* Entity::tryGetComponent()
+	[[nodiscard]]
+	inline T* Entity::tryGet()
 	{
-		return manager->getComponentOfEntity<T>(*this);
+		return manager->tryGet<T>(*this);
 	}
 
 	template<ConceptComponent T>
-	inline const T* Entity::tryGetComponent() const
+	[[nodiscard]]
+	inline const T* Entity::tryGet() const
 	{
-		return &this->getComponent<T>();
+		return manager->tryGet<T>(*this);
 	}
 
 	template <ConceptComponent T>
-	inline void Entity::removeComponent()
+	inline void Entity::remove()
 	{
-		this->removeComponent(typeid(T));
+		this->remove(typeid(T));
 	}
 
-	inline void Entity::removeComponent(std::type_index type)
+	inline void Entity::remove(std::type_index type)
 	{
-		manager->removeComponentOfEntity(*this, type);
+		manager->remove(*this, type);
 	}
 
-	inline auto Entity::runtimeComponentView() -> RuntimeComponentView 
+	inline auto Entity::eachComponent() -> ProxyRuntimeComponentView
 	{
-		return manager->makeComponentView(*this);
+		return manager->eachComponent(*this);
 	}
 
-	inline auto Entity::getComponentMask() const -> const ComponentMask& { return manager->getComponentMaskOfEntity(*this); }
+	inline auto Entity::getMask() const -> ComponentMask { return manager->mask(*this); }
 }

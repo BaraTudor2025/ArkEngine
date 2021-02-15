@@ -204,6 +204,7 @@
     <ClInclude Include="ScriptingSystem.hpp" />
     <ClInclude Include="Scripts.hpp" />
     <ClInclude Include="src\ark\core\Core.hpp" />
+    <ClInclude Include="src\ark\core\Signal.hpp" />
     <ClInclude Include="src\ark\core\Engine.hpp" />
     <ClInclude Include="Quad.hpp" />
     <ClInclude Include="SOAvector.hpp" />
@@ -221,7 +222,6 @@
     <ClInclude Include="src\ark\ecs\Meta.hpp" />
     <ClInclude Include="src\ark\ecs\Querry.hpp" />
     <ClInclude Include="src\ark\ecs\Renderer.hpp" />
-    <ClInclude Include="src\ark\ecs\Scene.hpp" />
     <ClInclude Include="src\ark\ecs\SceneInspector.hpp" />
     <ClInclude Include="src\ark\ecs\SerdeJsonDirector.hpp" />
     <ClInclude Include="src\ark\ecs\System.hpp" />

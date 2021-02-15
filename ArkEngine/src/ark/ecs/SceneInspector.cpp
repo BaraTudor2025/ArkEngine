@@ -3,7 +3,6 @@
 
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/EntityManager.hpp"
-#include "ark/ecs/Scene.hpp"
 #include "ark/ecs/components/Transform.hpp"
 #include "ark/ecs/System.hpp"
 #include "ark/gui/ImGui.hpp"
@@ -87,7 +86,7 @@ namespace ark {
 		if (ImGui::TreeNode("Systems:")) {
 			for (const auto& uSys : registry.getSystems()) {
 				const System* system = uSys.get();
-				std::string text = tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().size(), system->getComponentNames().size());
+				std::string text = tfm::format("%s: E(%d) C(%d)", system->name.data(), system->getEntities().m_size(), system->getComponentNames().m_size());
 				if (ImGui::TreeNodeEx(text.c_str(), ImGuiTreeNodeFlags_CollapsingHeader)) {
 					float indent_w = 10;
 					ImGui::Indent(indent_w);
@@ -124,7 +123,7 @@ namespace ark {
 				}
 				ImGui::Separator();
 
-				const std::string text = tfm::format("%s: C(%d)", entity.name.c_str(), entity.components.size());
+				const std::string text = tfm::format("%s: C(%d)", entity.name.c_str(), entity.components.m_size());
 				if (ImGui::TreeNode(text.c_str())) {
 					const float indent_w = 7;
 					ImGui::Indent(indent_w);
@@ -237,8 +236,8 @@ namespace ark {
 			// select an entity from list
 			static ark::Entity selectedEntity;
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
-			for (const auto entity : entityManager.entitiesView()) {
-				const auto& name = entity.getComponent<TagComponent>().name;
+			for (const auto entity : entityManager.each()) {
+				const auto& name = entity.get<ark::TagComponent>().name;
 				if (ImGui::Selectable(name.c_str(), selectedEntity == entity))
 					selectedEntity = entity;
 			}
@@ -248,42 +247,44 @@ namespace ark {
 			// edit selected entity
 			ImGui::BeginChild("ark_entity_editor_right_pane", ImVec2(0, 0), false);
 			if (selectedEntity.isValid()) {
-
 				int widgetId = 0;
 				ImGui::TextUnformatted("Components:");
 				// edit component
-				for (ark::RuntimeComponent component : selectedEntity.runtimeComponentView()) {
+				for (ark::RuntimeComponent component : selectedEntity.eachComponent()) {
 					ImGui::AlignTextToFramePadding();
 					const auto* mdata = ark::meta::getMetadata(component.type);
 					auto flags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap | ImGuiTreeNodeFlags_SpanAvailWidth;
 					if (ImGui::TreeNodeEx(mdata->name.c_str(), flags)) {
 						// can't delete Tag or Transform
+						bool deleted = false;
 						if (component.type != typeid(TagComponent) && component.type != typeid(ark::Transform)) {
-							AlignButtonToRight("remove component", [&]() {
-								entityManager.safeRemoveComponent(selectedEntity, component.type);
+							deleted = AlignButtonToRight("remove component", [&]() {
+								selectedEntity.remove(component.type);
 							});
 						}
-						// maybe use custom function
-						if (auto render = mdata->func<bool(int*, void*)>(serviceName))
-							render(&widgetId, component.ptr);
-						else if(ark::meta::hasProperties(component.type))
-							renderPropertiesOfType(component.type, &widgetId, component.ptr);
+						if (!deleted) {
+							// maybe use custom function
+							if (auto render = mdata->func<bool(int*, void*)>(serviceName))
+								render(&widgetId, component.ptr);
+							else if (ark::meta::hasProperties(component.type))
+								renderPropertiesOfType(component.type, &widgetId, component.ptr);
+						}
 						ImGui::TreePop();
 					}
 					ImGui::Separator();
 				}
 
 				// list of components that can be added
-				const auto& types = entityManager.getComponentTypes();
+				const auto& types = entityManager.getTypes();
 				auto componentGetter = [](void* data, int index, const char** out_text) -> bool {
-					using CompVecT = std::decay_t<decltype(std::declval<Registry>().getComponentTypes())>;
+					using CompVecT = std::decay_t<decltype(std::declval<ark::EntityManager>().getTypes())>;
 					const auto& types = *static_cast<const CompVecT*> (data);
-					*out_text = ark::meta::getMetadata(types.at(index))->name.c_str();
+					*out_text = ark::meta::getMetadata(types[index])->name.c_str();
 					return true;
 				};
 				int componentItemIndex;
 				if (ImGui::Combo("add_component", &componentItemIndex, componentGetter, (void*)(&types), types.size())) {
-					selectedEntity.addComponent(types.at(componentItemIndex));
+					selectedEntity.add(types[componentItemIndex]);
 				}
 			}
 			else {
@@ -465,7 +466,7 @@ namespace ark {
 		{ typeid(sf::Vector2u), [](std::string_view name, const void* pField, EditorOptions opt) {
 			sf::Vector2u vec = *static_cast<const sf::Vector2u*>(pField);
 			ArkSetFieldName(name);
-			int v[2] = {vec.x, vec.y};
+			int v[2] = {(int)vec.x, (int)vec.y};
 			if (ImGui::InputInt2("", v, ImGuiInputTextFlags_EnterReturnsTrue)) {
 				vec.x = v[0] >= 0? v[0] : 0;
 				vec.y = v[1] >= 0? v[1] : 0;

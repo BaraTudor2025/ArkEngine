@@ -13,9 +13,10 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/System/String.hpp>
 
+#include <ark/core/Signal.hpp>
 #include <ark/core/Engine.hpp>
 #include <ark/core/State.hpp>
-#include <ark/ecs/Scene.hpp>
+#include <ark/ecs/EntityManager.hpp>
 #include <ark/ecs/SceneInspector.hpp>
 #include <ark/util/Util.hpp>
 #include <ark/util/RandomNumbers.hpp>
@@ -146,7 +147,7 @@ ARK_REGISTER_TYPE(gScriptGroupName, MoveAnimatedPlayer, registerServiceDefault<M
 {
 	auto* type = ark::meta::getMetadata(typeid(MoveAnimatedPlayer));
 	type->data<ark::SceneInspector::VectorOptions>(ark::SceneInspector::serviceOptions, {
-			{.property_name = "scale", .drag_speed = 0.001}
+			{.property_name = "scale", .drag_speed = 0.001f}
 		});
 	return members<MoveAnimatedPlayer>(
 		member_property("speed", &MoveAnimatedPlayer::speed),
@@ -226,8 +227,8 @@ public:
 class BasicState : public ark::State {
 
 protected:
+	ark::EntityManager manager;
 	ark::SystemManager systems;
-	ark::Registry manager;
 	sf::Sprite screen;
 	sf::Texture screenImage;
 	bool takenSS = false;
@@ -257,7 +258,6 @@ public:
 
 	void update() override
 	{
-		manager.update();
 		if (!pauseScene)
 			systems.update();
 	}
@@ -322,7 +322,7 @@ public:
 			if (da.time <= sf::Time::Zero) {
 				if (da.action) {
 					auto action = std::move(da.action);
-					entity.removeComponent<DelayedAction>();
+					entity.remove<DelayedAction>();
 					action(entity);
 				}
 			}
@@ -358,7 +358,7 @@ public:
 			if (ev.key.code == std::tolower(key) - 'a'){
 				auto e = entity();
 				ark::serde::serializeEntity(e);
-				GameLog("just serialized entity %s", e.getComponent<TagComponent>().name);
+				GameLog("just serialized entity %s", e.get<TagComponent>().name);
 			}
 		}
 	}
@@ -388,10 +388,10 @@ private:
 		return e;
 	}
 
-	Registry cloneRegistry() {
-		auto newManager = Registry();
-		for (auto type : this->manager.getComponentTypes())
-			newManager.addComponentType(type);
+	//Registry cloneRegistry() {
+	//	auto newManager = Registry();
+	//	for (auto type : this->manager.getComponentTypes())
+	//		newManager.addComponentType(type);
 		// TODO
 		//for (auto type : this->manager.getDefaultComponentTypes())
 			//newManager.addDefaultComponent(type);
@@ -407,13 +407,19 @@ private:
 		//		//manager.onCopy(type, newComp, clone, ptr);
 		//	}
 		//}
-		return std::move(newManager);
-	}
+	//	return std::move(newManager);
+	//}
 
 	void init() override
 	{
-		manager.addDefaultComponent<ark::TagComponent>();
-		manager.addDefaultComponent<ark::Transform>();
+		manager.onCreate().connect<&EntityManager::add<Transform>>();
+
+		manager.onCreate().connect<&EntityManager::add<TagComponent>>();
+		manager.onAdd<TagComponent>().connect(TagComponent::onAdd);
+
+		manager.onAdd<ScriptingComponent>().connect(ScriptingComponent::onAdd);
+		manager.onCopy<ScriptingComponent>().connect(ScriptingComponent::onClone);
+
 		manager.addAllComponentTypesFromMetaGroup();
 
 		systems.addSystem<PointParticleSystem>();
@@ -429,10 +435,7 @@ private:
 		auto* imguiState = getState<ImGuiLayer>();
 		imguiState->addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
 
-		manager.onConstruction<TagComponent>(TagComponent::onConstruction());
-		manager.onConstruction<ScriptingComponent>();
-		manager.onConstruction<LuaScriptingComponent>(systems.addSystem<LuaScriptingSystem>());
-		manager.onCopy<ScriptingComponent>(ScriptingComponent::onCopy);
+		manager.onAdd<LuaScriptingComponent>().connect(LuaScriptingComponent::onAdd, systems.addSystem<LuaScriptingSystem>());
 
 		button = makeEntity("button");
 		mouseTrail = makeEntity("mouse_trail");
@@ -608,13 +611,13 @@ class ChildTestScene : public TemplateScene {
 		grandson.addComponent<Transform>();
 
 		std::vector<PointParticles*> pps = parent->getChildrenComponents<PointParticles>();
-		std::cout << pps.size() << std::endl; // 3
+		std::cout << pps.m_size() << std::endl; // 3
 		auto cs = parent->getChildrenComponents<Transform>();
-		std::cout << cs.size() << std::endl; // 1
+		std::cout << cs.m_size() << std::endl; // 1
 		auto none = parent->getChildrenComponents<MeshComponent>();
-		std::cout << none.size() << std::endl; // 0
+		std::cout << none.m_size() << std::endl; // 0
 		auto none2 = child2->getChildrenComponents<PointParticles>();
-		std::cout << none2.size() << std::endl; // 0
+		std::cout << none2.m_size() << std::endl; // 0
 	}
 
 	Entity* parent;
@@ -624,6 +627,27 @@ class ChildTestScene : public TemplateScene {
 };
 #endif
 
+class LoggerEntityManager {
+	std::vector<ScopedConnection> m_conns;
+public:
+	LoggerEntityManager() = default;
+	LoggerEntityManager(ark::EntityManager& man) {
+		this->connect(man);
+	}
+	void connect(ark::EntityManager& man) {
+		m_conns.push_back(man.onCreate().connect([](ark::EntityManager&, ark::EntityId entity) {
+			EngineLog(LogSource::EntityM, LogLevel::Info, "created entity with id(%d)", entity);
+		}));
+		m_conns.push_back(man.onDestroy().connect([](ark::EntityManager&, ark::EntityId entity) {
+			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity);
+		}));
+	}
+	void disconnect() {
+		for (auto& con : m_conns)
+			con.release();
+	}
+};
+
 struct erased_function {
 	template <typename T, typename F>
 	void ctor(F&& f)
@@ -632,13 +656,11 @@ struct erased_function {
 			f(*static_cast<T*>(arg));
 		};
 	}
-
 	template <typename T>
 	void call(T& arg)
 	{
 		fun(&arg);
 	}
-
 	void(*fun)(void*) = nullptr;
 };
 
@@ -694,17 +716,36 @@ ARK_REGISTER_TYPE(gScriptGroupName, MoveEntityScript, registerServiceDefault<Mov
 struct ChessPlayerComponent {
 	int id;
 };
-ARK_REGISTER_COMPONENT(ChessPlayerComponent, registerServiceDefault<ChessPlayerComponent>()) { return members<ChessPlayerComponent>(); }
+
+//auto _chess_player_reg_ = [] {
+//	ark::meta::registerMetadata<ChessPlayerComponent>();
+//	ark::meta::addTypeToGroup(ARK_META_COMPONENT_GROUP, typeid(ChessPlayerComponent));
+//	registerServiceDefault<ChessPlayerComponent>();
+//	return 0;
+//}();
+//ARK_MEMBERS(ChessPlayerComponent, 
+//	ark::meta::member_property("id", &ChessPlayerComponent::id)
+//);
+
+ARK_REGISTER_COMPONENT(ChessPlayerComponent, registerServiceDefault<ChessPlayerComponent>()) { 
+	return members<ChessPlayerComponent>(ark::meta::member_property("id", &ChessPlayerComponent::id)); 
+}
+
+//template <>
+//const auto ark::meta::detail::sMembers<ChessPlayerComponent>
+//	= ark::meta::members<ChessPlayerComponent>(ark::meta::member_property("id", &ChessPlayerComponent::id));
+
+//ARK_STATIC_REFLECTION(ChessPlayerComponent) []{
+//	ark::meta::registerMetadata<ChessPlayerComponent>();
+//	registerServiceDefault<ChessPlayerComponent>();
+//	return ark::meta::members<ChessPlayerComponent>();
+//}();
 
 struct ChessPieceComponent {
-	int type;
 	Entity player;
 	sf::Vector2i coord; // position on board
+	int type;
 	std::function<bool(int, int)> canMoveTo;
-};
-
-struct ChessBoard {
-	std::vector<std::vector<ChessPieceComponent>> board;
 };
 
 ARK_REGISTER_COMPONENT(ChessPieceComponent, registerServiceDefault<ChessPieceComponent>()) { 
@@ -736,11 +777,11 @@ class MousePickUpSystem : public ark::SystemT<MousePickUpSystem> {
 	int filters = 0;
 	int m_genFlags = 1;
 	ark::Entity selectedEntity;
-	ark::View<ark::Transform, MousePickUpComponent> view;
+	ark::View<const ark::Transform, MousePickUpComponent> view;
 
 public:
 	void init() override {
-		view = entityManager.view<ark::Transform, MousePickUpComponent>();
+		view = entityManager.view<const ark::Transform, MousePickUpComponent>();
 	}
 
 	void setFilter(int filt = 0) { filters = filt; }
@@ -756,7 +797,7 @@ public:
 			for (auto [entity, pick] : view.each<ark::Entity, MousePickUpComponent>()) {
 				if ((pick.filter & filters) == filters && pick.selectArea.contains(ev.mouseButton.x, ev.mouseButton.y)) {
 					selectedEntity = entity;
-					auto [x, y] = view.get<Transform>(entity).getPosition();
+					const auto [x, y] = view.get<const Transform>(entity).getPosition();
 					pick.dx = ev.mouseButton.x - x;
 					pick.dy = ev.mouseButton.y - y;
 				}
@@ -764,10 +805,11 @@ public:
 		}
 		else if (ev.type == sf::Event::MouseButtonReleased && ev.mouseButton.button == sf::Mouse::Button::Left) {
 			if (selectedEntity) {
-				auto* msg = postMessage<MessagePickUp>();
-				msg->entity = selectedEntity;
-				msg->isPicked = false;
-				msg->isReleased = true;
+				postMessage<MessagePickUp>({
+					.entity = selectedEntity,
+					.isPicked = false,
+					.isReleased = true
+				});
 				selectedEntity = {};
 			}
 		}
@@ -775,7 +817,7 @@ public:
 
 	void update() override {
 		if (selectedEntity) {
-			auto [trans, pick] = selectedEntity.get<Transform, MousePickUpComponent>();
+			auto [trans, pick] = selectedEntity.get<Transform, const MousePickUpComponent>();
 			auto [x, y] = ark::Engine::mousePositon();
 			trans.setPosition(x - pick.dx, y - pick.dy);
 		}
@@ -791,7 +833,8 @@ public:
 class ChessSystem : public ark::SystemT<ChessSystem> {
 	std::vector<std::vector<ark::Entity>> board;
 	ark::Entity playerInTurn;
-	ark::EntityQuerry playersQuery;
+	//std::vector<ark::Entity> playersQuery;
+	EntityQuery<ChessPlayerComponent> playersQuery;
 
 public:
 
@@ -837,17 +880,19 @@ public:
 		for (auto& v : board)
 			v.resize(kBoardLength);
 
-		playersQuery = entityManager.makeQuerry<ChessPlayerComponent>();
+		playersQuery.connect(entityManager);
 
-		entityManager.onConstruction<ChessPieceComponent>([this](auto& piece, ark::Entity entity) {
-			this->board[piece.coord.x][piece.coord.y] = entity;
+		entityManager.onAdd<ChessPieceComponent>().connect([this](ark::EntityManager& man, ark::EntityId entity) {
+			auto& piece = man.get<ChessPieceComponent>(entity);
+			this->board[piece.coord.x][piece.coord.y] = Entity{ entity, man };
 		});
 
 		auto* pickSystem = systemManager.getSystem<MousePickUpSystem>();
-		entityManager.onConstruction<ChessPlayerComponent>([this, pickSystem](auto& player, ark::Entity entity)  {
+		entityManager.onAdd<ChessPlayerComponent>().connect([this, pickSystem](ark::EntityManager& man, ark::EntityId entity) {
+			auto& player = man.get<ChessPlayerComponent>(entity);
 			player.id = pickSystem->generateBitFlag();
 			if (!this->playerInTurn) {
-				this->playerInTurn = entity;
+				this->playerInTurn = this->playersQuery.entities().back();
 				pickSystem->setFilter(player.id);
 			}
 		});
@@ -858,19 +903,21 @@ public:
 			ark::Entity selectedPiece = data->entity;
 			auto [trans, piece] = selectedPiece.get<Transform, ChessPieceComponent>();
 			sf::Vector2i newCoord = toCoord(trans.getPosition());
+			// is on table
 			if (!isCoordInBounds(newCoord)) {
 				trans.setPosition(toPos(piece.coord));
 				return;
 			}
-			if (auto here = board[newCoord.x][newCoord.y]; here) {
-				if (here.get<ChessPieceComponent>().player == piece.player) {
+			// is move legal
+			if (auto hereEnt = board[newCoord.x][newCoord.y]; hereEnt) {
+				if (hereEnt.get<ChessPieceComponent>().player == piece.player) {
 					// reset, can't move on top of your piece
 					trans.setPosition(toPos(piece.coord));
 					return;
 				}
 				else {
 					// take piece
-					entityManager.destroyEntity(here);
+					entityManager.destroyEntity(hereEnt);
 				}
 			}
 			// move
@@ -885,7 +932,7 @@ public:
 	void update() override { }
 };
 
-void createChessPiece(ark::Registry& manager, sf::Vector2i coord, ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru)
+void createChessPiece(ark::EntityManager& manager, sf::Vector2i coord, ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru)
 {
 	Entity entity = manager.createEntity();
 
@@ -894,8 +941,9 @@ void createChessPiece(ark::Registry& manager, sf::Vector2i coord, ChessSystem* s
 	trans.move(sys->kBoardOffset, sys->kBoardOffset);
 	//trans.setOrigin(0, 0);
 
-	auto& mesh = entity.add<MeshComponent>("chess_pieces.png");
 	int size = sys->kPieceMeshSize;
+
+	auto& mesh = manager.add<MeshComponent>(entity, "chess_pieces.png");
 	mesh.setTextureRect(sf::IntRect{ size * meshX, size * playerAlb, size, size });
 
 	ark::Entity player = playerAlb ? alb : negru;
@@ -905,16 +953,12 @@ void createChessPiece(ark::Registry& manager, sf::Vector2i coord, ChessSystem* s
 		.filter = player.get<ChessPlayerComponent>().id
 	});
 
-	entity.add<ChessPieceComponent>({
-		.player = player,
-		.coord = coord
-	});
-	//return entity;
+	entity.add<ChessPieceComponent>(player, coord);
 }
 
 /* de implementat moduri */
 class ChessState : public BasicState {
-
+	LoggerEntityManager managerLogger;
 public:
 	ChessState(ark::MessageBus& mb) : BasicState(mb) {}
 
@@ -929,9 +973,19 @@ public:
 		{1, 2, 3, 4, 5, 3, 2, 1}
 	};
 
+	Entity cloneEnt(ark::Entity entity) {
+		Entity clone = manager.createEntity();
+		for (auto comp : entity.eachComponent()) {
+			clone.add(comp.type, entity);
+		}
+		return clone;
+	}
+
 	void init() override {
-		manager.addDefaultComponent<TagComponent>();
-		manager.addDefaultComponent<Transform>();
+		managerLogger.connect(manager);
+		manager.onCreate().connect<&EntityManager::add<Transform>>();
+		manager.onCreate().connect<&EntityManager::add<TagComponent>>();
+		manager.onAdd<TagComponent>().connect(TagComponent::onAdd);
 
 		systems.addSystem<MeshSystem>();
 		systems.addSystem<SceneInspector>();
@@ -941,18 +995,16 @@ public:
 		systems.addSystem<MousePickUpSystem>();
 		ChessSystem* chessSys = systems.addSystem<ChessSystem>();
 
-		manager.onConstruction<TagComponent>();
-		manager.onCopy<TagComponent>(TagComponent::onCopy);
-		manager.onConstruction<ScriptingComponent>();
-		manager.onCopy<ScriptingComponent>(ScriptingComponent::onCopy);
-		//manager.onConstruction<LuaScriptingComponent>(this->systems.getSystem<LuaScriptingSystem>());
+		manager.onAdd<ScriptingComponent>().connect(ScriptingComponent::onAdd);
+		manager.onCopy<ScriptingComponent>().connect(ScriptingComponent::onClone);
+		manager.onAdd<LuaScriptingComponent>().connect(LuaScriptingComponent::onAdd, systems.addSystem<LuaScriptingSystem>());
 
 		auto* imgui = getState<ImGuiLayer>();
 		imgui->addTab({ "chess-vars", [chess = chessSys]() {
 			// TODO: sa modific si entitatile o data cu ele
-			ImGui::DragFloat("board-offset", &chess->kBoardOffset, 0.01, 0, 0, "%.1f");
+			ImGui::DragFloat("board-offset", &chess->kBoardOffset, 0.01f, 0, 0, "%.1f");
 			ImGui::InputInt("board-length", &chess->kBoardLength);
-			ImGui::DragFloat("piece-mesh-size in pixels", &chess->kPieceMeshSize, 0.01, 0, 0, "%.1f");
+			ImGui::DragFloat("piece-mesh-size in pixels", &chess->kPieceMeshSize, 0.01f, 0, 0, "%.1f");
 		}});
 
 		const int size = chessSys->kPieceMeshSize;
@@ -997,7 +1049,7 @@ public:
 	template <typename... Args>
 	std::any operator()(Args&&... args)
 	{
-		std::array<std::any, sizeof...(Args)> anyArgs{std::forward<Args>(args)...};
+		auto anyArgs = std::array<std::any, sizeof...(Args)>{std::forward<Args>(args)...};
 		return m_fun(anyArgs.data());
 	}
 
@@ -1012,14 +1064,29 @@ public:
 	}
 };
 
-template <typename F, typename...Args>
-auto bind_args(F&& fun, Args&&... capt) {
-	return[fun = std::forward<F>(fun), ...capt = std::forward<Args>(capt)](auto&&... args) -> decltype(auto) { 
-		return fun(std::forward<Args>(capt)..., std::forward<decltype(args)>(args)...);
-	};
-}
-
 int test(int i) { return i + i; }
+
+		//auto std_each() {
+		//	return m_manager->entities 
+		//		| std::views::filter([this](const auto& entity) { return (entity.mask & this->m_mask) == this->m_mask; })
+		//		| std::views::transform([this](auto& entity) {
+		//			return std::tuple<ark::Entity, Cs&...>(ark::Entity(entity.id, this->m_manager), *m_ids.get<Cs>()...);
+		//		});
+		//}
+
+//template <typename F, typename...Args>
+//auto bind_args(F&& fun, Args&&... capt) {
+//	return[fun = std::forward<F>(fun), ...capt = std::forward<Args>(capt)](auto&&... args) -> decltype(auto) { 
+//		return fun(std::forward<Args>(capt)..., std::forward<decltype(args)>(args)...);
+//	};
+//}
+
+//void nush() {
+//	std::tuple<int, float> tup;
+//	std::visit(template<size_t... Index>[](std::index_sequence<Index...>{}, auto&&... vals) {
+//
+//	}, std::make_index_sequence<std::tuple_size_v<decltype(tup)>>{}, tup);
+//}
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
@@ -1028,6 +1095,27 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	any_function fun = any_function::make<int>(test);
 	auto res = fun(48);
 	std::cout << std::any_cast<int>(res) << '\n';
+
+	{
+		auto signal = Signal<bool(Entity*)>();
+		auto sink = Sink{ signal };
+		sink.connect<&Entity::isValid>();
+		std::cout << signal.size();
+		sink.disconnect<&Entity::isValid>();
+		std::cout << signal.size();
+	}
+
+	{
+		auto signal = Signal<bool()>();
+		auto sink = Sink{ signal };
+		Entity e;
+		{
+			ScopedConnection conn = sink.connect(&Entity::isValid, &e);
+			std::cout << signal.size();
+		}
+		//conn.release();
+		std::cout << signal.size();
+	}
 
 	{
 		auto* type = ark::meta::getMetadata(typeid(ScriptingComponent));
@@ -1048,7 +1136,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::registerState<ChessState>();
 
 	Engine::pushOverlay<ImGuiLayer>();
-	Engine::pushFirstState<TestingState>();
+	Engine::pushFirstState<ChessState>();
 
 	Engine::run();
 

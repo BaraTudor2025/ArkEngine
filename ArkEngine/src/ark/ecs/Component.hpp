@@ -21,7 +21,7 @@ namespace ark {
 	// TODO: make copy mandatory
 
 	template <typename T>
-	concept ConceptComponent = std::default_initializable<T> && std::move_constructible<T> //&& std::copy_constructible<T>
+	concept ConceptComponent = std::default_initializable<T> && std::move_constructible<std::remove_const_t<T>> //&& std::copy_constructible<T>
 		&& std::is_object_v<T> && !std::is_pointer_v<T>; 
 
 	static inline constexpr std::size_t MaxComponentTypes = 32;

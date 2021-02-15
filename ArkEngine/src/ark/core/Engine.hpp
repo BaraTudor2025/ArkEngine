@@ -4,7 +4,7 @@
 
 #include "ark/core/Core.hpp"
 #include "ark/core/State.hpp"
-#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/EntityManager.hpp"
 #include "ark/util/ResourceManager.hpp"
 
 #define USE_DELTA_TIME

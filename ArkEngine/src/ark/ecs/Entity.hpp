@@ -12,7 +12,7 @@ namespace ark {
 		void* ptr = nullptr;
 	};
 
-	class RuntimeComponentView;
+	class ProxyRuntimeComponentView;
 
 	// this is more of a handle
 	// member function definitions are at the bottom of EntityManager.hpp
@@ -24,87 +24,75 @@ namespace ark {
 		Entity() = default;
 		~Entity() = default;
 		Entity(ID id, EntityManager* m) : id(id), manager(m) {}
+		Entity(ID id, EntityManager& m) : id(id), manager(&m) {}
 
 		ID getID() const { return id; }
 
-		[[nodiscard]]
 		bool isValid() const;
 
 		operator bool() const { return isValid(); }
 
-		template <ConceptComponent T, typename...Args>
-		T& addComponent(Args&& ... args);
-
-		void addComponent(std::type_index type);
+		operator ID() const { return this->id; }
 
 		template <ConceptComponent T>
 		requires std::is_aggregate_v<T>
-		T& add(T&& comp = T{}) {
-			return this->addComponent<T>(std::forward<T>(comp));
-		}
+		T& add(T&& comp);
 
 		template <ConceptComponent T, typename...Args>
-		T& add(Args&& ... args) {
-			return this->addComponent<T>(std::forward<Args>(args)...);
+		T& add(Args&&... args);
+
+		void add(std::type_index type, Entity entity = {});
+
+		void* get(std::type_index type);
+
+		const void* get(std::type_index type) const {
+			return const_cast<Entity*>(this)->get(type);
 		}
 
-		void add(std::type_index type) {
-			this->addComponent(type);
-		}
-
-		template <ConceptComponent T>
-		[[nodiscard]]
-		T& getComponent();
-
-		template <ConceptComponent T>
-		[[nodiscard]]
-		const T& getComponent() const;
-
-		[[nodiscard]]
-		void* getComponent(std::type_index type);
-
-		template <ConceptComponent... Cs>
-		auto getComponents() -> std::tuple<Cs&...>
-		{
-			return { this->getComponent<Cs>()... };
+		template <ConceptComponent... Ts>
+		decltype(auto) get() const {
+			static_assert(sizeof...(Ts) > 0, "trebuie sa ai argumente");
+			if constexpr (sizeof...(Ts) == 1)
+				return *this->tryGet<Ts...>();
+			else
+				return std::tuple<const Ts&...>(*this->tryGet<Ts>()...);
 		}
 
 		template <ConceptComponent... Ts>
 		decltype(auto) get() {
 			static_assert(sizeof...(Ts) > 0, "trebuie sa ai argumente");
 			if constexpr (sizeof...(Ts) == 1)
-				return this->getComponent<Ts...>();
+				return *this->tryGet<Ts...>();
 			else
-				return this->getComponents<Ts...>();
+				return std::tuple<Ts&...>(*this->tryGet<Ts>()...);
 		}
 
 		// returns nullptr if component is not found
 		template <ConceptComponent T>
 		[[nodiscard]]
-		T* tryGetComponent();
+		T* tryGet();
 
 		template <ConceptComponent T>
 		[[nodiscard]]
-		const T* tryGetComponent() const;
+		const T* tryGet() const;
 
 		template <typename F>
 		requires std::invocable<F, RuntimeComponent>
-		void forEachComponent(F&& f);
+		void eachComponent(F&& f);
 
-		[[nodiscard]]
-		auto runtimeComponentView() -> RuntimeComponentView;
+		auto eachComponent() -> ProxyRuntimeComponentView;
 
 		// should only be used in the paused editor, or if only one system requires the 'T' component
 		// TODO: remove on postUpdate?
 
 		template <ConceptComponent T>
-		void removeComponent();
+		void remove();
 
-		void removeComponent(std::type_index type);
+		void remove(std::type_index type);
 
 	public:
 		[[nodiscard]]
-		auto getComponentMask() const -> const ComponentMask&;
+		auto getMask() const -> ComponentMask;
 
 #if 0 //disable entity children
 
@@ -165,7 +153,5 @@ namespace ark {
 
 		EntityManager* manager = nullptr;
 		int id = ArkInvalidIndex;
-		friend class EntityManager;
-		friend class Registry;
 	};
 }

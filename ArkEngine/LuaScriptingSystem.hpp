@@ -5,9 +5,9 @@
 #include <ark/ecs/Component.hpp>
 #include <ark/ecs/Meta.hpp>
 #include <ark/ecs/DefaultServices.hpp>
-#include <ark/ecs/Scene.hpp>
-#include <ark/core/Engine.hpp>
+#include <ark/ecs/EntityManager.hpp>
 #include <ark/ecs/components/Transform.hpp>
+#include <ark/core/Engine.hpp>
 
 #include <filesystem>
 #include <iostream>
@@ -17,6 +17,27 @@ class LuaScriptingSystem;
 
 #define LUA_SCRIPT_UPDATING 0
 
+// holds lua data that acts as a kind of lua-components, LuaComponentsComponent
+struct LuaDataComponent {
+	std::unordered_map<std::string, sol::table> components;
+};
+
+class LuaDataSystem : ark::SystemT<LuaDataSystem> {
+	ark::View<LuaDataComponent> view;
+public:
+
+	void init() override {
+		view = entityManager.view<LuaDataComponent>();
+		//sol::state lua;
+		// export un fel de add/get
+		//lua[""]
+	}
+
+	void update() override {
+
+	}
+};
+
 class LuaScriptingComponent {
 public:
 	LuaScriptingComponent() = default;
@@ -25,16 +46,11 @@ public:
 
 	void removeScript(std::string_view name);
 
-	static auto onConstruction(LuaScriptingSystem* sys) // -> std::function<void(ScriptingComponent& comp, ark::Entity e, ark::Registry& reg)>
-	{
-		return [sys](LuaScriptingComponent& comp, ark::Entity e) {
-			comp._setEntity(e);
-			comp._setSystem(sys);
-		};
+	static void onAdd(LuaScriptingSystem* sys, ark::EntityManager& man, ark::EntityId entity) {
+		auto& comp = man.get<LuaScriptingComponent>(entity);
+		comp.mEntity = ark::Entity{ entity, man };
+		comp.mSystem = sys;
 	}
-
-	void _setEntity(ark::Entity e) { mEntity = e; }
-	void _setSystem(LuaScriptingSystem* s) { mSystem = s; }
 
 private:
 	//void loadScript(int index);
@@ -70,12 +86,12 @@ public:
 		lua["getComponent"] = [](sol::table selfScript, std::string_view componentName, sol::this_state luaState) mutable -> sol::table {
 			auto mdata = ark::meta::getMetadata(componentName);
 			auto entity = selfScript["entity"].get<ark::Entity>();
-			void* pComp = entity.getComponent(mdata->type);
+			void* pComp = entity.get(mdata->type);
 			auto tableFromPtr = mdata->func<sol::table(sol::state_view, void*)>("lua_table_from_pointer");
 			return tableFromPtr(luaState, pComp);
 		};
 
-		for (auto compType : entityManager.getComponentTypes()) {
+		for (auto compType : entityManager.getTypes()) {
 			if (auto exportType = ark::meta::getMetadata(compType)->func<void(sol::state_view)>("export_to_lua"))
 				exportType(lua);
 		}
@@ -136,7 +152,7 @@ inline void LuaScriptingComponent::addScript(std::string_view str)
 		auto result = mSystem->lua.safe_script_file(fileName);
 		if (!result.valid()) {
 			std::cout << "ark error on adding LUA script(" << str << ") on entity (" 
-				<< mEntity.getComponent<ark::TagComponent>().name << "): " << '\n';
+				<< mEntity.get<ark::TagComponent>().name << "): " << '\n';
 			return;
 		}
 		auto script = result.get<sol::table>();
@@ -151,7 +167,7 @@ inline void LuaScriptingComponent::addScript(std::string_view str)
 	}
 	catch (sol::error& e) {
 		std::cout << "ark error on adding LUA script(" << str << ") on entity (" 
-			<< mEntity.getComponent<ark::TagComponent>().name << "): " << e.what() << '\n';
+			<< mEntity.get<ark::TagComponent>().name << "): " << e.what() << '\n';
 	}
 }
 

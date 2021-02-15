@@ -1,111 +1,78 @@
 #pragma once
 
 #include "Component.hpp"
+#include "EntityManager.hpp"
 #include "Entity.hpp"
 #include <functional>
 #include <vector>
 #include <memory>
 #include <concepts>
+#include <algorithm>
 
-namespace ark {
+namespace ark
+{
+	template <typename... Ts>
+	class EntityQuery {
+		std::vector<ScopedConnection> m_conns;
+		std::vector<ark::Entity> m_entities;
+		ark::ComponentMask m_mask;
+		ark::IdTable<Ts...> m_table;
+		bool m_modified = false;
 
-	class Registry;
-
-	class EntityQuerry {
 	public:
-
-		EntityQuerry() = default;
-
-		bool isValid() const { return bool(data); }
-
-		auto getEntities() const -> const std::vector<Entity>& { 
-			if (data)
-				return data->entities;
-			else
-				return s_empty;
+		EntityQuery(ark::EntityManager& man) {
+			this->connect(man);
+			man.idFromType<Ts...>(m_mask);
+			man.view<Ts...>().each([&, this](ark::Entity ent) {
+				m_entities.push_back(ent);
+			});
 		}
+		EntityQuery() = default;
+		EntityQuery(EntityQuery&&) = default;
 
-		auto getMask() const -> ComponentMask { 
-			if (data)
-				return data->componentMask;
-			else
-				return {};
-		}
+		auto begin() { return m_entities.begin(); }
+		auto end() { return m_entities.end(); }
 
-		template <typename F> 
-		requires std::invocable<F, std::type_index>
-		void forComponentTypes(F f) const;
-
-		template <ConceptComponent... Components, typename F>
-		requires std::invocable<F, ark::Entity, Components&...>
-			|| std::invocable<F, Components&...>
-		void each(F f) const {
-			if(data)
-				for (Entity entity : data->entities) {
-					if constexpr (std::invocable<F, Components&...>)
-						f(entity.getComponent<Components>()...);
-					else
-						f(entity, entity.getComponent<Components>()...);
+		void connect(ark::EntityManager& man) {
+			(man.addType(typeid(Ts)), ...);
+			m_table.set(man);
+			(m_conns.emplace_back(man.onAdd<Ts>().connect([this](ark::EntityManager& man, ark::Entity entity) {
+				if ((man.has(entity, m_mask))) {
+					m_modified = true;
+					m_entities.push_back(entity);
 				}
+			})), ...);
+			(m_conns.emplace_back(man.onRemove<Ts>().connect([this](ark::EntityManager& man, ark::Entity entity) {
+				m_modified = true;
+				std::erase(m_entities, entity);
+			})), ...);
 		}
 
-		auto each() const -> const std::vector<Entity>& { return getEntities(); }
-
-		template <ConceptComponent... Components>
-		auto each() const /*custom range: for(auto[ent, comp1, comp2] : query.each<Com1, Com2>()) */ //-> const std::vector<Entity>& 
-		{
-			return getEntities(); 
+		const auto& entities() const {
+			return m_entities;
 		}
 
-		auto begin() const {
-			if (data)
-				return data->entities.begin();
-			else
-				return s_empty.begin();
-		}
-		auto end() const {
-			if (data)
-				return data->entities.end();
-			else
-				return s_empty.end();
+		template <typename... Us>
+		decltype(auto) get(ark::EntityId entity) {
+			return m_table.get<Us...>(entity);
 		}
 
 		template <typename F>
-		requires std::invocable<F, Entity>
-		void forEntities(F f) {
-			if(data)
-				for (Entity entity : data->entities)
-					f(entity);
+		void sort(F&& f) {
+			std::sort(m_entities.begin(), m_entities.end(), std::forward<F>(f));
 		}
 
-		template <typename F>
-		requires std::invocable<F, const Entity>
-		void forEntities(F f) const {
-			if(data)
-				for (const Entity entity : data->entities)
-					f(entity);
+		void reconstruct(ark::EntityManager& manager) {
+			if (m_modified) {
+				m_entities.clear();
+				for (auto view = manager.view<Ts...>(); ark::Entity ent : view.each<ark::Entity>())
+					m_entities.push_back(ent);
+				m_modified = false;
+			}
 		}
 
-		void onEntityAdd(std::function<void(Entity)> f) {
-			data->addEntityCallbacks.emplace_back(std::move(f));
+		bool isDirty() {
+			return m_modified;
 		}
-
-		void onEntityRemove(std::function<void(Entity)> f) {
-			data->removeEntityCallbacks.emplace_back(std::move(f));
-		}
-
-	private:
-		friend class Registry;
-		struct SharedData {
-			ComponentMask componentMask;
-			std::vector<Entity> entities;
-			std::vector<std::function<void(Entity)>> addEntityCallbacks;
-			std::vector<std::function<void(Entity)>> removeEntityCallbacks;
-
-		};
-		static inline std::vector<Entity> s_empty;
-		std::shared_ptr<SharedData> data;
-		Registry* mRegistry = nullptr;
-		EntityQuerry(std::shared_ptr<SharedData> data, Registry* reg) : data(std::move(data)), mRegistry(reg) {}
 	};
 }

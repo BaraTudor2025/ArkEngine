@@ -18,7 +18,7 @@ public:
 	virtual void handleEvent(const sf::Event& ev) noexcept {}
 	virtual void update() noexcept {}
 
-	template <typename T> T* getComponent() { return mEntity.tryGetComponent<T>(); }
+	template <typename T> T* getComponent() { return mEntity.tryGet<T>(); }
 
 	ark::Entity entity() { return mEntity; }
 	void setActive(bool isActive) { mIsActive = isActive; }
@@ -30,17 +30,17 @@ public:
 	std::type_index getType() const { return mType; }
 
 	__declspec(property(get = getRegistry))
-		ark::Registry& registry;
+		ark::EntityManager& registry;
 
 	__declspec(property(get = getSystemManager))
 		ark::SystemManager& systemManager;
 
-	ark::Registry& getRegistry() { return *mRegistry; }
+	ark::EntityManager& getRegistry() { return *mManager; }
 
 private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
-	ark::Registry* mRegistry;
+	ark::EntityManager* mManager;
 	std::type_index mType;
 
 	friend class ScriptingSystem;
@@ -85,17 +85,17 @@ struct ScriptingComponent {
 	//ScriptingComponent(ark::Entity, ark::Registry) = delete;
 	//ScriptingComponent(const ScriptingComponent&, ark::Entity, ark::Registry) = delete;
 
-	static auto onConstruction() // -> std::function<void(ScriptingComponent& comp, ark::Entity e, ark::Registry& reg)>
-	{
-		return [](ScriptingComponent& comp, ark::Entity e, ark::Registry& reg) {
-			comp._setEntity(e);
-			comp._setScene(&reg);
-		};
+	static auto onAdd(ark::EntityManager& man, ark::EntityId entity) {
+		auto& comp = man.get<ScriptingComponent>(entity);
+		comp.mEntity = ark::Entity{ entity, man };
+		comp.mManager = &man;
 	}
 
-	static void onCopy(ScriptingComponent& This, const ScriptingComponent& other) {
-		for (const auto& script : other.mScripts)
-			This.copyScript(script.get());
+	static void onClone(ark::Entity This, ark::Entity That) {
+		auto& thisComp = This.get<ScriptingComponent>();
+		auto& thatComp = That.get<ScriptingComponent>();
+		for (const auto& script : thatComp.mScripts)
+			thisComp.copyScript(script.get());
 	}
 
 	template <typename T, typename... Args>
@@ -173,9 +173,9 @@ struct ScriptingComponent {
 		mEntity = e;
 	}
 
-	void _setScene(ark::Registry* registry)
+	void _setScene(ark::EntityManager* registry)
 	{
-		mRegistry = registry;
+		mManager = registry;
 	}
 
 private:
@@ -183,12 +183,12 @@ private:
 	void _bindScript(Script* script)
 	{
 		script->mEntity = mEntity;
-		script->mRegistry = mRegistry;
+		script->mManager = mManager;
 		script->bind();
 	}
 
 	ark::Entity mEntity;
-	ark::Registry* mRegistry;
+	ark::EntityManager* mManager;
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 
@@ -224,7 +224,7 @@ static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::jso
 	for(auto& script : scriptingComp->mScripts){
 		const auto* mdata = ark::meta::getMetadata(script->type);
 		script->mEntity = scriptingComp->mEntity;
-		script->mRegistry = scriptingComp->mRegistry;
+		script->mManager = scriptingComp->mManager;
 		script->bind();
 		if (auto deserialize = ark::meta::getMetadata(mdata->type)->func<void(ark::Entity&, const nlohmann::json&, void*)>(ark::serde::serviceDeserializeName )) {
 			deserialize(entity, jsonScripts.at(mdata->name), script.get());

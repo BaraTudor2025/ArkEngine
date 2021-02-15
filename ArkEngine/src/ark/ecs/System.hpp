@@ -13,7 +13,6 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Querry.hpp"
 #include "ark/ecs/Renderer.hpp"
-#include "ark/ecs/Scene.hpp"
 
 namespace ark
 {
@@ -37,24 +36,31 @@ namespace ark
 
 	protected:
 
+		template <typename T>
+		requires std::is_aggregate_v<T>
+		T* postMessage(T&& value = T{})
+		{
+			return messageBus->post<T>(std::forward<T>(value));
+		}
+
 		template <typename T, typename...Args>
 		T* postMessage(Args&&... args)
 		{
 			return messageBus->post<T>(std::forward<Args>(args)...);
 		}
 
-		Registry& getEntityManager() const { return *mRegisry; }
+		EntityManager& getEntityManager() const { return *mEntityManager; }
 		SystemManager& getSystemManager() const { return *mSystemManager; }
 
 		__declspec(property(get=getEntityManager)) 
-			Registry entityManager;
+			EntityManager entityManager;
 
 		__declspec(property(get=getSystemManager)) 
 			SystemManager systemManager;
 
 	private:
 		friend class SystemManager;
-		Registry* mRegisry = nullptr;
+		EntityManager* mEntityManager = nullptr;
 		MessageBus* messageBus = nullptr;
 		SystemManager* mSystemManager = nullptr;
 		bool active = true;
@@ -71,7 +77,7 @@ namespace ark
 	class SystemManager {
 
 	public:
-		SystemManager(MessageBus& bus, Registry& registry) : messageBus(bus), registry(registry) {}
+		SystemManager(MessageBus& bus, EntityManager& manager) : messageBus(bus), registry(manager) {}
 		~SystemManager() = default;
 
 		template <typename T, typename...Args>
@@ -85,7 +91,7 @@ namespace ark
 
 			System* system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
 			activeSystems.push_back(system);
-			system->mRegisry = &registry;
+			system->mEntityManager = &registry;
 			system->messageBus = &messageBus;
 			system->mSystemManager = this;
 			system->init();
@@ -225,6 +231,6 @@ namespace ark
 		std::vector<Renderer*> renderers;
 		std::vector<System*> activeSystems;
 		MessageBus& messageBus;
-		Registry& registry;
+		EntityManager& registry;
 	};
 }

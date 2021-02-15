@@ -24,7 +24,7 @@ namespace ark {
 			return sf::Color::Blue;
 
 		default:
-			break;
+			return sf::Color::Green;
 		}
 	}
 
@@ -48,7 +48,7 @@ namespace ark {
 			return "debug";
 
 		default:
-			break;
+			return "no-log-level";
 		}
 	}
 
@@ -87,7 +87,7 @@ namespace ark {
 			return "Engine";
 
 		default:
-			break;
+			return "no-log-source";
 		}
 	}
 

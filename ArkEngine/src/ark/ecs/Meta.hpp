@@ -65,13 +65,15 @@ auto registerMembers<YourClass>()
 #include <functional>
 #include <string_view>
 #include <optional>
+#include <sstream>
+#include <span>
 
 /* for example usage see the registration of ark::Transform for members and for enum see RandomNumbers.hpp */
 
 #define RUN_CODE_NAMESPACE(TYPE, GUARD, ...) \
 	namespace ark::meta { \
 		template <> inline auto dummy<TYPE, GUARD> = []() {__VA_ARGS__ return 0;} (); \
-	}
+	} \
 
 #define RUN_CODE_QUALIFIED(TYPE, GUARD, ...) \
 	template <> inline auto ::ark::meta::dummy<TYPE, GUARD> = []() {__VA_ARGS__ return 0;} ();
@@ -119,6 +121,14 @@ auto registerMembers<YourClass>()
 #define ARK_REGISTER_ENUM(TYPE) \
 	template <> inline auto ::ark::meta::registerEnum<TYPE>()
 
+// static and runtime reflection
+//#define ARK_MEMBERS(TYPE, ...) \
+//	ARK_REGISTER_MEMBERS(TYPE) { return ark::meta::members<TYPE>(); }
+
+//#define ARK_MEMBERS(TYPE, ...) \
+//	RUN_CODE_NAMESPACE(TYPE, TYPE, ark::meta::registerMetadata<TYPE>(); ark::meta::addTypeToGroup(ARK_META_COMPONENT_GROUP, typeid(TYPE))) \ 
+//	template <> const auto ark::meta::detail::sMembers<TYPE> = ark::meta::members<TYPE>(__VA_ARGS__);
+
 namespace ark::meta
 {
 	template <typename Class>
@@ -138,11 +148,13 @@ namespace ark::meta
 		const value_type value;
 
 		template<typename EnumT>
-		EnumValue(std::string_view name, EnumT value) : type(typeid(EnumT)), name(name), value(static_cast<std::int64_t>(value)){}
+		EnumValue(std::string_view name, EnumT value) : type(typeid(EnumT)), name(name), value(static_cast<EnumValue::value_type>(value)) {}
 
 		template <typename EnumT>
 		requires std::is_enum_v<EnumT>
 		operator EnumT() const { assert(type == typeid(EnumT)); return static_cast<EnumT>(value); }
+
+		// TODO: operator<=>
 
 		template <typename EnumT>
 		friend bool operator==(EnumT val, const EnumValue& This) {
@@ -186,7 +198,6 @@ namespace ark::meta
 
 		template <typename T>
 		using make_func_ptr_t = typename make_func_ptr<T>::type;
-
 	}
 
 	template <typename Class, typename T>
@@ -214,6 +225,10 @@ namespace ark::meta
 	template <typename Class, typename Ret, typename... Args>
 	using const_function_ptr_t = Ret(Class::*)(Args...) const;
 
+	template <typename T>
+	concept printable = requires(std::stringstream ss, T value) {
+		ss << value;
+	};
 
 
 	template <typename, typename = void>
@@ -252,6 +267,10 @@ namespace ark::meta
 			if (isEnum && in_value.type() == typeid(EnumValue::value_type))
 				this->toEnumFromInt(in_value);
 			m_setter_any(instance, std::move(in_value));
+		}
+
+		std::string toString(const void* instance) const {
+			return m_toString(instance);
 		}
 
 		/* helpers for the property itself*/
@@ -312,24 +331,42 @@ namespace ark::meta
 		}),
 			m_getter_any([ptrGet](const void* instance, std::any& out_value) {
 				out_value = std::invoke(ptrGet, static_cast<const Class*>(instance));
-			}),
+		}),
 			m_getter([ptrGet](const void* instance, void* out_value) {
 				*static_cast<Property*>(out_value) = std::invoke(ptrGet, static_cast<const Class*>(instance));
-			}),
+		}),
 			m_setter([ptrSet](void* instance, void* in_value) {
 				if constexpr (std::is_member_object_pointer_v<SetT>)
 					std::invoke(ptrSet, static_cast<Class*>(instance)) = *static_cast<Property*>(in_value);
 				else
 					std::invoke(ptrSet, static_cast<Class*>(instance), *static_cast<Property*>(in_value));
-			}),
+		}),
 			m_setter_any([ptrSet](void* instance, std::any&& in_value) {
 				if constexpr (std::is_member_object_pointer_v<SetT>)
 					std::invoke(ptrSet, static_cast<Class*>(instance)) = std::any_cast<Property>(in_value);
 				else
 					std::invoke(ptrSet, static_cast<Class*>(instance), std::any_cast<Property>(in_value));
-			})
+		}),
+			m_toString([this](const void* instance) {
+				std::any any = this->get(instance);
+				const Property& prop = std::any_cast<const Property&>(any);
+				if constexpr (printable<Property>) {
+					std::stringstream ss;
+					ss << prop;
+					return ss.str();
+				}
+				return std::string();
+				//else if (ark::meta::hasProperties(typeid(Property))) {
+				//	std::string output;
+				//	auto* mdata = ark::meta::getMetadata(typeid(Property));
+				//	for (const auto& subProp : mdata->prop()) {
+				//		output += subProp.toString(&prop);
+				//	}
+				//}
+		})
 		{}
 
+		std::function<std::string(const void*)> m_toString;
 		void (* const m_toIntFromEnum)(std::any&);
 		void (* const m_toEnumFromInt)(std::any&);
 		void* (* const m_fromAny)(std::any&);
@@ -364,11 +401,31 @@ namespace ark::meta
 		auto operator*() const noexcept -> const std::function<F>& {
 			return *m_fun;
 		}
-
-		auto get_ref() const noexcept -> const std::function<F>& {
-			return *m_fun;
-		}
 	};
+
+	static inline auto s_conversionTable 
+		= std::unordered_map<std::type_index, std::unordered_map<std::type_index, void(*)(void* to, const void* from)>>{};
+
+	static void convert(std::type_index to, std::type_index from) {
+		if (s_conversionTable.contains(to)) {
+			if (s_conversionTable.at(to).contains(from)) {
+
+			}
+			else { // find intermediary
+				if (s_conversionTable.contains(from)) {
+					for (auto [toType, toFun /*,prio*/] : s_conversionTable.at(to)) {
+						for (auto [fromType, fromFun] : s_conversionTable.at(from)) {
+							if (toType == fromType) {
+								//std::any inter;// = make();
+								//fromFun(inter, fromVal);
+								//toFun(toVal, inter);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	class Metadata {
 	public:
@@ -515,6 +572,11 @@ namespace ark::meta
 		// bagamiaspulanmicrosoft ca aparent initializeaza mai intai variabilele statice inline din clasa si dupa pe cele globale statice
 		// asa ca tre sa pun sTypeTable intr un struct ca sa ma asigur ca e construit inainte de varialbilele anonime din macroul REGISTER_SERVICES
 		//struct/namespace bagamiaspula {
+
+		inline auto fsTypeTable() -> std::unordered_map<std::type_index, Metadata>& {
+			static std::unordered_map<std::type_index, Metadata> sTypeTable;
+			return sTypeTable;
+		}
 		struct guard {
 			static inline std::unordered_map<std::type_index, Metadata> sTypeTable;
 			static inline std::unordered_map<std::string_view, std::vector<std::type_index>> sTypeGroups;
@@ -553,7 +615,7 @@ namespace ark::meta
 		template <class F, class... Ts>
 		constexpr void for_each_argument(F&& f, Ts&&... a)
 		{
-			(void)std::initializer_list<int>{(f(std::forward<Ts>(a)), 0)...};
+			(f(std::forward<Ts>(a)), ...);
 		}
 
 		template <typename F, typename... Args>
@@ -638,7 +700,8 @@ namespace ark::meta
 	template <typename T>
 	Metadata* registerMetadata(std::string name = "") noexcept
 	{
-		if (auto it = detail::guard::sTypeTable.find(typeid(T)); it != detail::guard::sTypeTable.end())
+		//if (auto it = detail::guard::sTypeTable.find(typeid(T)); it != detail::guard::sTypeTable.end())
+		if (auto it = detail::fsTypeTable().find(typeid(T)); it != detail::fsTypeTable().end())
 			return &it->second;
 
 		if (name.empty())
@@ -663,13 +726,16 @@ namespace ark::meta
 		if constexpr (std::is_destructible_v<T>)
 			metadata.destructor = [](void* This) { static_cast<T*>(This)->~T(); };
 
-		return &(detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata)).first->second);
+		//return &(detail::guard::sTypeTable.emplace(typeid(T), std::move(metadata)).first->second);
+		return &(detail::fsTypeTable().emplace(typeid(T), std::move(metadata)).first->second);
 	}
 
 	inline auto getMetadata(std::type_index type) noexcept -> Metadata*
 	{
-		if (detail::guard::sTypeTable.count(type))
-			return &detail::guard::sTypeTable.at(type);
+		//if (detail::guard::sTypeTable.count(type))
+		//	return &detail::guard::sTypeTable.at(type);
+		if (detail::fsTypeTable().count(type))
+			return &detail::fsTypeTable().at(type);
 		else
 			return nullptr;
 	}
@@ -681,7 +747,8 @@ namespace ark::meta
 
 	inline auto getMetadata(std::string_view name) noexcept -> Metadata*
 	{
-		for (auto& [type, mdata] : detail::guard::sTypeTable) {
+		//for (auto& [type, mdata] : detail::guard::sTypeTable) {
+		for (auto& [type, mdata] : detail::fsTypeTable()) {
 			if (mdata.name == name)
 				return &mdata;
 		}
@@ -695,7 +762,7 @@ namespace ark::meta
 			vec.push_back(type);
 	}
 
-	inline auto getTypeGroup(std::string_view groupName) noexcept -> const std::vector<std::type_index>&
+	inline auto getTypeGroup(std::string_view groupName) noexcept -> std::span<std::type_index>
 	{
 		auto it = detail::guard::sTypeGroups.find(groupName);
 		if (it != detail::guard::sTypeGroups.end())
@@ -806,12 +873,17 @@ namespace ark::meta
 		return std::tuple_size_v<decltype(registerMembers<Class>())>;
 	}
 
+	//template <typename T>
+	//concept _isRegisterd = requires {
+	//	detail::sMembers<T>;
+	//};
 
 	// Check if class has registerMembers<T> specialization (has been registered)
 	template <typename Class>
 	constexpr bool isRegistered() noexcept
 	{
 		return !std::is_same_v<std::tuple<>, decltype(registerMembers<Class>())>;
+		//return _isRegisterd<Class>;
 	}
 
 	template <typename Class, typename F, typename = std::enable_if_t<isRegistered<Class>()>>

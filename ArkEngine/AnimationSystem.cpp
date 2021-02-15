@@ -76,7 +76,7 @@ void AnimationSystem::render(sf::RenderTarget& target)
 void MeshSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
-	entityManager.view<ark::Transform, MeshComponent>().each([&](const auto& transform, auto& mesh) {
+	entityManager.view<const ark::Transform, MeshComponent>().each([&](const ark::Transform& transform, auto& mesh) {
 		rs.texture = mesh.texture;
 		rs.transform = transform.getTransform();
 		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);

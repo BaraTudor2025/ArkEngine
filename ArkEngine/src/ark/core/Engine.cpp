@@ -1,7 +1,7 @@
 #include "ark/core/Engine.hpp"
 #include "ark/core/State.hpp"
 #include "ark/core/MessageBus.hpp"
-#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/EntityManager.hpp"
 #include "ark/ecs/Entity.hpp"
 #include "ark/gui/Gui.hpp"
 #include "ark/util/ResourceManager.hpp"

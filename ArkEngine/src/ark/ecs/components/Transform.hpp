@@ -9,6 +9,7 @@
 #include "ark/ecs/DefaultServices.hpp"
 #include "ark/ecs/SceneInspector.hpp"
 #include "ark/ecs/Entity.hpp"
+#include "ark/ecs/EntityManager.hpp"
 
 namespace ark
 {
@@ -27,16 +28,11 @@ namespace ark
 		__declspec(property(get = _getName, put = _setName))
 			std::string name;
 
-		static auto onConstruction() {
-			return [](TagComponent& tag, ark::Entity e) {
-				tag._setEntity(e);
-				if (tag.name.empty())
-					tag._setName("");
-			};
-		}
-
-		static void onCopy(TagComponent& tag, const TagComponent&) {
-			tag.name = "";
+		static void onAdd(ark::EntityManager& man, ark::EntityId entity) {
+			auto& tag = man.get<TagComponent>(entity);
+			tag.m_entity = Entity{ entity, man };
+			if (tag.name.empty())
+				tag.name = "";
 		}
 
 		const std::string& _getName() const
@@ -52,11 +48,6 @@ namespace ark
 				m_name = "entity_" + std::to_string(m_entity.getID());
 			else
 				m_name = newName;
-		}
-
-		void _setEntity(ark::Entity e)
-		{
-			m_entity = e;
 		}
 
 	private:

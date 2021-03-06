@@ -15,10 +15,9 @@
 
 namespace ark
 {
-
 	class StateStack;
 	class MessageBus;
-	class Scene;
+	class Registry;
 
 	class State : public NonCopyable, public NonMovable {
 
@@ -33,14 +32,17 @@ namespace ark
 		virtual void preRender(sf::RenderTarget&) {}
 		virtual void render(sf::RenderTarget&) = 0;
 		virtual void postRender(sf::RenderTarget&) {}
-		virtual int getStateId() = 0;
 
 	protected:
 
+		template <typename T>
+		T* getState();
+
 		MessageBus& getMessageBus() { return *mMessageBus; }
-		void requestStackPush(int stateId);
+		void requestStackPush(std::type_index type);
 		void requestStackPop();
 		void requestStackClear();
+		std::type_index getType() const { return mType; }
 
 		StateStack* stateStack = nullptr;
 	private:
@@ -54,9 +56,9 @@ namespace ark
 	public:
 
 		template <typename T>
-		void registerState(int id)
+		void registerState()
 		{
-			mFactories[id] = [this]() {
+			mFactories[typeid(T)] = [this]() {
 				auto state = std::make_unique<T>(*this->mMessageBus);
 				state->stateStack = this;
 				state->mType = typeid(T);
@@ -68,8 +70,8 @@ namespace ark
 		T* getState()
 		{
 			for (auto& [state, _] : mStates)
-				if (T* ptr = dynamic_cast<T*>(state.get()))
-					return ptr;
+				if (state->mType == typeid(T))
+					return static_cast<T*>(state.get());
 			return nullptr;
 		}
 
@@ -108,6 +110,7 @@ namespace ark
 			});
 		}
 
+		// TODO(post-render): call in reverse order?
 		void postRender(sf::RenderTarget& target)
 		{
 			forEachState([&](auto& state) {
@@ -115,10 +118,15 @@ namespace ark
 			});
 		}
 
-		void pushStateAndDisablePreviouses(int id)
+		template <typename T>
+		void pushStateAndDisablePreviouses() {
+			pushStateAndDisablePreviouses(typeid(T));
+		}
+
+		void pushStateAndDisablePreviouses(std::type_index type)
 		{
-			mInPendingChanges.push_back([this, id]() {
-				auto state = createState(id);
+			mInPendingChanges.push_back([this, type]() {
+				auto state = createState(type);
 				if (state) {
 					state->init();
 					mStates.emplace(mStates.begin() + mStateLastIndex, StateData{ std::move(state), mBeginActiveIndex });
@@ -128,10 +136,15 @@ namespace ark
 			});
 		}
 
-		void pushState(int id)
+		template <typename T>
+		void pushState() {
+			pushState(typeid(T));
+		}
+
+		void pushState(std::type_index type)
 		{
-			mInPendingChanges.push_back([this, id]() {
-				auto state = createState(id);
+			mInPendingChanges.push_back([this, type]() {
+				auto state = createState(type);
 				if (state) {
 					state->init();
 					mStates.emplace(mStates.begin() + mStateLastIndex, StateData{ std::move(state), ArkInvalidIndex });
@@ -140,10 +153,15 @@ namespace ark
 			});
 		}
 
-		void pushOverlay(int id)
+		template <typename T>
+		void pushOverlay() {
+			pushOverlay(typeid(T));
+		}
+
+		void pushOverlay(std::type_index type)
 		{
-			mInPendingChanges.push_back([this, id]() {
-				auto state = createState(id);
+			mInPendingChanges.push_back([this, type]() {
+				auto state = createState(type);
 				if (state) {
 					state->init();
 					mStates.emplace_back(StateData{ std::move(state), ArkInvalidIndex });
@@ -198,11 +216,11 @@ namespace ark
 			}
 		}
 
-		auto createState(int id) -> std::unique_ptr<State>
+		auto createState(std::type_index type) -> std::unique_ptr<State>
 		{
-			auto it = mFactories.find(id);
+			auto it = mFactories.find(type);
 			if (it == mFactories.end()) {
-				EngineLog(LogSource::StateStack, LogLevel::Error, "didn't find state with id %d", id);
+				EngineLog(LogSource::StateStack, LogLevel::Error, "didn't find state %s\n", type.name());
 				return nullptr;
 			}
 			else
@@ -219,9 +237,15 @@ namespace ark
 		std::vector<std::function<void()>> mOutPendingChanges;
 		int mStateLastIndex = 0;
 		int mBeginActiveIndex = 0;
-		std::map<int, std::function<std::unique_ptr<State>()>> mFactories;
+		std::map<std::type_index, std::function<std::unique_ptr<State>()>> mFactories;
 		MessageBus* mMessageBus;
 
 		friend class Engine;
 	};
+
+	template <typename T>
+	//requires std::derived_from<T, State>
+	T* State::getState() {
+		return this->stateStack->getState<T>();
+	}
 }

@@ -7,122 +7,70 @@
 #include <unordered_map>
 
 #include "ark/ecs/Meta.hpp"
-#include "ark/ecs/Director.hpp"
 #include "ark/ecs/Renderer.hpp"
+#include "ark/ecs/System.hpp"
 
 namespace ark
 {
+	// TODO(editor): serialize options
+	struct EditorOptions {
+		std::string_view property_name;
+
+		/* cu cat se schimba valoarea(cat adaug/scad la valoare) pe pixel miscat cu mouse-ul */
+		float drag_speed = 0.5;
+
+		/* 0 pentru ambele inseanma ca nu are limita */
+		float drag_min = 0;
+		float drag_max = 0;
+
+		/* merge doar pentru float-uri */
+		float drag_power = 1;
+		const char* format = "%.2f";
+
+		/* 
+		 * -sub-optiuni pentru un membru compus la randul lui din proprietati
+		 * evident, optiunile de mai sus sunt ignorate
+		 * -daca nu este definit, atunci editorul incearca sa foloseasca optiunule definite la nivelul de type
+		*/ 
+		std::vector<EditorOptions> options;
+
+		// folosit intern, nu umbla la el
+		// declarat public ca struct-ul sa ramana un aggregate
+		bool privateOpenPopUp = false;
+	};
+
 	class EntityManager;
 
-	class SceneInspector : public Director, public Renderer {
+	class SceneInspector : public SystemT<SceneInspector>, public Renderer {
 
 	public:
 		SceneInspector() = default;
 		~SceneInspector() = default;
 
-		void init() override;
+		void update() override {}
 		void renderSystemInspector();
-		//void renderEntityInspector();
 		void renderEntityEditor();
 
 		void render(sf::RenderTarget&) override
 		{
 			//renderSystemInspector();
-			//renderEntityInspector();
 			renderEntityEditor();
 		}
 
-		template <typename T>
-		static bool renderPropertiesOfType(int* widgetId, void* pValue);
+		static bool renderPropertiesOfType(std::type_index type, int* widgetId, void* pValue, 
+			std::type_index parentType = typeid(void), std::string_view thisPropertyName = "");
 
 		static inline constexpr std::string_view serviceName = "INSPECTOR";
+		static inline constexpr std::string_view serviceOptions = "ark_inspector_options";
+		using VectorOptions = std::vector<EditorOptions>;
 
-	private:
-		using RenderPropFunc = std::function<std::any(std::string_view, const void*)>;
-		static std::unordered_map<std::type_index, RenderPropFunc> sPropertyRendererTable;
-
+		using RenderPropFunc = std::function<std::any(std::string_view, const void*, EditorOptions&)>;
+		static std::unordered_map<std::type_index, RenderPropFunc> s_renderPropertyTable;
 	};
-}
-
-
-namespace ImGui
-{
-	void PushID(int);
-	void PopID();
-	bool BeginCombo(const char* label, const char* preview_value, int flags);
-	void EndCombo();
-	void SetItemDefaultFocus();
-	void Indent(float);
-	void Unindent(float);
-	void Text(char const*, ...);
-	void TreePop();
 }
 
 namespace ark
 {
-	void ArkSetFieldName(std::string_view name);
-	bool ArkSelectable(const char* label, bool selected); // forward to ImGui::Selectable
+	void ArkSetFieldName(std::string_view name, EditorOptions* opt = nullptr);
 	bool AlignButtonToRight(const char* str, std::function<void()> callback);
-
-	template <typename TComp>
-	bool SceneInspector::renderPropertiesOfType(int* widgetId, void* pValue)
-	{
-		TComp& valueToRender = *static_cast<TComp*>(pValue);
-		std::any newValue;
-		bool modified = false; // used in recursive call to check if the property was modified
-
-		meta::doForAllProperties<TComp>([widgetId, &modified, &newValue, &valueToRender, &table = sPropertyRendererTable](auto& property) mutable {
-			using PropType = meta::get_member_type<decltype(property)>;
-			ImGui::PushID(*widgetId);
-
-			if constexpr (meta::isRegistered<PropType>()) {
-				// recursively render members that are registered
-				auto propValue = property.getCopy(valueToRender);
-				ImGui::Text("%s:", property.getName());
-				if (renderPropertiesOfType<PropType>(widgetId, &propValue)) {
-					property.set(valueToRender, propValue);
-					modified = true;
-				}
-			}
-			else if constexpr (std::is_enum_v<PropType> /* && is registered*/) {
-				auto propValue = property.getCopy(valueToRender);
-				const auto& fields = meta::getEnumValues<PropType>();
-				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
-
-				// render enum values in a list
-				ArkSetFieldName(property.getName());
-				if (ImGui::BeginCombo("", fieldName, 0)) {
-					for (const auto& field : fields) {
-						if (ArkSelectable(field.name, field.value == propValue)) {
-							propValue = field.value;
-							modified = true;
-							property.set(valueToRender, propValue);
-							break;
-						}
-					}
-					ImGui::EndCombo();
-				}
-			}
-			else {
-				 // render field using predefined table
-				auto& renderProperty = table.at(typeid(PropType));
-
-				if (property.canGetConstRef())
-					newValue = renderProperty(property.getName(), &property.get(valueToRender));
-				else {
-					PropType local = property.getCopy(valueToRender);
-					newValue = renderProperty(property.getName(), &local);
-				}
-
-				if (newValue.has_value()) {
-					property.set(valueToRender, std::any_cast<PropType>(newValue));
-					modified = true;
-				}
-				newValue.reset();
-			}
-			ImGui::PopID();
-			*widgetId += 1;
-		}); // doForAllProperties
-		return modified;
-	}
 }

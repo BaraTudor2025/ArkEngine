@@ -9,7 +9,8 @@
 
 namespace ark {
 
-	// TODO (resource manager): make loader return an optional default resource, if the optional is null then abort program
+	// TODO (resource manager): make loader return an optional default resource, 
+	// if the optional is null then we have no default resource so abort program loading failure
 	struct Resources {
 
 		static inline const std::string resourceFolder = "./assets/";

@@ -1,18 +1,16 @@
 #include "ark/core/Engine.hpp"
 #include "ark/core/State.hpp"
 #include "ark/core/MessageBus.hpp"
-#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/EntityManager.hpp"
 #include "ark/ecs/Entity.hpp"
 #include "ark/gui/Gui.hpp"
 #include "ark/util/ResourceManager.hpp"
 
 namespace ark {
 
-	const ComponentManager::ComponentMask& Entity::getComponentMask() { return manager->getComponentMaskOfEntity(*this); }
-
-	void State::requestStackPush(int stateId)
+	void State::requestStackPush(std::type_index type)
 	{
-		this->stateStack->pushState(stateId);
+		this->stateStack->pushState(type);
 	}
 
 	void State::requestStackPop()

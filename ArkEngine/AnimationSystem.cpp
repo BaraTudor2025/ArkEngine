@@ -24,8 +24,7 @@ inline decltype(auto) Animation::get()
 
 void AnimationSystem::update()
 {
-	for (auto entity : getEntities()) {
-		auto& animation = entity.getComponent<Animation>();
+	for (auto& animation : view.each<Animation>()) {
 
 		auto&[row, frameCount, frameTime, currentFrame, elapsedTime, uvRect] = animation;
 
@@ -66,10 +65,7 @@ void AnimationSystem::update()
 void AnimationSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
-	for (auto entity : getEntities()) {
-		auto& animation = entity.getComponent<Animation>();
-		auto& transform = entity.getComponent<ark::Transform>();
-
+	for (auto [transform, animation] : view) {
 		animation.texture->setSmooth(animation.smoothTexture);
 		rs.texture = animation.texture;
 		rs.transform = transform.getTransform();
@@ -77,48 +73,12 @@ void AnimationSystem::render(sf::RenderTarget& target)
 	}
 }
 
-
-void MeshSystem::onEntityAdded(ark::Entity entity)
-{
-	auto& mesh = entity.getComponent<Mesh>();
-	auto& tx = entity.getComponent<ark::Transform>();
-
-	mesh.texture = ark::Resources::load<sf::Texture>(mesh.fileName);
-	mesh.texture->setRepeated(mesh.repeatTexture);
-	mesh.texture->setSmooth(mesh.smoothTexture);
-	tx.setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
-	//mesh.entity()->getComponent<Transform>()->setOrigin(static_cast<sf::Vector2f>(mesh.texture->getSize()) / 2.f);
-	auto[a, b, c, d] = mesh.uvRect;
-	if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
-		mesh.uvRect.width = mesh.texture->getSize().x;
-		mesh.uvRect.height = mesh.texture->getSize().y;
-		mesh.uvRect.left = 0;
-		mesh.uvRect.top = 0;
-	}
-	mesh.vertices.updatePosTex(mesh.uvRect);
-	//sf::IntRect uvRect;
-	//if (mesh->flipX) {
-	//	uvRect.left = uvRect.width;
-	//	uvRect.width = -uvRect.width;
-	//} else {
-	//	uvRect.left = 0;
-	//} 
-	//if (mesh->flipY) {
-	//	uvRect.top = uvRect.height;
-	//	uvRect.height = -uvRect.height;
-	//} else {
-	//	uvRect.top = 0;
-	//}
-}
-
 void MeshSystem::render(sf::RenderTarget& target)
 {
 	sf::RenderStates rs;
-	for (auto entity : getEntities()) {
-		auto& mesh = entity.getComponent<Mesh>();
-		const auto& transform = entity.getComponent<ark::Transform>();
+	entityManager.view<const ark::Transform, MeshComponent>().each([&](const ark::Transform& transform, auto& mesh) {
 		rs.texture = mesh.texture;
 		rs.transform = transform.getTransform();
 		target.draw(mesh.vertices.data(), 4, sf::TriangleStrip, rs);
-	}
+	});
 }

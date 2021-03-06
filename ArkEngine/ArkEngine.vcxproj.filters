@@ -127,9 +127,6 @@
     <ClInclude Include="src\ark\ecs\Meta.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="src\ark\ecs\Scene.hpp">
-      <Filter>ark\ecs</Filter>
-    </ClInclude>
     <ClInclude Include="src\ark\ecs\SceneInspector.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
@@ -202,9 +199,6 @@
     <ClInclude Include="src\ark\ecs\DefaultServices.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
-    <ClInclude Include="src\ark\ecs\Director.hpp">
-      <Filter>ark\ecs</Filter>
-    </ClInclude>
     <ClInclude Include="src\ark\ecs\Renderer.hpp">
       <Filter>ark\ecs</Filter>
     </ClInclude>
@@ -216,6 +210,18 @@
     </ClInclude>
     <ClInclude Include="LuaScriptingSystem.hpp">
       <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ark\ecs\Querry.hpp">
+      <Filter>ark\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="Allocators.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DrawableSystem.hpp">
+      <Filter>Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ark\core\Signal.hpp">
+      <Filter>ark\core</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -9,27 +9,19 @@
 #include <SFML/Graphics/Color.hpp>
 
 #include "ark/core/Core.hpp"
-#include "ark/ecs/Director.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/Entity.hpp"
+#include "ark/ecs/System.hpp"
+#include "ark/ecs/Entity.hpp"
 
-namespace ark
+namespace ark::serde
 {
-	class Entity;
+	void serializeEntity(ark::Entity e);
 
-	class SerdeJsonDirector : public Director {
-	public:
-		SerdeJsonDirector() = default;
+	void deserializeEntity(ark::Entity e);
 
-		static inline std::string_view serviceSerializeName = "serialize";
-		static inline std::string_view serviceDeserializeName = "deserialize";
-
-		void init() override {}
-
-		void serializeEntity(Entity& e);
-
-		void deserializeEntity(Entity& e);
-	};
+	static inline std::string_view serviceSerializeName = "serialize";
+	static inline std::string_view serviceDeserializeName = "deserialize";
 }
 
 namespace sf
@@ -40,7 +32,6 @@ namespace sf
 	{
 		jsonObj = nlohmann::json{ {"x", vec.x,}, {"y", vec.y} };
 	}
-
 	template <typename T>
 	static void from_json(const nlohmann::json& jsonObj, Vector2<T>& vec)
 	{
@@ -48,11 +39,24 @@ namespace sf
 		vec.y = jsonObj.at("y").get<T>();
 	}
 
+	template <typename T>
+	static void to_json(nlohmann::json& jsonObj, const Rect<T>& rect)
+	{
+		jsonObj = nlohmann::json{ {"top", rect.top,}, {"left", rect.left}, {"height", rect.height}, {"width", rect.width} };
+	}
+	template <typename T>
+	static void from_json(const nlohmann::json& jsonObj, Rect<T>& rect)
+	{
+		rect.top = jsonObj.at("top").get<T>();
+		rect.left = jsonObj.at("left").get<T>();
+		rect.height = jsonObj.at("height").get<T>();
+		rect.width = jsonObj.at("width").get<T>();
+	}
+
 	static void to_json(nlohmann::json& jsonObj, const Time& time)
 	{
 		jsonObj = nlohmann::json(time.asSeconds());
 	}
-
 	static void from_json(const nlohmann::json& jsonObj, Time& time)
 	{
 		time = sf::seconds(jsonObj.get<float>());
@@ -62,7 +66,6 @@ namespace sf
 	{
 		jsonObj = nlohmann::json{ {"r", color.r}, {"g", color.g}, {"b", color.b}, {"a", color.a} };
 	}
-
 	static void from_json(const nlohmann::json& jsonObj, Color& color)
 	{
 		color.r = jsonObj.at("r").get<Uint8>();
@@ -72,9 +75,8 @@ namespace sf
 	}
 }
 
-namespace ark
+namespace ark::serde
 {
-
 	using nlohmann::json;
 
 	// TODO (json): serialize sf::Vector2f with json::adl_serializer or meta::register?
@@ -93,7 +95,7 @@ namespace ark
 			else if constexpr (std::is_enum_v<PropType> /*&& is registered */) {
 				auto propValue = property.getCopy(value);
 				const auto& fields = meta::getEnumValues<PropType>();
-				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue);
+				const char* fieldName = meta::getNameOfEnumValue<PropType>(propValue).data();
 				jsonObj[property.getName()] = fieldName;
 			}
 			else if constexpr (std::is_same_v<char, PropType>) {
@@ -147,13 +149,13 @@ namespace ark
 				}
 			}
 			if (failure) {
-				auto mdata = ark::meta::getMetadata(typeid(Type));
+				auto mdata = ark::meta::type<Type>();
 				if (mdata)
-					EngineLog(LogSource::Scene, LogLevel::Error,
+					EngineLog(LogSource::Registry, LogLevel::Error,
 						"failed to deser property (%s) on component (%s) on entity (%d)",
 						property.getName(), mdata->name, entity.getID());
 				else
-					EngineLog(LogSource::Scene, LogLevel::Error,
+					EngineLog(LogSource::Registry, LogLevel::Error,
 						"failed to deser property (%s) on entity (%s)",
 						property.getName(), entity.getID());
 			}

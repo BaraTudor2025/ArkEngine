@@ -4,20 +4,31 @@
 #include "ark/core/Logger.hpp"
 
 #include <iostream>
+#include <typeindex>
 
 namespace ark {
 
 	struct Message final {
 
-		int id = -1;
+		std::type_index type = typeid(void);
+
+		template <typename T>
+		bool is() const {
+			return typeid(T) == this->type;
+		}
 
 		template <typename T>
 		const T& data() const
 		{
-			// TODO (message): assert(sizeof(T) == m_size)
-			if (sizeof(T) != m_size)
-				EngineLog(LogSource::Message, LogLevel::Warning, "Type (%s) with size %d doesn't have the message size of %d", typeid(T).name(), sizeof(T), m_size);
+			assert(typeid(T) == type);
+			if (typeid(T) != type)
+				EngineLog(LogSource::Message, LogLevel::Error, "Type (%s) with size %d doesn't have the message size of %d", typeid(T).name(), sizeof(T), m_size);
 			return *static_cast<T*>(m_data);
+		}
+
+		template <typename T>
+		const T* tryData() const {
+			return this->is<T>() ? &this->data<T>() : nullptr;
 		}
 
 	private:

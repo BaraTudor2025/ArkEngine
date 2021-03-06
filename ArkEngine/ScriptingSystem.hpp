@@ -6,10 +6,11 @@
 #include "ark/ecs/Meta.hpp"
 #include "ark/ecs/DefaultServices.hpp"
 
-class Script : public NonCopyable {
+class Script {
 
 public:
 	Script(std::type_index type) : mType(type) {}
+	Script(const Script&) = default;
 	virtual ~Script() = default;
 
 	// scripts are immediatly binded
@@ -17,7 +18,7 @@ public:
 	virtual void handleEvent(const sf::Event& ev) noexcept {}
 	virtual void update() noexcept {}
 
-	template <typename T> T* getComponent() { return mEntity.tryGetComponent<T>(); }
+	template <typename T> T* getComponent() { return mEntity.tryGet<T>(); }
 
 	ark::Entity entity() { return mEntity; }
 	void setActive(bool isActive) { mIsActive = isActive; }
@@ -28,15 +29,18 @@ public:
 
 	std::type_index getType() const { return mType; }
 
-	__declspec(property(get = getScene))
-		ark::Scene& scene;
+	__declspec(property(get = getRegistry))
+		ark::EntityManager& registry;
 
-	ark::Scene& getScene() { return *mScene; }
+	__declspec(property(get = getSystemManager))
+		ark::SystemManager& systemManager;
+
+	ark::EntityManager& getRegistry() { return *mManager; }
 
 private:
 	bool mIsActive = true;
 	ark::Entity mEntity;
-	ark::Scene* mScene;
+	ark::EntityManager* mManager;
 	std::type_index mType;
 
 	friend class ScriptingSystem;
@@ -49,26 +53,46 @@ inline const std::string_view gScriptGroupName = "ark_scripts";
 template <typename T>
 void registerScript(bool customRegistration)
 {
-	if (not customRegistration) {
-		using Type = T;
-		ARK_DEFAULT_SERVICES;
-		ark::meta::constructMetadataFrom<T>();
-	}
-	ark::meta::service<T>("unique_ptr", []() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
+	auto* mdata = ark::meta::type<T>();
+	if (not customRegistration)
+		registerServiceDefault<T>();
+	mdata->func("unique_ptr", +[]() -> std::unique_ptr<Script> { return std::make_unique<T>(); });
+	mdata->func("clone", +[](Script* script) -> std::unique_ptr<Script> { return std::make_unique<T>(*static_cast<const T*>(script)); });
 	ark::meta::addTypeToGroup(gScriptGroupName, typeid(T));
 }
 
 template <typename T, bool CustomRegistration = false>
 class ScriptT : public Script {
+	// as fi folosit o lambda, dar da eroarea: use of undefined type; pentru ca T este derivata, 
+	// si cum clasa inca nu este definita, nu poate fi instantata template
 	static inline auto _ = (registerScript<T>(CustomRegistration), 0);
 public:
 	ScriptT() : Script(typeid(T)) {}
+	ScriptT(const ScriptT&) = default;
 };
 
 
-struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingComponent> {
+struct ScriptingComponent {
 
 	ScriptingComponent() = default;
+	ScriptingComponent(ScriptingComponent&&) = default;
+	/* NO copy ctor */
+	ScriptingComponent(const ScriptingComponent&) = delete;
+	//ScriptingComponent(ark::Entity, ark::Registry) = delete;
+	//ScriptingComponent(const ScriptingComponent&, ark::Entity, ark::Registry) = delete;
+
+	static auto onAdd(ark::EntityManager& man, ark::EntityId entity) {
+		auto& comp = man.get<ScriptingComponent>(entity);
+		comp.mEntity = ark::Entity{ entity, man };
+		comp.mManager = &man;
+	}
+
+	static void onClone(ark::Entity This, ark::Entity That) {
+		auto& thisComp = This.get<ScriptingComponent>();
+		auto& thatComp = That.get<ScriptingComponent>();
+		for (const auto& script : thatComp.mScripts)
+			thisComp.copyScript(script.get());
+	}
 
 	template <typename T, typename... Args>
 	T* addScript(Args&&... args)
@@ -89,8 +113,20 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		if (auto s = getScript(type))
 			return s;
 		else {
-			auto create = ark::meta::getService<std::unique_ptr<Script>()>(type, "unique_ptr");
+			auto create = ark::meta::resolve(type)->func<std::unique_ptr<Script>()>("unique_ptr");
 			auto script = mScripts.emplace_back(create()).get();
+			_bindScript(script);
+			return script;
+		}
+	}
+
+	Script* copyScript(Script* toCopy)
+	{
+		if (auto s = getScript(toCopy->type))
+			return s;
+		else {
+			auto clone = ark::meta::resolve(toCopy->type)->func<std::unique_ptr<Script>(Script*)>("clone");
+			auto script = mScripts.emplace_back(clone(toCopy)).get();
 			_bindScript(script);
 			return script;
 		}
@@ -133,9 +169,9 @@ struct ScriptingComponent : public NonCopyable, public ark::Component<ScriptingC
 		mEntity = e;
 	}
 
-	void _setScene(ark::Scene* scene)
+	void _setScene(ark::EntityManager* registry)
 	{
-		mScene = scene;
+		mManager = registry;
 	}
 
 private:
@@ -143,12 +179,12 @@ private:
 	void _bindScript(Script* script)
 	{
 		script->mEntity = mEntity;
-		script->mScene = mScene;
+		script->mManager = mManager;
 		script->bind();
 	}
 
 	ark::Entity mEntity;
-	ark::Scene* mScene;
+	ark::EntityManager* mManager;
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 
@@ -163,8 +199,8 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	nlohmann::json jsonScripts;
 	const ScriptingComponent* scriptingComp = static_cast<const ScriptingComponent*>(pvScriptComponent);
 	for (const auto& script : scriptingComp->mScripts) {
-		if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(script->type, ark::SerdeJsonDirector::serviceSerializeName)) {
-			const auto* mdata = ark::meta::getMetadata(script->type);
+		const auto* mdata = ark::meta::resolve(script->type);
+		if (auto serialize = mdata->func<nlohmann::json(const void*)>(ark::serde::serviceSerializeName)) {
 			jsonScripts[mdata->name] = serialize(script.get());
 		}
 	}
@@ -176,17 +212,17 @@ static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::jso
 	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
 	// allocate scripts and default construct
 	for (const auto& [scriptName, _] : jsonScripts.items()) {
-		const auto* mdata = ark::meta::getMetadata(scriptName);
+		const auto* mdata = ark::meta::resolve(scriptName);
 		auto* pScript = scriptingComp->addScript(mdata->type);
 	}
 	// then initialize
 	scriptingComp->mEntity = entity;
 	for(auto& script : scriptingComp->mScripts){
-		const auto* mdata = ark::meta::getMetadata(script->type);
+		const auto* mdata = ark::meta::resolve(script->type);
 		script->mEntity = scriptingComp->mEntity;
-		script->mScene = scriptingComp->mScene;
+		script->mManager = scriptingComp->mManager;
 		script->bind();
-		if (auto deserialize = ark::meta::getService<void(ark::Entity&, const nlohmann::json&, void*)>(mdata->type, ark::SerdeJsonDirector::serviceDeserializeName )) {
+		if (auto deserialize = mdata->func<void(ark::Entity&, const nlohmann::json&, void*)>(ark::serde::serviceDeserializeName)) {
 			deserialize(entity, jsonScripts.at(mdata->name), script.get());
 		}
 	}
@@ -196,25 +232,23 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 {
 	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
 	for (auto& script : scriptingComp->mScripts) {
-		const auto* mdata = ark::meta::getMetadata(script->type);
+		const auto* mdata = ark::meta::resolve(script->type);
 
-		if (auto render = ark::meta::getService<bool(int*, void*)>(script->type, ark::SceneInspector::serviceName)) {
-			ImGui::AlignTextToFramePadding();
-			if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
-				bool deleted = ark::AlignButtonToRight("remove script", [&]() {
-					scriptingComp->removeScript(script->type);
-				});
-				if (!deleted) {
-					ImGui::PushID(*widgetId);
-					ark::ArkSetFieldName("is-active");
-					bool bIsActive = script->isActive();
-					if (ImGui::Checkbox("", &bIsActive))
-						script->setActive(bIsActive);
-					render(widgetId, script.get());
-					ImGui::PopID();
-				}
-				ImGui::TreePop();
+		ImGui::AlignTextToFramePadding();
+		if (ImGui::TreeNodeEx(mdata->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_AllowItemOverlap)) {
+			bool deleted = ark::AlignButtonToRight("remove script", [&]() {
+				scriptingComp->removeScript(script->type);
+			});
+			if (!deleted) {
+				ImGui::PushID(*widgetId);
+				ark::ArkSetFieldName("is-active");
+				bool bIsActive = script->isActive();
+				if (ImGui::Checkbox("", &bIsActive))
+					script->setActive(bIsActive);
+				ark::SceneInspector::renderPropertiesOfType(script->type, widgetId, script.get());
+				ImGui::PopID();
 			}
+			ImGui::TreePop();
 		}
 		ImGui::Separator();
 
@@ -225,7 +259,7 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 		const auto& types = *static_cast<std::remove_reference_t<decltype(typeList)>*>(data);
 		auto it = types.begin();
 		std::advance(it, index);
-		*out_text = ark::meta::getMetadata(*it)->name.c_str();
+		*out_text = ark::meta::resolve(*it)->name.c_str();
 		return true;
 	};
 	int scriptItemIndex;
@@ -236,37 +270,32 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 	return false;
 }
 
-ARK_REGISTER_TYPE(ScriptingComponent, "ScriptingComponent", 
-	ark::meta::service<ScriptingComponent>(ark::SceneInspector::serviceName, renderScriptComponents),
-	ark::meta::service<ScriptingComponent>(ark::SerdeJsonDirector::serviceSerializeName, serializeScriptComponents),
-	ark::meta::service<ScriptingComponent>(ark::SerdeJsonDirector::serviceDeserializeName, deserializeScriptComponents)
-)
+// ar trebui ca functiile sa fie date in main()
+ARK_REGISTER_COMPONENT(ScriptingComponent, 0)
 {
-	return members(); 
+	return members<ScriptingComponent>(); 
 }
 
 class ScriptingSystem : public ark::SystemT<ScriptingSystem> {
+	ark::View<ScriptingComponent> view;
 public:
 	ScriptingSystem() = default;
 
 	void init() override
 	{
-		requireComponent<ScriptingComponent>();
+		view = entityManager.view<ScriptingComponent>();
 	}
 
 	void update() override
 	{
-		for (ark::Entity e : getEntities()) {
-			auto& scriptComp = e.getComponent<ScriptingComponent>();
-
+		for (auto& scriptComp : view) {
 			// delete script from previous frame
 			if (not scriptComp.mToBeDeleted.empty()) {
 				for (Script* pScript : scriptComp.mToBeDeleted) {
-					Util::erase_if(scriptComp.mScripts, [type = pScript->mType](const auto& script) { return script->mType == type; });
+					std::erase_if(scriptComp.mScripts, [type = pScript->mType](const auto& script) { return script->mType == type; });
 				}
 				scriptComp.mToBeDeleted.clear();
 			}
-
 			// update
 			for (auto& script : scriptComp.mScripts) {
 				if (script->mIsActive)
@@ -291,8 +320,7 @@ private:
 	template <typename F>
 	void forEachScript(F f)
 	{
-		for (auto& e : getEntities()) {
-			auto& scriptComp = e.getComponent<ScriptingComponent>();
+		for (auto& scriptComp : view) {
 			for (auto& script : scriptComp.mScripts) {
 				if (script->mIsActive)
 					f(script);

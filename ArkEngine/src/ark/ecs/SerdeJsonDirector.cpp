@@ -1,12 +1,12 @@
 #include <fstream>
 #include "ark/ecs/SerdeJsonDirector.hpp"
 #include "ark/ecs/Entity.hpp"
-#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/EntityManager.hpp"
 #include "ark/ecs/Meta.hpp"
 #include "ark/util/ResourceManager.hpp"
 #include "ark/ecs/components/Transform.hpp"
 
-namespace ark
+namespace ark::serde
 {
 	static inline const std::string sEntityFolder = Resources::resourceFolder + "entities/";
 
@@ -15,47 +15,48 @@ namespace ark
 		return sEntityFolder + name.data() + ".json";
 	}
 
-	void SerdeJsonDirector::serializeEntity(Entity& entity)
+	void serializeEntity(ark::Entity entity)
 	{
 		json jsonEntity;
 
 		auto& jsonComps = jsonEntity["components"];
 
-		for (const auto component : entity.runtimeComponentView()) {
-			if (auto serialize = ark::meta::getService<nlohmann::json(const void*)>(component.type, serviceSerializeName)) {
-				const auto* mdata = ark::meta::getMetadata(component.type);
+		for (const RuntimeComponent component : entity.eachComponent()) {
+			auto mdata = ark::meta::resolve(component.type);
+			if (auto serialize = mdata->func<nlohmann::json(const void*)>(serviceSerializeName)) {
 				jsonComps[mdata->name] = serialize(component.ptr);
 			}
 		}
 
-		std::ofstream of(getEntityFilePath(entity.getComponent<TagComponent>().name));
+		std::ofstream of(getEntityFilePath(entity.get<TagComponent>().name));
 		of << jsonEntity.dump(4, ' ', true);
 		// TODO: use pmr vector for to_cbor
 		//nlohmann::json::to_bson(jsonEntity);
 		//nlohmann::detail::output_adapter<char> nush;
 	}
 
-	void SerdeJsonDirector::deserializeEntity(Entity& entity)
+	void deserializeEntity(ark::Entity entity)
 	{
 		json jsonEntity;
-		std::ifstream fin(getEntityFilePath(entity.getComponent<TagComponent>().name));
+		std::ifstream fin(getEntityFilePath(entity.get<TagComponent>().name));
 		fin >> jsonEntity;
 
 		// allocate components and default construct
 		auto& jsonComps = jsonEntity.at("components");
 		for (const auto& [compName, _] : jsonComps.items()) {
-			const auto* mdata = ark::meta::getMetadata(compName);
-			entity.addComponent(mdata->type);
+			const auto* mdata = ark::meta::resolve(compName);
+			entity.add(mdata->type);
 		}
+
 		// then initialize
-		for (auto component : entity.runtimeComponentView()) {
-			if (auto deserialize = ark::meta::getService<void(Entity & e, const nlohmann::json&, void*)>(component.type, serviceDeserializeName)) {
-				const auto* mdata = ark::meta::getMetadata(component.type);
+		for (auto component : entity.eachComponent()) {
+			auto mdata = ark::meta::resolve(component.type);
+			if (auto deserialize = mdata->func<void(Entity&, const nlohmann::json&, void*)>(serviceDeserializeName)) {
 				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())
 					deserialize(entity, *it, component.ptr);
 				else
-					EngineLog(LogSource::Scene, LogLevel::Error, "deser-ing entity (%s) without component (%s)", 
-						entity.getComponent<TagComponent>().name, mdata->name);
+					EngineLog(LogSource::Registry, LogLevel::Error, "deser-ing entity (%s) without component (%s)", 
+						entity.get<TagComponent>().name, mdata->name);
 			}
 		}
 	}

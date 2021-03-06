@@ -1,19 +1,22 @@
 #pragma once
 
 #include <vector>
+#include <concepts>
 
 #include <SFML/Window/Event.hpp>
+#include <SFML/Graphics/RenderTarget.hpp>
 
+#include "ark/core/Message.hpp"
+#include "ark/core/MessageBus.hpp"
 #include "ark/ecs/Entity.hpp"
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/Meta.hpp"
-#include "ark/core/Message.hpp"
-#include "ark/core/MessageBus.hpp"
+#include "ark/ecs/Querry.hpp"
+#include "ark/ecs/Renderer.hpp"
 
 namespace ark
 {
-
-	class Scene;
+	class SystemManager;
 
 	class ARK_ENGINE_API System : public NonCopyable {
 
@@ -22,7 +25,7 @@ namespace ark
 		virtual ~System() = default;
 
 		virtual void init() {}
-		virtual void update() {}
+		virtual void update() = 0;
 		virtual void handleEvent(sf::Event) {}
 		virtual void handleMessage(const Message&) {}
 
@@ -30,69 +33,36 @@ namespace ark
 
 		const std::string name;
 		const std::type_index type;
-		const std::vector<Entity>& getEntities() const { return entities; }
-		const std::vector<std::string_view>& getComponentNames() const { return componentNames; }
 
 	protected:
-		template <typename T>
-		void requireComponent()
-		{
-			static_assert(std::is_base_of_v<Component<T>, T>, " T is not a Component");
-			componentTypes.push_back(typeid(T));
-			componentManager->addComponentType(typeid(T));
-		}
 
 		template <typename T>
-		T* postMessage(int id)
+		requires std::is_aggregate_v<T>
+		T* postMessage(T&& value = T{})
 		{
-			return messageBus->post<T>(id);
+			return messageBus->post<T>(std::forward<T>(value));
 		}
 
-		std::vector<Entity>& getEntities() { return entities; }
-
-		Scene* scene() { return m_scene; }
-
-		virtual void onEntityAdded(Entity) {}
-		virtual void onEntityRemoved(Entity) {}
-
-	private:
-		void addEntity(Entity e)
+		template <typename T, typename...Args>
+		T* postMessage(Args&&... args)
 		{
-			entities.push_back(e);
-			onEntityAdded(e);
+			return messageBus->post<T>(std::forward<Args>(args)...);
 		}
 
-		void removeEntity(Entity entity)
-		{
-			Util::erase_if(entities, [&entity, this](Entity e) {
-				if (entity == e) {
-					onEntityRemoved(e);
-					return true;
-				}
-				return false;
-			});
-		}
+		EntityManager& getEntityManager() const { return *mEntityManager; }
+		SystemManager& getSystemManager() const { return *mSystemManager; }
 
-		void constructMask(ComponentManager& cm)
-		{
-			for (auto type : componentTypes)
-				componentNames.push_back(meta::getMetadata(type)->name);
+		__declspec(property(get=getEntityManager)) 
+			EntityManager entityManager;
 
-			for (auto type : componentTypes)
-				componentMask.set(cm.idFromType(type));
-			componentTypes.clear();
-		}
+		__declspec(property(get=getSystemManager)) 
+			SystemManager systemManager;
 
 	private:
 		friend class SystemManager;
-		ComponentManager* componentManager = nullptr;
-		std::vector<Entity> entities;
-		std::vector<std::type_index> componentTypes;
-		ComponentManager::ComponentMask componentMask;
-		Scene* m_scene = nullptr;
+		EntityManager* mEntityManager = nullptr;
 		MessageBus* messageBus = nullptr;
-		// used for inspection
-		std::vector<std::string_view> componentNames;
+		SystemManager* mSystemManager = nullptr;
 		bool active = true;
 	};
 
@@ -102,36 +72,41 @@ namespace ark
 		SystemT() : System(typeid(T)) {}
 	};
 
+
+	/* NOTE: recomand declararea system-managerului dupa cea a registrului/entity-manager, ca sa poata fi distrus dupa el */
 	class SystemManager {
 
 	public:
-		SystemManager(MessageBus& bus, Scene& scene, ComponentManager& compMgr) : messageBus(bus), scene(scene), componentManager(compMgr) {}
+		SystemManager(MessageBus& bus, EntityManager& manager) : messageBus(bus), registry(manager) {}
 		~SystemManager() = default;
 
 		template <typename T, typename...Args>
+		requires std::derived_from<T, System>
 		T* addSystem(Args&&... args)
 		{
+			static_assert(std::is_base_of_v<System, T>, " T not a system type");
+
 			if (hasSystem<T>())
 				return getSystem<T>();
 
-			auto& system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...));
-			activeSystems.push_back(system.get());
-			system->m_scene = &scene;
-			system->componentManager = &componentManager;
+			System* system = systems.emplace_back(std::make_unique<T>(std::forward<Args>(args)...)).get();
+			activeSystems.push_back(system);
+			system->mEntityManager = &registry;
 			system->messageBus = &messageBus;
+			system->mSystemManager = this;
 			system->init();
-			system->constructMask(componentManager);
-			if (system->componentMask.none())
-				EngineLog(LogSource::SystemM, LogLevel::Warning, "(%s) dosen't have any component requirements", system->name);
 
-			return dynamic_cast<T*>(system.get());
+			if constexpr (std::is_base_of_v<Renderer, T>)
+				renderers.push_back(dynamic_cast<T*>(system));
+			return dynamic_cast<T*>(system);
 		}
 
-		template <typename T>
-		T* getSystem()
+		template <std::derived_from<System> SysT>
+		SysT* getSystem()
 		{
-			if (System* sys = getSystem(typeid(T)); sys)
-				return dynamic_cast<T*>(sys);
+			static_assert(std::is_base_of_v<System, SysT>, " T not a system type");
+			if (System* sys = getSystem(typeid(SysT)); sys)
+				return dynamic_cast<SysT*>(sys);
 			else
 				return nullptr;
 		}
@@ -150,6 +125,7 @@ namespace ark
 		}
 
 		template <typename T>
+		requires std::derived_from<T, System>
 		bool hasSystem()
 		{
 			return hasSystem(typeid(T));
@@ -161,81 +137,100 @@ namespace ark
 		}
 
 		template <typename T>
+		requires std::derived_from<T, System>
 		void removeSystem()
 		{
+			static_assert(std::is_base_of_v<System, T>, " T not a system type");
+			if (std::is_base_of_v<Renderer, T>)
+				std::erase(renderers, getSystem<T>());
 			if (auto system = getSystem<T>(); system) {
-				Util::erase_if(systems, [system](auto& sys) {
+				std::erase_if(systems, [system](auto& sys) {
 					return sys.get() == system;
 				});
 			}
 		}
 
-		// used by Scene to call handleEvent, handleMessage, update
 		template <typename F>
+		requires std::invocable<F, System*>
 		void forEachSystem(F f)
 		{
 			for (auto system : activeSystems)
 				f(system);
 		}
 
-		void setSystemActive(std::type_index type, bool active)
+		template <typename T>
+		requires std::derived_from<T, System>
+		void setSystemActive(bool active)
 		{
-			System* system = getSystem(type);
+			static_assert(std::is_base_of_v<System, T>, " T not a system type");
+			System* system = getSystem(typeid(T));
 			if (!system)
 				return;
 
-			auto isCurrentlyActive = Util::contains(activeSystems, system);
+			auto isCurrentlyActive = activeSystems.end() != std::find(activeSystems.begin(), activeSystems.end(), system);
 
 			if (isCurrentlyActive && !active) {
-				Util::erase(activeSystems, system);
+				std::erase(activeSystems, system);
 				system->active = false;
 			}
 			else if (!isCurrentlyActive && active) {
 				activeSystems.push_back(system);
 				system->active = true;
 			}
-		}
 
-		void processModifiedEntityToSystems(Entity entity)
-		{
-			const auto& entityMask = entity.getComponentMask();
-			for (auto& system : systems) {
-				if (system->componentMask.any()) {
-					if ((entityMask & system->componentMask) == system->componentMask) {
-						bool found = false;
-						for (auto& e : system->entities)
-							if (e == entity)
-								found = true;
-						if (!found)
-							system->addEntity(entity);
-					}
-					else {
-						system->removeEntity(entity);
-					}
+			if (std::is_base_of_v<Renderer, T>) {
+				System* system = getSystem<T>();
+				if (active) {
+					if (renderers.end() == std::find(renderers.begin(), renderers.end(), system))
+						renderers.push_back(system);
+				} else {
+					std::erase(renderers, system);
 				}
 			}
 		}
 
-		void addToSystems(Entity entity)
+		void handleEvent(const sf::Event& event)
 		{
-			const auto& entityMask = entity.getComponentMask();
-			for (auto& system : systems)
-				if (system->componentMask.any())
-					if ((entityMask & system->componentMask) == system->componentMask)
-						system->addEntity(entity);
+			forEachSystem([&event](System* system){
+				system->handleEvent(event);
+			});
 		}
 
-		void removeFromSystems(Entity entity)
+		void handleMessage(const Message& message)
 		{
-			for (auto& system : systems)
-				system->removeEntity(entity);
+			forEachSystem([&message](System* system) {
+				system->handleMessage(message);
+			});
+		}
+
+		void update() 
+		{
+			forEachSystem([](System* system) {
+				system->update();
+			});
+		}
+
+		void preRender(sf::RenderTarget& target)
+		{
+			for (auto renderer : renderers)
+				renderer->preRender(target);
+		}
+		void render(sf::RenderTarget& target)
+		{
+			for (auto renderer : renderers)
+				renderer->render(target);
+		}
+		void postRender(sf::RenderTarget& target)
+		{
+			for (auto renderer : renderers)
+				renderer->postRender(target);
 		}
 
 	private:
 		std::vector<std::unique_ptr<System>> systems;
+		std::vector<Renderer*> renderers;
 		std::vector<System*> activeSystems;
 		MessageBus& messageBus;
-		Scene& scene;
-		ComponentManager& componentManager;
+		EntityManager& registry;
 	};
 }

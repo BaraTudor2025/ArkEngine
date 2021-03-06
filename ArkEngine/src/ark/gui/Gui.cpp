@@ -24,7 +24,7 @@ namespace ark {
 			return sf::Color::Blue;
 
 		default:
-			break;
+			return sf::Color::Green;
 		}
 	}
 
@@ -48,7 +48,7 @@ namespace ark {
 			return "debug";
 
 		default:
-			break;
+			return "no-log-level";
 		}
 	}
 
@@ -80,14 +80,14 @@ namespace ark {
 		case LogSource::Message:
 			return "Message";
 
-		case LogSource::Scene:
-			return "Scene";
+		case LogSource::Registry:
+			return "Registry";
 
 		case LogSource::Engine:
 			return "Engine";
 
 		default:
-			break;
+			return "no-log-source";
 		}
 	}
 
@@ -197,10 +197,11 @@ namespace ark {
 
 	static ImFont* arkFont;
 
+	void SetDarkColors();
+
 	void ImGuiLayer::init()
 	{
 		ImGui::SFML::Init(Engine::getWindow());
-		//ImGuiLayer::init();
 #if not USE_NATIVE_CONSOLE
 		// redirecting stdout and stderr to stringstream to print the output to the gui console
 		StdOutLogger::stdout_buf = std::cout.rdbuf();
@@ -212,6 +213,7 @@ namespace ark {
 		tabs.push_back({"Game Log", GameLogger::render});
 		tabs.push_back({"stdout", StdOutLogger::render});
 #endif
+		ImGuiIO& io = ImGui::GetIO();
 		ImGuiStyle& imguiStyle = ImGui::GetStyle();
 		imguiStyle.ChildRounding = 3;
 		imguiStyle.FrameRounding = 3;
@@ -219,16 +221,53 @@ namespace ark {
 		imguiStyle.AntiAliasedFill = true;
 		imguiStyle.AntiAliasedLines = true;
 
-		ImGuiIO& io = ImGui::GetIO();
-		std::string file = Resources::resourceFolder + "fonts/Inconsolata.otf";
-		arkFont = io.Fonts->AddFontFromFileTTF(file.c_str(), 15);
+		ImGui::StyleColorsDark();
+
+		// When viewports are enabled we tweak WindowRounding/WindowBg so platform windows can look identical to regular ones.
+		//ImGuiStyle& style = ImGui::GetStyle();
+		//if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		//{
+		//	style.WindowRounding = 0.0f;
+		//	style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+		//}
+
+		SetDarkColors();
+
+		std::string file = Resources::resourceFolder + "fonts/OpenSans-Regular.ttf";
+		io.FontDefault = io.Fonts->AddFontFromFileTTF(file.c_str(), 20);
+
 		ImGui::SFML::UpdateFontTexture();
+	}
+
+	void SetDarkColors() {
+		auto& colors = ImGui::GetStyle().Colors;
+		colors[ImGuiCol_WindowBg] = ImVec4{ 0.1f, 0.105f, 0.11f, 0.98f };
+
+		colors[ImGuiCol_Header] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
+		colors[ImGuiCol_HeaderHovered] = ImVec4{ 0.3f, 0.305f, 0.31f, 1.0f };
+		colors[ImGuiCol_HeaderActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+
+		colors[ImGuiCol_Button] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
+		colors[ImGuiCol_ButtonHovered] = ImVec4{ 0.3f, 0.305f, 0.31f, 1.0f };
+		colors[ImGuiCol_ButtonActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+
+		colors[ImGuiCol_FrameBg] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
+		colors[ImGuiCol_FrameBgHovered] = ImVec4{ 0.3f, 0.305f, 0.31f, 1.0f };
+		colors[ImGuiCol_FrameBgActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+
+		colors[ImGuiCol_Tab] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+		colors[ImGuiCol_TabHovered] = ImVec4{ 0.38f, 0.3805f, 0.381f, 1.0f };
+		colors[ImGuiCol_TabActive] = ImVec4{ 0.28f, 0.2805f, 0.281f, 1.0f };
+		colors[ImGuiCol_TabUnfocused] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+		colors[ImGuiCol_TabUnfocusedActive] = ImVec4{ 0.2f, 0.205f, 0.21f, 1.0f };
+
+		colors[ImGuiCol_TitleBg] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+		colors[ImGuiCol_TitleBgActive] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+		colors[ImGuiCol_TitleBgCollapsed] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
 	}
 
 	void ImGuiLayer::preRender(sf::RenderTarget&)
 	{
-		ImGui::PushFont(arkFont);
-
 		ImGui::Begin("MyWindow");
 		if (ImGui::BeginTabBar("GameTabBar")) {
 			for (const auto& tab : tabs) {
@@ -244,8 +283,6 @@ namespace ark {
 
 	void ImGuiLayer::render(sf::RenderTarget& win)
 	{
-		ImGui::PopFont();
-
 		ImGui::SFML::Render(win);
 	}
 

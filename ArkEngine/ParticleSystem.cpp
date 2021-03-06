@@ -4,19 +4,9 @@
 #include "ark/util/Util.hpp"
 #include "ark/core/Engine.hpp"
 
-
 ///////////////////////////////
 //// POINT PARTICLE SYSTEM ////
 ///////////////////////////////
-
-void PointParticleSystem::onEntityAdded(ark::Entity entity)
-{
-	auto& p = entity.getComponent<PointParticles>();
-	if (p.spawn)
-		p.deathTimer = sf::Time::Zero;
-	else
-		p.deathTimer = p.lifeTime;
-}
 
 void PointParticleSystem::update()
 {
@@ -33,8 +23,7 @@ void PointParticleSystem::update()
 	}
 	*/
 
-	for (auto entity : getEntities()) {
-		auto& ps = entity.getComponent<PointParticles>();
+	for (auto& ps : view) {
 		//if (ps.areDead())
 			//return;
 
@@ -87,12 +76,11 @@ void PointParticleSystem::update()
 
 void PointParticleSystem::render(sf::RenderTarget& target)
 {
-	for (auto entity : getEntities()) {
-		const auto& p = entity.getComponent<PointParticles>();
+	for (const auto& ps : view) {
+		target.draw(ps.vertices.data(), ps.vertices.size(), sf::Points);
+	}
 		//if (p.areDead())
 			//return;
-		target.draw(p.vertices.data(), p.vertices.size(), sf::Points);
-	}
 }
 
 void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Vertex& vertex, sf::Vector2f& speed, sf::Time& lifeTime)
@@ -111,9 +99,8 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 
 	auto time = std::abs(RandomNumber(ps.lifeTimeDistribution));
 	if (ps.lifeTimeDistribution.type == DistributionType::normal) {
-		while (sf::seconds(time) > ps.lifeTime)
-			time = RandomNumber(ps.lifeTimeDistribution);
-		lifeTime = sf::seconds(time);
+		if (sf::seconds(time / 1000) > ps.lifeTime)
+			lifeTime = ps.lifeTime;
 	} else
 		lifeTime = sf::milliseconds(static_cast<int>(time));
 }
@@ -122,15 +109,6 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 ///////////////////////////////
 //// PIXEL PARTICLE SYSTEM ////
 ///////////////////////////////
-
-void PixelParticleSystem::onEntityAdded(ark::Entity entity)
-{
-	auto& p = entity.getComponent<PixelParticles>();
-	if (p.spawn)
-		p.deathTimer = sf::Time::Zero;
-	else
-		p.deathTimer = p.lifeTime;
-}
 
 void PixelParticleSystem::update()
 {
@@ -147,15 +125,13 @@ void PixelParticleSystem::update()
 	}
 	*/
 	
-	for (auto entity : getEntities()) {
-		auto& p = entity.getComponent<PixelParticles>();
+	for (auto& p : view) {
 		if (p.spawn) {
 			p.particlesToSpawn += p.particlesPerSecond * ark::Engine::deltaTime().asSeconds(); 
 		}
 	}
 
-	for (auto entity : getEntities()) {
-		auto& ps = entity.getComponent<PixelParticles>();
+	for (auto& ps : view) {
 		//if (ps.areDead())
 			//return;
 
@@ -196,13 +172,12 @@ void PixelParticleSystem::update()
 
 void PixelParticleSystem::render(sf::RenderTarget& target)
 {
-	for (auto entity : getEntities()) {
-		auto& p = entity.getComponent<PixelParticles>();
-		//if (p.areDead())
-			//return;
-		for (auto& q : p.quads) {
+	for (auto& ps : view) {
+		for (auto& q : ps.quads) {
 			target.draw(q.data(), 4, sf::TriangleStrip);
 		}
+		//if (p.areDead())
+			//return;
 	}
 }
 

@@ -4,14 +4,14 @@
 
 #include "ark/core/Core.hpp"
 #include "ark/core/State.hpp"
-#include "ark/ecs/Scene.hpp"
+#include "ark/ecs/EntityManager.hpp"
 #include "ark/util/ResourceManager.hpp"
 
-//#define USE_DELTA_TIME
+#define USE_DELTA_TIME
 
 namespace ark {
 
-	class Scene;
+	class Registry;
 	class MessageBus;
 
 	class ARK_ENGINE_API Engine final : public NonCopyable, public NonMovable{
@@ -28,19 +28,21 @@ namespace ark {
 		static void run();
 
 		template <typename T>
-		static void registerState(int id)
+		static void registerState()
 		{
-			stateStack.registerState<T>(id);
+			stateStack.registerState<T>();
 		}
 
-		static void pushFirstState(int id)
+		template <typename T>
+		static void pushFirstState()
 		{
-			stateStack.pushState(id);
+			stateStack.pushState(typeid(T));
 		}
 
-		static void pushOverlay(int id)
+		template <typename T>
+		static void pushOverlay()
 		{
-			stateStack.pushOverlay(id);
+			stateStack.pushOverlay(typeid(T));
 		}
 
 		static sf::Vector2f mousePositon() { return window.mapPixelToCoords(sf::Mouse::getPosition(window)); }

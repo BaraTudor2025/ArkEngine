@@ -13,36 +13,65 @@
 
 #include "Quad.hpp"
 
-struct Mesh : public ark::Component<Mesh> {
+struct MeshComponent {
 
-	Mesh() = default;
+	MeshComponent() = default;
 
-	Mesh(std::string fileName, bool smoothTexture = false)
+	MeshComponent(std::string fileName, bool smoothTexture = true)
 		:fileName(fileName), smoothTexture(smoothTexture), uvRect(0,0,0,0), repeatTexture(false) 
 	{
 		setTexture(fileName);
 	}
 
-	Mesh(std::string fileName, bool smoothTexture, sf::IntRect rect, bool repeatTexture)
+	MeshComponent(std::string fileName, bool smoothTexture, sf::IntRect rect, bool repeatTexture)
 		:fileName(fileName),  smoothTexture(smoothTexture), uvRect(uvRect), repeatTexture(repeatTexture) 
 	{
 		setTexture(fileName);
 	}
 
-	sf::Vector2f meshSize() { 
+	sf::Vector2f getMeshSize() const { 
 	    return static_cast<sf::Vector2f>(
 		    sf::Vector2i{ std::abs(uvRect.width), std::abs(uvRect.height) }); 
 	}
 
-	void setTexture(std::string name)
+	void setMeshSize(sf::Vector2f vec) {
+		uvRect.width = vec.x;
+		uvRect.height = vec.y;
+		vertices.updatePosTex(uvRect);
+	}
+
+	sf::IntRect getTextureRect() const {
+		return uvRect;
+	}
+
+	void setTextureRect(sf::IntRect rect) {
+		uvRect = rect;
+		vertices.updatePosTex(uvRect);
+	}
+
+	void setTexture(const std::string& name)
 	{
 		fileName = name;
 		texture = ark::Resources::load<sf::Texture>(name);
+		texture->setRepeated(repeatTexture);
+		texture->setSmooth(smoothTexture);
+		//auto[a, b, c, d] = uvRect;
+		//if (a == 0 && b == 0 && c == 0 && d == 0) { // undefined uvRect
+		uvRect.width = texture->getSize().x;
+		uvRect.height = texture->getSize().y;
+		uvRect.left = 0;
+		uvRect.top = 0;
+		//}
+		vertices.updatePosTex(uvRect);
+	}
+
+	const std::string& getTexture() const {
+		return fileName;
 	}
 
 private:
 	bool repeatTexture = true;
-	bool smoothTexture = false;
+	bool smoothTexture = true;
 	//const bool flipX;
 	//const bool flipY;
 	std::string fileName = "";
@@ -52,7 +81,15 @@ private:
 	friend class MeshSystem;
 };
 
-struct Animation : public ark::Component<Animation> {
+ARK_REGISTER_COMPONENT(MeshComponent, registerServiceDefault<MeshComponent>()) {
+	return members<MeshComponent>(
+		member_property("texture", &MeshComponent::getTexture, &MeshComponent::setTexture),
+		member_property("mesh_size", &MeshComponent::getMeshSize, &MeshComponent::setMeshSize),
+		member_property("texture_rect", &MeshComponent::getTextureRect, &MeshComponent::setTextureRect)
+	);
+}
+
+struct Animation {
 
 	Animation() = default;
 	// frameCount: number of frames of every row and number of rows; example: sf::Vector2u{6, 2} means 6 frames and 2 rows
@@ -138,9 +175,9 @@ private:
 	template <std::size_t N> decltype(auto) get();
 };
 
-ARK_REGISTER_TYPE(Animation, "Animation", ARK_DEFAULT_SERVICES)
+ARK_REGISTER_COMPONENT(Animation, registerServiceDefault<Animation>())
 {
-	return members(
+	return members<Animation>(
 		member_property("frame_count", &Animation::getFrameCount, &Animation::setFrameCount),
 		member_property("texture", &Animation::getTexture, &Animation::setTexture),
 		member_property("frame_time", &Animation::frameTime),
@@ -151,12 +188,13 @@ ARK_REGISTER_TYPE(Animation, "Animation", ARK_DEFAULT_SERVICES)
 
 class AnimationSystem : public ark::SystemT<AnimationSystem>, public ark::Renderer {
 
+	ark::View<ark::Transform, Animation> view;
+
 public:
 
 	void init() override
 	{
-		requireComponent<ark::Transform>();
-		requireComponent<Animation>();
+		view = entityManager.view<ark::Transform, Animation>();
 	}
 
 	void update() override;
@@ -165,15 +203,15 @@ public:
 };
 
 class MeshSystem : public ark::SystemT<MeshSystem>, public ark::Renderer {
+	//ark::View<ark::Transform, MeshComponent> view;
 public:
 
 	void init() override
 	{
-		requireComponent<ark::Transform>();
-		requireComponent<Mesh>();
+		//view = entityManager.view<ark::Transform, MeshComponent>();
 	}
 
-	void onEntityAdded(ark::Entity) override;
+	void update() override {}
 
 	void render(sf::RenderTarget& target) override;
 };

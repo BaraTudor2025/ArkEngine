@@ -27,20 +27,19 @@ namespace ark {
 			outDtorCount(0)
 		{}
 
-		template <typename T>
-		T* post(int id)
+		template <typename T, typename... Args>
+		T* post(Args&&... args)
 		{
 			// TODO (message bus): assert ca nu am depasit nr max de bytes
-
-			Message* m = new(inPointer)Message();
+			Message* message = new(inPointer)Message();
 			inPointer += sizeof(Message);
-			m->id = id;
-			m->m_size = sizeof(T);
-			m->m_data = new(inPointer)T();
+			message->type = typeid(T);
+			message->m_size = sizeof(T);
+			message->m_data = new(inPointer)T(std::forward<Args>(args)...);
 			inPointer += sizeof(T);
 			pendingCount++;
 
-			T* data = static_cast<T*>(m->m_data);
+			T* data = static_cast<T*>(message->m_data);
 
 			if constexpr (!std::is_trivially_destructible_v<T>) {
 				// keep count so that we dont always allocate a new function
@@ -51,7 +50,6 @@ namespace ark {
 
 				inDtorCount++;
 			}
-
 			return data;
 		}
 

@@ -76,10 +76,32 @@ namespace ark {
 			message = reinterpret_cast<Message*>(outPointer);
 			outPointer += (sizeof(Message) + message->m_size);
 			currentCount--;
+			//if(auto funcs = findDelegate(message->type); funcs)
+			//	for (auto& fun : *funcs)
+			//		fun(*message);
 			return true;
 		}
 
+		//void addObserver(std::type_index type, std::function<void(const Message&)> func) {
+		//	if (auto funcs = findDelegate(type)) {
+		//		funcs->emplace_back(std::move(func));
+		//	}
+		//	else {
+		//		callbacks.push_back({ type, {std::move(func)} });
+		//	}
+		//}
+
 	private:
+
+		//auto findDelegate(std::type_index type) -> std::vector<std::function<void(const Message&)>>* {
+		//	if (auto it = std::find_if(callbacks.begin(), callbacks.end(), [&](const auto& val) { return type == val.first; });
+		//		it != callbacks.end())
+		//		return &it->second;
+		//	else
+		//		return nullptr;
+		//}
+
+		//std::vector<std::pair<std::type_index, std::vector<std::function<void(const Message&)>>>> callbacks;
 		std::vector<uint8_t> inBuffer;
 		std::vector<uint8_t> outBuffer;
 		uint8_t* inPointer;

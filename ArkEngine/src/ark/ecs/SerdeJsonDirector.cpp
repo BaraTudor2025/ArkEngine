@@ -30,6 +30,9 @@ namespace ark
 
 		std::ofstream of(getEntityFilePath(entity.getComponent<TagComponent>().name));
 		of << jsonEntity.dump(4, ' ', true);
+		// TODO: use pmr vector for to_cbor
+		//nlohmann::json::to_bson(jsonEntity);
+		//nlohmann::detail::output_adapter<char> nush;
 	}
 
 	void SerdeJsonDirector::deserializeEntity(Entity& entity)

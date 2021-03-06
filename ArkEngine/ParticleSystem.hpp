@@ -108,7 +108,7 @@ private:
 
 ARK_REGISTER_COMPONENT(PointParticles, registerServiceDefault<PointParticles>())
 {
-	auto* type = ark::meta::getMetadata(typeid(PointParticles));
+	auto* type = ark::meta::type<PointParticles>();
 	type->func("export_to_lua", exportTypeToLua<PointParticles>);
 	type->func("lua_table_from_pointer", tableFromPointer<PointParticles>);
 	using PP = PointParticles;

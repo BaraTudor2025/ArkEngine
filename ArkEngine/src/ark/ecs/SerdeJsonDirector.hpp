@@ -149,7 +149,7 @@ namespace ark::serde
 				}
 			}
 			if (failure) {
-				auto mdata = ark::meta::getMetadata(typeid(Type));
+				auto mdata = ark::meta::type<Type>();
 				if (mdata)
 					EngineLog(LogSource::Registry, LogLevel::Error,
 						"failed to deser property (%s) on component (%s) on entity (%d)",

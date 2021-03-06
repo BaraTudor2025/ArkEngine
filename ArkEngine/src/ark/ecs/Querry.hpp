@@ -16,7 +16,6 @@ namespace ark
 		std::vector<ScopedConnection> m_conns;
 		std::vector<ark::Entity> m_entities;
 		ark::ComponentMask m_mask;
-		ark::IdTable<Ts...> m_table;
 		bool m_modified = false;
 
 	public:
@@ -35,7 +34,6 @@ namespace ark
 
 		void connect(ark::EntityManager& man) {
 			(man.addType(typeid(Ts)), ...);
-			m_table.set(man);
 			(m_conns.emplace_back(man.onAdd<Ts>().connect([this](ark::EntityManager& man, ark::Entity entity) {
 				if ((man.has(entity, m_mask))) {
 					m_modified = true;
@@ -50,11 +48,6 @@ namespace ark
 
 		const auto& entities() const {
 			return m_entities;
-		}
-
-		template <typename... Us>
-		decltype(auto) get(ark::EntityId entity) {
-			return m_table.get<Us...>(entity);
 		}
 
 		template <typename F>

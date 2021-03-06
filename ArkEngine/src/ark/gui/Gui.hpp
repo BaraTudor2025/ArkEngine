@@ -41,6 +41,11 @@ namespace ark {
 			std::function<void()> render;
 		};
 
+		void addTab(std::string name, std::function<void()> render)
+		{
+			tabs.push_back({std::move(name), std::move(render)});
+		}
+
 		void addTab(GuiTab tab)
 		{
 			tabs.push_back(tab);

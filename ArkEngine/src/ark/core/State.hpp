@@ -15,7 +15,6 @@
 
 namespace ark
 {
-
 	class StateStack;
 	class MessageBus;
 	class Registry;
@@ -111,6 +110,7 @@ namespace ark
 			});
 		}
 
+		// TODO(post-render): call in reverse order?
 		void postRender(sf::RenderTarget& target)
 		{
 			forEachState([&](auto& state) {

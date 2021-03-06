@@ -22,7 +22,7 @@ namespace ark::serde
 		auto& jsonComps = jsonEntity["components"];
 
 		for (const RuntimeComponent component : entity.eachComponent()) {
-			auto mdata = ark::meta::getMetadata(component.type);
+			auto mdata = ark::meta::resolve(component.type);
 			if (auto serialize = mdata->func<nlohmann::json(const void*)>(serviceSerializeName)) {
 				jsonComps[mdata->name] = serialize(component.ptr);
 			}
@@ -41,14 +41,14 @@ namespace ark::serde
 		// allocate components and default construct
 		auto& jsonComps = jsonEntity.at("components");
 		for (const auto& [compName, _] : jsonComps.items()) {
-			const auto* mdata = ark::meta::getMetadata(compName);
+			const auto* mdata = ark::meta::resolve(compName);
 			entity.add(mdata->type);
 		}
 
 		// then initialize
 		for (auto component : entity.eachComponent()) {
-			auto mdata = ark::meta::getMetadata(component.type);
-			if (auto deserialize = mdata->func<void(Entity & e, const nlohmann::json&, void*)>(serviceDeserializeName)) {
+			auto mdata = ark::meta::resolve(component.type);
+			if (auto deserialize = mdata->func<void(Entity&, const nlohmann::json&, void*)>(serviceDeserializeName)) {
 				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())
 					deserialize(entity, *it, component.ptr);
 				else

@@ -5,7 +5,7 @@
 
 namespace ark
 {
-	class ARK_ENGINE_API Renderer : public NonCopyable {
+	class Renderer {
 
 	public:
 		Renderer() = default;

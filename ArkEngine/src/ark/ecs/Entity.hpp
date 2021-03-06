@@ -30,6 +30,11 @@ namespace ark {
 
 		bool isValid() const;
 
+		void reset() {
+			this->manager = nullptr;
+			this->id = ArkInvalidID;
+		}
+
 		operator bool() const { return isValid(); }
 
 		operator ID() const { return this->id; }
@@ -81,9 +86,6 @@ namespace ark {
 		void eachComponent(F&& f);
 
 		auto eachComponent() -> ProxyRuntimeComponentView;
-
-		// should only be used in the paused editor, or if only one system requires the 'T' component
-		// TODO: remove on postUpdate?
 
 		template <ConceptComponent T>
 		void remove();

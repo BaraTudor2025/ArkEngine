@@ -4,7 +4,7 @@
 
 template <typename T>
 inline void addSerdeFunctions() {
-	auto* type = ark::meta::getMetadata(typeid(T));
+	auto* type = ark::meta::type<T>();
 	type->func(ark::serde::serviceSerializeName, ark::serde::serialize_value<T>);
 	type->func(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<T>);
 }

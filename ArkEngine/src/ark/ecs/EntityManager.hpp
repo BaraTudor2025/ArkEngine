@@ -21,27 +21,42 @@ namespace ark {
 
 	template <typename...> class View;
 
-	class seq_type {
-		static inline std::size_t counter{};
-	public:
-		template<typename>
-		static inline const std::size_t id = counter++;
-	};
-
 	using EntityId = int;
 
-	class EntityManager final {
+	namespace detail
+	{ 
+		inline auto& s_counter() {
+			static std::size_t c_counter;
+			return c_counter;
+		}
+		inline auto& s_ids() {
+			static std::vector<std::type_index> c_ids;
+			return c_ids;
+		}
+	}
 
+	class EntityManager final {
+		template<typename T> static inline const std::size_t s_compId = []() { 
+			detail::s_ids().push_back(typeid(T)); 
+			ark::meta::type<T>();
+			return detail::s_counter()++;
+		}();
 	public:
 		EntityManager(			
 			std::pmr::memory_resource* upstreamComponent = std::pmr::new_delete_resource())
 			: m_componentPool(std::make_unique<std::pmr::unsynchronized_pool_resource>(
-				//std::pmr::pool_options{.max_blocks_per_chunk = 30, .largest_required_pool_block = 1024},
-				//std::pmr::pool_options{.max_blocks_per_chunk = 100'000, .largest_required_pool_block = 1'000'000 * 1024},
+				std::pmr::pool_options{.max_blocks_per_chunk = 100, .largest_required_pool_block = 1024},
 				upstreamComponent))
 		{
-			for (auto& type : componentIds())
-				type = typeid(void);
+			m_componentsNum = detail::s_counter();
+			int i = 0;
+			for (auto& type : componentIds()) {
+				if (i < detail::s_counter())
+					type = detail::s_ids()[i];
+				else
+					type = typeid(void);
+				i++;
+			}
 		}
 
 		EntityManager(EntityManager&&) noexcept = default;
@@ -68,6 +83,20 @@ namespace ark {
 			return e;
 		}
 
+		/* First, construct each component with default or copy constructor
+		 * Then, call the clone signals for each component that has them
+		*/
+		auto clone(ark::EntityId toClone) -> ark::Entity {
+			auto clone = createEntity();
+			eachComponent(toClone, [&](RuntimeComponent comp) {
+				add(clone, comp.type, toClone);
+			});
+			eachComponent(toClone, [&](RuntimeComponent comp) {
+				signalTable(m_tableClone, comp.type, clone, ark::Entity{ toClone, this });
+			});
+			return clone;
+		}
+
 		bool isValid(EntityId entity) const {
 			return entity != ArkInvalidID && entity >= 0 && !m_isFree[entity];
 		}
@@ -78,36 +107,42 @@ namespace ark {
 			m_masks.reserve(num);
 		}
 
-		auto cloneEntity(EntityId entityId) -> Entity
-		{
-			Entity clone = createEntity();
-			this->eachComponent(entityId, [&, this](RuntimeComponent comp) {
-				this->add(clone, comp.type, entityId);
-			});
-			return clone;
+		/* function type should be void(EntityManager&, Entity/EntityId)
+		*/
+		auto onCreate() {
+			return Sink{ m_signalCreate };
 		}
 
-		// function type should be void(EntityManager&, Entity/EntityId)
-		auto onCreate() {
-			return Sink{m_signalCreate};
-		}
 		auto onDestroy() {
 			return Sink{ m_signalDestroy };
 		}
+
 		template <ConceptComponent T>
 		auto onAdd() {
 			return Sink{ m_tableAdd[typeid(T)] };
 		}
+
 		template <ConceptComponent T>
-		auto onCopy() {
+		auto onClone() {
 			return Sink{ m_tableClone[typeid(T)] };
 		}
+
 		template <ConceptComponent T>
 		auto onRemove() {
 			return Sink{ m_tableRemove[typeid(T)] };
 		}
 
-		// function type should be void(EntityManager&, EntityId, std::type_index componenetType)
+		/* for .patch<T>(auto& comp) { comp.mem = nush; }
+		 * or for .get<non-const Component>()
+		 * ???
+		*/
+		//template <ConceptComponent T>
+		//auto onUpdate() {
+		//	return Sink{ m_tableUpdate[typeid(T)]; };
+		//}
+
+		/* function type should be void(EntityManager&, EntityId, std::type_index componenetType) 
+		*/
 		auto onAdd(){
 			return Sink{ m_signalAdd };
 		}
@@ -115,15 +150,8 @@ namespace ark {
 			return Sink{ m_signalRemove };
 		}
 
-		void addAllComponentTypesFromMetaGroup() {
-			const auto& types = ark::meta::getTypeGroup(ARK_META_COMPONENT_GROUP);
-			for (auto type : types)
-				addType(type);
-		}
-
 		void destroyEntity(EntityId entityId)
 		{
-			auto& entity = getEntity(entityId);
 			m_signalDestroy.publish(*this, Entity{ entityId, this });
 			this->eachComponent(entityId, [&, this](RuntimeComponent comp) {
 				this->remove(entityId, comp.type);
@@ -133,20 +161,33 @@ namespace ark {
 		}
 
 		template <ConceptComponent... Ts>
-		auto view() -> ark::View<Ts...>;
+		auto view() noexcept -> ark::View<Ts...>;
+
+		template <ConceptComponent... Ts>
+		operator ark::View<Ts...>() noexcept {
+			return this->view<Ts...>();
+		}
 
 		// if component already exists, then the existing component is returned
 		// if no ctor-args are provided then it's default constructed
 		template <ConceptComponent T, typename... Args>
 		T& add(EntityId entityId, Args&&... args) {
-			addType(typeid(T));
 			return implStaticAdd<T>(entityId, std::forward<Args>(args)...);
 		}
 
-		void* add(EntityId entityId, std::type_index type, EntityId toClone = ArkInvalidID)
-		{
+		/* default-constructs the component or copy-constructs it if an aditional entity is provided to copy from
+		*/
+		void* add(EntityId entityId, std::type_index type, EntityId toCopy = ArkInvalidID) {
 			addType(type);
-			return implRuntimeAdd(entityId, type, toClone);
+			return implRuntimeAdd(entityId, type, toCopy);
+		}
+
+		/* copy-constructs from 'toClone' and calls the clone signal
+		*/ 
+		void* clone(EntityId entityId, std::type_index type, Entity toClone) {
+			void* ptr = add(entityId, type, toClone);
+			signalTable(m_tableClone, type, Entity{ entityId, this }, Entity{ toClone, this });
+			return ptr;
 		}
 
 		void* get(EntityId entityId, std::type_index type) const
@@ -155,7 +196,7 @@ namespace ark {
 			int compId = idFromType(type);
 #if !NDEBUG
 			if (compId == ArkInvalidID || !entity.mask.test(compId)) {
-				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entityId, meta::getMetadata(type)->name);
+				EngineLog(LogSource::EntityM, LogLevel::Warning, "entity (%d), doesn't have component (%s)", entityId, type.name());
 				return nullptr;
 			}
 #endif
@@ -163,9 +204,19 @@ namespace ark {
 		}
 
 		template <typename T>
-		T& get(EntityId entityId)
-		{
+		T& get(EntityId entityId) const noexcept {
 			return *tryGet<T>(entityId);
+		}
+
+		template <typename T>
+		T* tryGet(EntityId entityId) const noexcept {
+			return static_cast<T*>(m_entities[entityId].components[idFromType<T>()].ptr);
+		}
+
+
+		template <typename... Ts>
+		bool has(EntityId entity) const noexcept {
+			return ((this->tryGet<Ts>(entity) != nullptr) && ...);
 		}
 
 		bool has(EntityId entity, std::type_index type) const {
@@ -176,20 +227,8 @@ namespace ark {
 			return std::all_of(types.begin(), types.end(), [&](auto type) { return has(entity, type); });
 		}
 
-		template <typename... Ts>
-		bool has(EntityId entity) const {
-			return (this->has(entity, typeid(Ts)) && ...);
-		}
-
 		bool has(EntityId entity, ComponentMask compIds) const {
 			return (mask(entity) & compIds) == compIds;
-		}
-
-		template <typename T>
-		T* tryGet(EntityId entityId)
-		{
-			return static_cast<T*>(get(entityId, typeid(T)));
-			//return static_cast<T*>(entities[entityId].components[idFromType<T>()].pComponent);
 		}
 
 		template <typename T>
@@ -251,19 +290,13 @@ namespace ark {
 		template <typename... Ts>
 		void idFromType(ComponentMask& mask) const
 		{
-			static_assert(sizeof...(Ts) > 0);
-			int id = 0;
-			for (auto type : this->getTypes()) {
-				if (((type == typeid(Ts)) || ...))
-					mask.set(id, true);
-				++id;
-			}
+			static_assert(sizeof...(Ts) != 0);
+			(mask.set(this->idFromType<Ts>()), ...);
 		}
 
-		template <typename T>
+		template <ConceptComponent T>
 		int idFromType() const {
-			//return seq_type::id<T>;
-			return idFromType(typeid(T));
+			return s_compId<std::remove_const_t<T>>;
 		}
 
 		int idFromType(std::type_index type) const
@@ -281,11 +314,6 @@ namespace ark {
 		auto typeFromId(int id) const -> std::type_index {
 			return componentIds()[id];
 		}
-
-		//template <typename T>
-		//void addType() {
-		//	//this->componentIds()[seq_type::id<T>] = typeid(T);
-		//}
 
 		void addType(std::type_index type)
 		{
@@ -381,6 +409,16 @@ namespace ark {
 		}
 
 	private:
+
+		void* allocateComponent(EntityId entityId, int compId, std::size_t size, std::size_t align, std::type_index type) {
+			auto& entity = getEntity(entityId);
+			entity.mask.set(compId);
+			m_masks[entityId].set(compId);
+			void* newComponent = m_componentPool->allocate(size, align);
+			entity.components[compId] = { type, newComponent };
+			return newComponent;
+		}
+
 		template <typename T, typename... Args>
 		T& implStaticAdd(EntityId entityId, Args&&... args) {
 			int compId = idFromType<T>();
@@ -388,12 +426,8 @@ namespace ark {
 			if (entity.mask[compId])
 				return *static_cast<T*>(entity.components[compId].ptr);
 
-			entity.mask.set(compId);
-			m_masks[entity.id].set(compId);
-
-			void* newComponent = m_componentPool->allocate(sizeof(T), alignof(T));
-			new(newComponent) T(std::forward<Args>(args)...);
-			entity.components[compId] = { typeid(T), newComponent };
+			void* newComponent = allocateComponent(entityId, compId, sizeof(T), alignof(T), typeid(T));
+			std::construct_at<T>((T*)newComponent, std::forward<Args>(args)...);
 
 			signalTable(m_tableAdd, typeid(T), *this, Entity{ entityId, this });
 			m_signalAdd.publish(*this, Entity{ entityId, this }, typeid(T));
@@ -406,12 +440,9 @@ namespace ark {
 			auto& entity = getEntity(entityId);
 			if (entity.mask.test(compId))
 				return entity.components[compId].ptr;
-			entity.mask.set(compId);
-			m_masks[entity.id].set(compId);
 
-			auto metadata = meta::getMetadata(type);
-			void* newComponent = m_componentPool->allocate(metadata->size, metadata->align);
-			entity.components[compId] = { type, newComponent };
+			auto metadata = meta::resolve(type);
+			void* newComponent = allocateComponent(entityId, compId, metadata->size, metadata->align, type);
 
 			const void* compToClone = isValid(toClone) ? get(toClone, type) : nullptr;
 			if(compToClone && metadata->copy_constructor)
@@ -420,8 +451,6 @@ namespace ark {
 				metadata->default_constructor(newComponent);
 			signalTable(m_tableAdd, type, *this, Entity{ entityId, this });
 			m_signalAdd.publish(*this, Entity{ entityId, this }, type);
-			if (compToClone)
-				signalTable(m_tableClone, type, Entity{ entityId, this }, Entity{ toClone, this });
 			return newComponent;
 		}
 
@@ -437,7 +466,7 @@ namespace ark {
 
 		void destroyComponent(std::type_index type, void* component)
 		{
-			auto metadata = meta::getMetadata(type);
+			auto metadata = meta::resolve(type);
 			if(metadata->destructor)
 				metadata->destructor(component);
 			m_componentPool->deallocate(component, metadata->size, metadata->align);
@@ -470,18 +499,19 @@ namespace ark {
 
 	private:
 		using storageCompIds_t = std::aligned_storage_t<sizeof(compIds_t), alignof(compIds_t)>;
-		storageCompIds_t m_storageCompIDs;
 		int m_componentsNum = 0;
+		storageCompIds_t m_storageCompIDs;
 		std::unique_ptr<std::pmr::unsynchronized_pool_resource> m_componentPool;
 		std::vector<InternalEntityData> m_entities;
 		std::vector<ComponentMask> m_masks; // used by View
 		std::vector<Entity::ID> m_freeEntities; // as putea folosi un implicit list (int m_nextFree;) vezi entt: you dont have to store free entitites sau ceva de genu
+		int m_nextFree = ArkInvalidIndex;
 		std::vector<bool> m_isFree; // pentru verificate rapida
 
 		Signal<void(EntityManager&, Entity)> m_signalCreate;
 		Signal<void(EntityManager&, Entity)> m_signalDestroy;
 		Signal<void(EntityManager&, Entity, std::type_index)> m_signalAdd; // any comp. add, type_index is type of component added
-		Signal<void(EntityManager&, Entity, std::type_index)> m_signalRemove; // any comp. remove, analog
+		Signal<void(EntityManager&, Entity, std::type_index)> m_signalRemove; // analog
 
 		template <typename F>
 		using SignalTable = std::unordered_map<std::type_index, Signal<F>>;
@@ -501,81 +531,6 @@ namespace ark {
 		template <typename...> friend struct IdTable;
 	};
 
-	template <typename T> struct _tag { int id; };
-
-	template <typename ...Ts>
-	struct IdTable {
-		std::tuple<_tag<Ts>...> m_ids;
-		EntityManager* m_manager = nullptr;
-	public:
-		IdTable() = default;
-
-		void set(EntityManager& man) { 
-			m_manager = &man; 
-			((std::get<_tag<Ts>>(m_ids).id = m_manager->idFromType(typeid(Ts))), ...);
-		}
-		void set(EntityManager* man) {
-			set(*man);
-		}
-
-		IdTable(EntityManager* man) : m_manager(man) { 
-			set(man);
-		}
-
-		IdTable(const IdTable&) = default;
-		IdTable& operator=(const IdTable&) = default;
-
-		template <typename... Us>
-		IdTable(IdTable<Us...> table) {
-			m_manager = table.m_manager;
-			static_assert(sizeof...(Us) >= sizeof...(Ts), "copia nu poate sa aiba mai multe argumente");
-			((std::get<_tag<Ts>>(m_ids).id = std::get<_tag<Ts>>(table.m_ids).id), ...);
-		}
-
-		template <typename... Us>
-		IdTable& operator=(IdTable<Us...> table) {
-			m_manager = table.m_manager;
-			static_assert(sizeof...(Us) >= sizeof...(Ts), "copia nu poate sa aiba mai multe argumente");
-			((std::get<_tag<Ts>>(m_ids).id = std::get<_tag<Ts>>(table.m_ids).id), ...);
-			return *this;
-		}
-
-		template <typename T>
-		bool has(ark::EntityId id) {
-			return m_manager->m_entities[id].mask.test(std::get<_tag<T>>(m_ids).id);
-		}
-
-		template <typename T>
-		T* impl_get(ark::EntityId id) {
-			return static_cast<T*>(m_manager->m_entities[id].components[std::get<_tag<T>>(m_ids).id].ptr);
-		}
-
-		template <typename T>
-		T* get(decltype(EntityManager::m_entities)::iterator iter) {
-			return static_cast<T*>(iter->components[std::get<_tag<T>>(m_ids).id].ptr);
-		}
-
-		//template <typename... Us>
-		//decltype(auto) get(ark::Entity entity) {
-		//	static_assert(sizeof...(Us) > 0);
-		//	if constexpr (sizeof...(Us) == 1)
-		//		return ((*get<Us>(entity.getID())), ...);
-		//	else
-		//		return std::tuple<Us&...>(*get<Us>(entity.getID())...);
-		//}
-
-		template <typename... Us>
-		decltype(auto) get(ark::EntityId entity) {
-			if constexpr (sizeof...(Us) == 1)
-				return ((*impl_get<Us>(entity)), ...);
-			else if constexpr (sizeof...(Us) > 1)
-				return std::tuple<Us&...>(*impl_get<Us>(entity)...);
-			else if constexpr (sizeof...(Ts) == 1)
-				return ((*impl_get<Ts>(entity)), ...);
-			else
-				return std::tuple<Ts&...>(*impl_get<Ts>(entity)...);
-		}
-	};
 
 	template <bool bRetEnt=false, typename... Cs>
 	class IteratorView {
@@ -583,16 +538,15 @@ namespace ark {
 		using Self = IteratorView;
 		EntityManager* m_manager;
 		ComponentMask m_mask;
-		IdTable<Cs...>* m_ids;
 		Iter m_iter;
 		decltype(EntityManager::m_masks)::iterator m_iterMask;
 	public:
 
-		IteratorView(Iter iter, ComponentMask mask, EntityManager* man, decltype(m_ids) ids = nullptr)
-			: m_iter(iter), m_mask(mask), m_manager(man), m_ids(ids)
+		IteratorView(Iter iter, ComponentMask mask, EntityManager* man)
+			: m_iter(iter), m_mask(mask), m_manager(man)
 		{
 			m_iterMask = m_manager->m_masks.begin();
-			if (m_iter != m_manager->m_entities.end() && (m_iter->mask & m_mask) != m_mask)
+			if (m_iter != m_manager->m_entities.end() && (*m_iterMask & m_mask) != m_mask)
 				this->operator++();
 		}
 
@@ -612,13 +566,13 @@ namespace ark {
 			}
 			else if constexpr (bRetEnt) {
 				auto entity = ark::Entity{ m_iter->id, m_manager };
-				return std::tuple<ark::Entity, Cs&...>(entity, *m_ids->get<Cs>(m_iter)...);
+				return std::tuple<ark::Entity, Cs&...>(entity, m_manager->get<Cs>(m_iter->id)...);
 			}
 			else {
 				if constexpr (sizeof...(Cs) == 1)
-					return (*m_ids->get<Cs>(m_iter), ...);
+					return (m_manager->get<Cs>(m_iter->id), ...);
 				else
-					return std::tuple<Cs&...>(*m_ids->get<Cs>(m_iter)...);
+					return std::tuple<Cs&...>(m_manager->get<Cs>(m_iter->id)...);
 			}
 		}
 
@@ -637,20 +591,16 @@ namespace ark {
 	class ProxyView {
 		EntityManager* m_manager;
 		ComponentMask m_mask;
-		IdTable<Cs...> m_ids;
 
 	public:
-		ProxyView(ComponentMask mask, EntityManager* man, IdTable<Cs...> ids) 
-			: m_mask(mask), m_manager(man), m_ids(ids) { }
-
 		ProxyView(ComponentMask mask, EntityManager* man) 
 			: m_mask(mask), m_manager(man) { }
 
 		auto begin() {
-			return IteratorView<bRetEnt, Cs...>(m_manager->m_entities.begin(), m_mask, m_manager, &m_ids);
+			return IteratorView<bRetEnt, Cs...>(m_manager->m_entities.begin(), m_mask, m_manager);
 		}
 		auto end() {
-			return IteratorView<bRetEnt, Cs...>(m_manager->m_entities.end(), m_mask, m_manager, &m_ids);
+			return IteratorView<bRetEnt, Cs...>(m_manager->m_entities.end(), m_mask, m_manager);
 		}
 	};
 
@@ -670,24 +620,23 @@ namespace ark {
 	class View {
 		ComponentMask m_mask;
 		EntityManager* m_manager = nullptr;
-		IdTable<Cs...> m_ids;
 	public:
 
 		View() = default;
 
-		View(EntityManager& man) : m_manager(&man), m_ids(&man) {
+		View(EntityManager& man) : m_manager(&man) { 
 			m_manager->idFromType<Cs...>(m_mask);
 		}
 
 		auto begin() noexcept {
-			return IteratorView<false, Cs...>(m_manager->m_entities.begin(), m_mask, m_manager, &m_ids);
+			return IteratorView<false, Cs...>(m_manager->m_entities.begin(), m_mask, m_manager);
 		}
 		auto end() noexcept {
-			return IteratorView<false, Cs...>(m_manager->m_entities.end(), m_mask, m_manager, &m_ids);
+			return IteratorView<false, Cs...>(m_manager->m_entities.end(), m_mask, m_manager);
 		}
 
 		auto each() {
-			return ProxyView<true, Cs...>(m_mask, m_manager, m_ids);
+			return ProxyView<true, Cs...>(m_mask, m_manager);
 		}
 
 		//auto filter_view() {
@@ -706,32 +655,56 @@ namespace ark {
 			if constexpr (sizeof...(Ts) == 0)
 				return ProxyView<true>(m_mask, m_manager);
 			else
-				return ProxyView<true, Ts...>(m_mask, m_manager, m_ids);
+				return ProxyView<true, Ts...>(m_mask, m_manager);
 		}
 
 		template <ConceptComponent T, ConceptComponent... Ts>
-		requires !std::same_as<ark::Entity, T>
+		requires (!std::same_as<ark::Entity, T>)
 		auto each() {
-			return ProxyView<false, T, Ts...>(m_mask, m_manager, m_ids);
+			return ProxyView<false, T, Ts...>(m_mask, m_manager);
 		}
 
 		template <ConceptComponent... Ts>
 		decltype(auto) get(ark::EntityId entity) {
-			return m_ids.get<Ts...>(entity);
+			if constexpr (sizeof...(Ts) == 1)
+				return ((m_manager->get<Ts>(entity)), ...);
+			else if constexpr (sizeof...(Ts) > 1)
+				return std::tuple<Ts&...>(m_manager->get<Ts>(entity)...);
+			else if constexpr (sizeof...(Cs) == 1)
+				return ((m_manager->get<Cs>(entity)), ...);
+			else
+				return std::tuple<Cs&...>(m_manager->get<Cs>(entity)...);
 		}
 
+		// daca 'fun' returneaza un bool atunci: true-continue/ false-break
 		template <typename F>
 		void each(F&& fun) noexcept {
 			int index = 0;
 			for (auto& data : m_manager->m_entities) {
 				if (!m_manager->m_isFree[index] && (data.mask & m_mask) == m_mask) {
 					auto entity = ark::Entity{ data.id, m_manager };
-					if constexpr (std::invocable<F, ark::Entity>)
-						fun(entity);
-					else if constexpr (std::invocable<F, ark::Entity, Cs&...>)
-						fun(entity, m_ids.get<Cs>(entity)...);
-					else if constexpr (std::invocable<F, Cs&...>)
-						fun(m_ids.get<Cs>(entity)...);
+
+					if constexpr (std::invocable<F, ark::Entity>) {
+						if constexpr (not std::convertible_to<decltype(fun(entity)), bool>)
+							fun(entity);
+						else
+							if (!fun(entity))
+								break;
+					}
+					else if constexpr (std::invocable<F, ark::Entity, Cs&...>) {
+						if constexpr (not std::convertible_to<decltype(fun(entity, m_manager->get<Cs>(entity)...)), bool>)
+							fun(entity, m_manager->get<Cs>(entity)...);
+						else
+							if (!fun(entity, m_manager->get<Cs>(entity)...))
+								break;
+					}
+					else if constexpr (std::invocable<F, Cs&...>) {
+						if constexpr (not std::convertible_to<decltype(fun(m_manager->get<Cs>(entity)...)), bool>)
+							fun(m_manager->get<Cs>(entity)...);
+						else
+							if (!fun(m_manager->get<Cs>(entity)...))
+								break;
+					}
 					else
 						static_assert(std::invocable<F, ark::Entity>, "View.each error: callback-ul are argumnete gresite");
 				}
@@ -741,8 +714,7 @@ namespace ark {
 	};
 
 	template <ConceptComponent... Ts>
-	auto EntityManager::view() -> ark::View<Ts...> {
-		(addType(typeid(Ts)), ...);
+	inline auto EntityManager::view() noexcept -> ark::View<Ts...> {
 		return View<Ts...>(*this);
 	}
 

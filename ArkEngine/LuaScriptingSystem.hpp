@@ -52,6 +52,11 @@ public:
 		comp.mSystem = sys;
 	}
 
+	~LuaScriptingComponent() {
+		for (auto& sc : mScripts)
+			sc.abandon();
+	}
+
 private:
 	//void loadScript(int index);
 	ark::Entity mEntity;
@@ -71,6 +76,7 @@ class LuaScriptingSystem : public ark::SystemT<LuaScriptingSystem> {
 	std::map<std::filesystem::path, std::filesystem::file_time_type> scriptLastWrites;
 	fs::path luaPath;
 	ark::View<LuaScriptingComponent> view;
+
 public:
 	LuaScriptingSystem() = default;
 
@@ -84,7 +90,7 @@ public:
 		luaPath = ark::Resources::resourceFolder + "lua/";
 		lua.open_libraries(sol::lib::base);
 		lua["getComponent"] = [](sol::table selfScript, std::string_view componentName, sol::this_state luaState) mutable -> sol::table {
-			auto mdata = ark::meta::getMetadata(componentName);
+			auto mdata = ark::meta::resolve(componentName);
 			auto entity = selfScript["entity"].get<ark::Entity>();
 			void* pComp = entity.get(mdata->type);
 			auto tableFromPtr = mdata->func<sol::table(sol::state_view, void*)>("lua_table_from_pointer");
@@ -92,7 +98,7 @@ public:
 		};
 
 		for (auto compType : entityManager.getTypes()) {
-			if (auto exportType = ark::meta::getMetadata(compType)->func<void(sol::state_view)>("export_to_lua"))
+			if (auto exportType = ark::meta::resolve(compType)->func<void(sol::state_view)>("export_to_lua"))
 				exportType(lua);
 		}
 	}
@@ -179,7 +185,7 @@ inline void LuaScriptingComponent::removeScript(std::string_view name)
 template <typename Type>
 void exportTypeToLua(sol::state_view state)
 {
-	auto mdata = ark::meta::getMetadata(typeid(Type));
+	auto mdata = ark::meta::type<Type>();
 	auto type = state.new_usertype<Type>(mdata->name);
 	ark::meta::doForAllProperties<Type>([&](auto property) {
 		using PropType = ark::meta::get_member_type<decltype(property)>;

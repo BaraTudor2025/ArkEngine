@@ -12,6 +12,8 @@
 
 #include <SFML/Graphics.hpp>
 #include <SFML/System/String.hpp>
+#include <SFML/Network.hpp>
+#include <SFML/Network/TcpSocket.hpp>
 
 #include <ark/core/Signal.hpp>
 #include <ark/core/Engine.hpp>
@@ -145,7 +147,7 @@ public:
 
 ARK_REGISTER_TYPE(gScriptGroupName, MoveAnimatedPlayer, registerServiceDefault<MoveAnimatedPlayer>())
 {
-	auto* type = ark::meta::getMetadata(typeid(MoveAnimatedPlayer));
+	auto* type = ark::meta::type<MoveAnimatedPlayer>();
 	type->data<ark::SceneInspector::VectorOptions>(ark::SceneInspector::serviceOptions, {
 			{.property_name = "scale", .drag_speed = 0.001f}
 		});
@@ -165,8 +167,6 @@ ARK_REGISTER_MEMBERS(ParticleScripts::RotateEmitter)
 	);
 }
 
-//enum class GameTag { Bullet, Player, Wall };
-
 /* TODO (general): TexturedParticles */
 /* TODO (general): ColisionSystem */
 /* TODO (general): TileSystem */
@@ -176,17 +176,16 @@ ARK_REGISTER_MEMBERS(ParticleScripts::RotateEmitter)
 /* TODO (general): ParticleEmmiter with settings*/
 /* TODO (general): add a archetype component manager*/
 
-// TODO (design): remove entity class as a wrapper and only use entity-manager
 
 /* TODO:
 	* small vector
-	* optional ref
-	* refactor Util::find
+	* - optional ref
+	* - refactor Util::find
 	* - optimize rng
 	* - add 'ark' namespace
 	* - add serialization(nlohmann json)
-	* add more options to gui editor
-	* add scripting with lua(sol3) and/or chaiscript
+	* - add more options to gui editor
+	* (part) add scripting with lua(sol3) and/or chaiscript
 	* custom allocator for lua/scripts/systems
 	* dynamic aabb tree for colision
 	* ParticleSystem shaders with point size
@@ -237,6 +236,14 @@ protected:
 public:
 	BasicState(ark::MessageBus& bus, std::pmr::memory_resource* res = std::pmr::new_delete_resource()) 
 		: ark::State(bus), manager(res), systems(bus, manager) {}
+
+	auto makeEntity(std::string name = "") -> ark::Entity
+	{
+		Entity entity = manager.createEntity();
+		if(!name.empty())
+			entity.get<TagComponent>().name = name;
+		return entity;
+	}
 
 	void handleEvent(const sf::Event& event) override
 	{
@@ -365,6 +372,57 @@ public:
 };
 ARK_REGISTER_MEMBERS(SaveEntityScript) { return members<SaveEntityScript>(member_property("key", &SaveEntityScript::key)); }
 
+struct CameraComponent {
+	sf::View view;
+};
+
+ARK_REGISTER_COMPONENT_WITH_TAG(sf::View, sfView, registerServiceDefault<sf::View>()) {
+	auto type = ark::meta::type<sf::View>();
+	type->data(ark::SceneInspector::serviceOptions, std::vector<ark::EditorOptions>{
+		{ .property_name = "center", .drag_speed = 0.4f },
+		{ .property_name = "rotation", .drag_speed = 0.05f },
+		{ .property_name = "size", .drag_speed = 0.4f },
+		{ .property_name = "viewport", .options = {
+			{.property_name = "top", . drag_speed = 0.00075f, .format = "%.4f" },
+			{.property_name = "left", . drag_speed = 0.00075f, .format = "%.4f"},
+			{.property_name = "height", . drag_speed = 0.001f, .drag_min = 0.01f, .drag_max = 1, .format = "%.3f"},
+			{.property_name = "width", . drag_speed = 0.001f, .drag_min = 0.01f, .drag_max = 1, .format = "%.3f"}
+		} }
+	});
+
+	return ark::meta::members<sf::View>(
+		ark::meta::member_property("center", &sf::View::getCenter, &sf::View::setCenter),
+		ark::meta::member_property("rotation", &sf::View::getRotation, &sf::View::setRotation),
+		ark::meta::member_property("size", &sf::View::getSize, &sf::View::setSize),
+		ark::meta::member_property("viewport", &sf::View::getViewport, &sf::View::setViewport)
+	);
+}
+
+ARK_REGISTER_COMPONENT(CameraComponent, registerServiceDefault<CameraComponent>()) {
+	return ark::meta::members<CameraComponent>(
+		ark::meta::member_property("view", &CameraComponent::view)
+	);
+}
+
+class CameraSystem : public ark::SystemT<CameraSystem>, public ark::Renderer {
+
+public:
+
+	void init() override {
+		entityManager.onAdd<CameraComponent>().connect([](ark::EntityManager& man, ark::EntityId entity) {
+			man.get<CameraComponent>(entity).view = ark::Engine::getWindow().getView();;
+		});
+	}
+
+	void update() override {}
+
+	void render(sf::RenderTarget& win) override { 
+		for (auto& comp : entityManager.view<CameraComponent>()) {
+			win.setView(comp.view);
+		}
+	}
+};
+
 class TestingState : public BasicState {
 	Entity player;
 	Entity button;
@@ -381,35 +439,6 @@ public:
 
 private:
 
-	ark::Entity makeEntity(std::string name)
-	{
-		Entity e = manager.createEntity();
-		e.get<TagComponent>().name = name;
-		return e;
-	}
-
-	//Registry cloneRegistry() {
-	//	auto newManager = Registry();
-	//	for (auto type : this->manager.getComponentTypes())
-	//		newManager.addComponentType(type);
-		// TODO
-		//for (auto type : this->manager.getDefaultComponentTypes())
-			//newManager.addDefaultComponent(type);
-
-		// tre facut MANUAL?!
-		//manager.onConstructionTable = this->onConstructionTable;
-		//for (Entity entity : this->entitiesView()) {
-		//	Entity clone = manager.createEntity();
-		//	for (auto [type, ptr] : entity.runtimeComponentView()) {
-		//		auto [newComp, /*isAlready*/_] = manager.implAddComponentOnEntity(clone, type, false, ptr);
-		//		manager.onConstruction(type, newComp, clone);
-		//		// ar trebui si asta pe langa .onCtor()
-		//		//manager.onCopy(type, newComp, clone, ptr);
-		//	}
-		//}
-	//	return std::move(newManager);
-	//}
-
 	void init() override
 	{
 		manager.onCreate().connect<&EntityManager::add<Transform>>();
@@ -418,9 +447,7 @@ private:
 		manager.onAdd<TagComponent>().connect(TagComponent::onAdd);
 
 		manager.onAdd<ScriptingComponent>().connect(ScriptingComponent::onAdd);
-		manager.onCopy<ScriptingComponent>().connect(ScriptingComponent::onClone);
-
-		manager.addAllComponentTypesFromMetaGroup();
+		manager.onClone<ScriptingComponent>().connect(ScriptingComponent::onClone);
 
 		systems.addSystem<PointParticleSystem>();
 		systems.addSystem<PixelParticleSystem>();
@@ -429,6 +456,7 @@ private:
 		systems.addSystem<AnimationSystem>();
 		systems.addSystem<DelayedActionSystem>();
 		systems.addSystem<ScriptingSystem>();
+		systems.addSystem<CameraSystem>();
 
 		systems.addSystem<FpsCounterDirector>();
 		auto* inspector = systems.addSystem<SceneInspector>();
@@ -495,11 +523,14 @@ private:
 		{
 			auto& scripts = rainbowPointParticles.add<ScriptingComponent>();
 			scripts.addScript<SpawnOnRightClick>();
+			/// <summary>
+			/// AIDI
+			/// </summary>
 			scripts.addScript(typeid(EmittFromMouse));
 		}
 
 #if 1
-		ark::Entity rainbowClone = manager.cloneEntity(rainbowPointParticles);
+		ark::Entity rainbowClone = manager.clone(rainbowPointParticles);
 		rainbowClone.get<TagComponent>().name = "rainbow_clone";
 		{
 			auto& scripts = rainbowClone.get<ScriptingComponent>();
@@ -524,7 +555,6 @@ private:
 		firePointParticles.add<DelayedAction>(sf::seconds(5), [this](ark::Entity e) {
 			manager.destroyEntity(e);
 		});
-
 
 		auto& grassP = greenPointParticles.add<PointParticles>(getGreenParticles());
 		grassP.spawn = true;
@@ -636,11 +666,17 @@ public:
 	}
 	void connect(ark::EntityManager& man) {
 		m_conns.push_back(man.onCreate().connect([](ark::EntityManager&, ark::EntityId entity) {
-			EngineLog(LogSource::EntityM, LogLevel::Info, "created entity with id(%d)", entity);
+			EngineLog(LogSource::EntityM, LogLevel::Info, "create entity-id(%d)", entity);
 		}));
 		m_conns.push_back(man.onDestroy().connect([](ark::EntityManager&, ark::EntityId entity) {
-			EngineLog(LogSource::EntityM, LogLevel::Info, "destroyed entity with id(%d)", entity);
+			EngineLog(LogSource::EntityM, LogLevel::Info, "destroy entity-id(%d)", entity);
 		}));
+		//m_conns.push_back(man.onAdd().connect([](ark::EntityManager&, ark::EntityId entity, std::type_index type) {
+		//	EngineLog(LogSource::EntityM, LogLevel::Info, "add component (%s) on entity-id(%d)", type.name(), entity);
+		//}));
+		//m_conns.push_back(man.onRemove().connect([](ark::EntityManager&, ark::EntityId entity, std::type_index type) {
+		//	EngineLog(LogSource::EntityM, LogLevel::Info, "remove component (%s) on entity-id(%d)", type.name(), entity);
+		//}));
 	}
 	void disconnect() {
 		for (auto& con : m_conns)
@@ -745,11 +781,19 @@ struct ChessPieceComponent {
 	Entity player;
 	sf::Vector2i coord; // position on board
 	int type;
-	std::function<bool(int, int)> canMoveTo;
+	std::function<std::vector<sf::Vector2i>(sf::Vector2i)> generateMoves;
+};
+
+struct ChessEnPassantTag { 
+	sf::Vector2i behindCoord;
 };
 
 ARK_REGISTER_COMPONENT(ChessPieceComponent, registerServiceDefault<ChessPieceComponent>()) { 
 	return members<ChessPieceComponent>(
+	); 
+}
+ARK_REGISTER_COMPONENT(ChessEnPassantTag, registerServiceDefault<ChessEnPassantTag>()) { 
+	return members<ChessEnPassantTag>(
 	); 
 }
 
@@ -759,6 +803,10 @@ struct MousePickUpComponent {
 	sf::FloatRect selectArea;
 	int filter;
 	int dx, dy;
+	bool setTransform = true;
+	// pentru drag: tine apasat si dai drumul
+	// pentru pickup(drag=false): click sa selectezi, click sa i dai drumul
+	bool drag = true; // or pickup-drop
 };
 
 ARK_REGISTER_COMPONENT(MousePickUpComponent, registerServiceDefault<MousePickUpComponent>()) { 
@@ -768,9 +816,10 @@ ARK_REGISTER_COMPONENT(MousePickUpComponent, registerServiceDefault<MousePickUpC
 }
 
 struct MessagePickUp {
-	ark::Entity entity;
-	bool isPicked;
-	bool isReleased;
+	ark::Entity entity{};
+	sf::Vector2f mousePosition{}; // setat doar daca este released
+	bool isReleased{}; // or picked up
+	bool isSameSpot = false; // is put on same spot
 };
 
 class MousePickUpSystem : public ark::SystemT<MousePickUpSystem> {
@@ -784,7 +833,9 @@ public:
 		view = entityManager.view<const ark::Transform, MousePickUpComponent>();
 	}
 
-	void setFilter(int filt = 0) { filters = filt; }
+	void setFilter(int bitFlags = 0) { filters = bitFlags; }
+	void setFilter(ark::Entity entity) { filters = entity.get<MousePickUpComponent>().filter; }
+	void reset() { selectedEntity.reset(); }
 
 	int generateBitFlag() {
 		auto c = m_genFlags;
@@ -794,32 +845,65 @@ public:
 
 	void handleEvent(sf::Event ev) override {
 		if (ev.type == sf::Event::MouseButtonPressed && ev.mouseButton.button == sf::Mouse::Button::Left) {
+			if (selectedEntity) {
+				const auto& pick = selectedEntity.get<const MousePickUpComponent>();
+				if (!pick.drag) { // pickup-drop
+					auto [x, y] = ark::Engine::mousePositon();
+					if (pick.setTransform) {
+						auto& trans = selectedEntity.get<ark::Transform>();
+						trans.setPosition(x - pick.dx, y - pick.dy);
+					}
+					bool isSameSpot = pick.selectArea.contains(x, y);
+					postMessage<MessagePickUp>({
+						.entity = selectedEntity,
+						.mousePosition = {x, y},
+						.isReleased = true,
+						.isSameSpot = isSameSpot
+					});
+					selectedEntity = {};
+					// ca sa nu intre in for-each
+					if (isSameSpot)
+						return;
+				}
+			}
 			for (auto [entity, pick] : view.each<ark::Entity, MousePickUpComponent>()) {
 				if ((pick.filter & filters) == filters && pick.selectArea.contains(ev.mouseButton.x, ev.mouseButton.y)) {
 					selectedEntity = entity;
 					const auto [x, y] = view.get<const Transform>(entity).getPosition();
 					pick.dx = ev.mouseButton.x - x;
 					pick.dy = ev.mouseButton.y - y;
+					postMessage<MessagePickUp>({
+						.entity = selectedEntity,
+						.mousePosition = ark::Engine::mousePositon(),
+						.isReleased = false
+					});
 				}
 			}
 		}
 		else if (ev.type == sf::Event::MouseButtonReleased && ev.mouseButton.button == sf::Mouse::Button::Left) {
 			if (selectedEntity) {
-				postMessage<MessagePickUp>({
-					.entity = selectedEntity,
-					.isPicked = false,
-					.isReleased = true
-				});
-				selectedEntity = {};
+				const auto& pick = selectedEntity.get<const MousePickUpComponent>(); 
+				if (pick.drag) {
+					auto [x, y] = selectedEntity.get<const ark::Transform>().getPosition();
+					postMessage<MessagePickUp>({
+						.entity = selectedEntity,
+						.mousePosition = ark::Engine::mousePositon(),
+						.isReleased = true
+					});
+					selectedEntity = {};
+				}
 			}
 		}
 	}
 
 	void update() override {
 		if (selectedEntity) {
-			auto [trans, pick] = selectedEntity.get<Transform, const MousePickUpComponent>();
-			auto [x, y] = ark::Engine::mousePositon();
-			trans.setPosition(x - pick.dx, y - pick.dy);
+			const auto& pick = selectedEntity.get<const MousePickUpComponent>();
+			if (pick.drag && pick.setTransform) {
+				auto& trans = selectedEntity.get<ark::Transform>();
+				auto [x, y] = ark::Engine::mousePositon();
+				trans.setPosition(x - pick.dx, y - pick.dy);
+			}
 		}
 		// update-ul are sens doar pentru cele cu Transform-ul modificat
 		// TODO (ecs) poate adaug un flag m_dirty pentru componente cand le acceses prin ref, fara flag cand sunt 'const'
@@ -830,42 +914,252 @@ public:
 	}
 };
 
-class ChessSystem : public ark::SystemT<ChessSystem> {
-	std::vector<std::vector<ark::Entity>> board;
-	ark::Entity playerInTurn;
-	//std::vector<ark::Entity> playersQuery;
-	EntityQuery<ChessPlayerComponent> playersQuery;
+// id unic intr-un joc multiplayer, adica id-ul este consistent in retea 
+// si poate fi folosit pentru ne referi la o entitate cand trimitem informatii destre entitati
+struct NetworkIdComponent {
+	int id;
+};
+
+std::string_view socketStatusStr(sf::Socket::Status status) {
+	switch (status) {
+	case sf::Socket::Done:
+		return "Done";
+	case sf::Socket::NotReady:
+		return "NotReady";
+	case sf::Socket::Partial:
+		return "Partial";
+	case sf::Socket::Disconnected:
+		return "Disconnected";
+	case sf::Socket::Error:
+		return "Error";
+	default:
+		return "Invalid Status Code";
+	}
+}
+
+enum class ServerOpType : std::int8_t {
+	AcceptConnection,
+	RejectConnection,
+	CreateEntity,
+	DestroyEntity,
+	AddComponent,
+	UpdateComponent,
+	RemoveComponent,
+};
+
+enum class ClientOpType : std::int8_t {
+	Connect,
+	Disconnect,
+	CreateEntity,
+	DestroyEntity,
+	SendData
+};
+
+template <typename T> 
+requires std::is_enum_v<T>
+sf::Packet& operator<<(sf::Packet& pack, T enumVal) {
+	pack << (static_cast<std::underlying_type_t<T>>(enumVal));
+	return pack;
+}
+
+template <typename T>
+requires std::is_enum_v<T>
+sf::Packet& operator>>(sf::Packet& pack, T& enumVal) {
+	auto val = static_cast<std::underlying_type_t<T>>(enumVal);
+	pack >> val;
+	enumVal = static_cast<T>(val);
+	return pack;
+}
+
+class NetworkSystem : public ark::SystemT<NetworkSystem> {
+	std::unordered_map<int, std::function<void(sf::Packet&)>> m_handlers;
+	bool m_isServer = false;
+	int m_idCounter = 0;
+	//std::vector<ark::EntityId> m_entities; // index is the 'id' from NetworkIdComponent
+
+	void send(sf::Packet& packet) {
+		while (sock.send(packet) == sf::Socket::Status::Partial) {
+			sock.send(packet);
+		}
+	}
+	//std::vector<sf::TcpSocket> m_clients;
+	sf::TcpSocket m_client;
+	sf::TcpSocket m_server;
 
 public:
+
+	sf::TcpSocket sock;
+	sf::TcpListener listener;
+	char buffIpAddr[20];
+	const std::uint16_t port = 12025;
+
+	/* only the server creates entities?
+	 * system to broadcast/send components: transform/rigidBody?
+	 * generic derived system type that de/serrializes and sends components
+	 * 
+	*/
+	// send requestToServer to create entity with components
+	// server also allocs a NetworkIdComponent
+	// void requestEntity<Comps...>();
+
+	// all clients get the requested entity by a client
+	void requestEntity() {
+		if (!m_isServer) {
+			sf::Packet packet;
+			packet << ClientOpType::CreateEntity;
+		}
+	}
+
+	void init() override { 
+		if (m_isServer) {
+			entityManager.onCreate().connect([this](ark::EntityManager& man, ark::EntityId entity) {
+				man.add<NetworkIdComponent>(entity).id = m_idCounter++;
+				sf::Packet pack;
+				pack << ServerOpType::CreateEntity << m_idCounter - 1;
+				this->send(pack);
+				//assign id and send to clients
+				// request create entity catre server, serverul da net-id-ul pe care-l trimite la clienti
+			});
+			entityManager.onDestroy().connect([this](ark::EntityManager& man, ark::EntityId entity) {
+				int netId = man.get<NetworkIdComponent>(entity).id;
+				sf::Packet pack;
+				pack << ServerOpType::DestroyEntity << netId;
+				this->send(pack);
+			});
+		}
+		//entityManager.onAdd().connect([](ark::EntityManager& man, ark::EntityId entity, std::type_index type){ 
+		//	// send to clients the added component
+		//})
+		std::memset(buffIpAddr, 0, sizeof(buffIpAddr));
+		sock.setBlocking(false);
+		listener.setBlocking(false);
+		listener.listen(this->port);
+	}
+
+	template <typename T>
+	requires requires(T x) { static_cast<int>(x); }
+	void addHandle(T id, std::function<void(sf::Packet&)> func) {
+		m_handlers[static_cast<int>(id)] = func;
+	}
+
+	template <typename... Ts>
+	void sendComponent(ark::Entity entity) {
+		assert(entityManager.has<Ts>() && ...);
+		// serialize and send packet
+	}
+
+	template <typename F>
+	void send(F&& fun) {
+		sf::Packet packet;
+		packet << ClientOpType::SendData;
+		fun(packet);
+		this->send(packet);
+	}
+
+	void update() override {
+		if (sock.getRemoteAddress() == sf::IpAddress::None) {
+			m_isServer = false;
+			if (listener.accept(sock) == sf::Socket::Done) {
+				std::string str = sock.getRemoteAddress().toString();
+				m_isServer = true;
+				listener.close();
+			}
+		}
+		sf::Packet packet;
+		sf::SocketSelector selector;
+		switch (auto status = sock.receive(packet)) {
+		case sf::Socket::Status::Done:
+			ClientOpType opType;
+			packet >> opType;
+			if (opType == ClientOpType::SendData) {
+				int id;
+				packet >> id;
+				m_handlers.at(id)(packet);
+			}
+			else {
+
+			}
+			break;
+		default:
+			//GameLog("[socket-recv]: %s", socketStatusStr(status));
+			break;
+		//case sf::Socket::Status::Disconnected:
+		//	GameLog("[socket-recv]: disconected");
+		//	break;
+		//case sf::Socket::Status::Error:
+		//	GameLog("[socket-recv]: error");
+		//	break;
+		//case sf::Socket::Status::NotReady:
+		//	GameLog("[socket-recv]: not ready");
+		//	break;
+		//case sf::Socket::Status::Partial:
+		//	GameLog("[socket-recv]: partial");
+		//	break;
+		}
+
+		//int recivedId = 0;
+		//nlohmann::json in;
+
+		/* il gasim prin indexare */
+		//ark::EntityId entity = m_entities[recivedId];
+
+		/* sau cu view */
+		//entityManager.view<NetworkIdComponent>().each([&, this](ark::Entity entity, NetworkIdComponent netComp) {
+		//	if (netComp.id == recivedId) {
+		//		// or deserializeComponent
+		//		//ark::serde::deserializeEntity(in, entity);
+		//	}
+		//});
+	}
+};
+
+class ChessSystem : public ark::SystemT<ChessSystem>, public ark::Renderer {
+	std::vector<std::vector<ark::Entity>> board;
+	EntityQuery<ChessPlayerComponent> playersQuery;
+	std::vector<sf::Vector2i> movesToDraw;
+	sf::Vector2i origianlPosToDraw;
+	ark::Entity selectedPiece;
+	NetworkSystem* netSystem;
+
+	enum class Operation {
+		Move, Select, UnSelect
+	};
+
+public:
+	ark::Entity playerInTurn;
 
 	struct EnforceRules {
 		bool notPlayerTurn = true;
 	} rules;
 
-	float kPieceMeshSize = 75; // pixeli
-	float kBoardOffset = kPieceMeshSize * 2;
+	float kPieceSize = 75; // pixeli
+	sf::Vector2f kBoardOffset = { 150, 150 };
 	int kBoardLength = 8;
 
+	bool rulePlayerTurn = true;
+	bool ruleLegalMoves = true;
+	bool ruleShowMoves = true;
+	bool ruleWarnKingOnAttack = true;
+	bool ruleMoveKingOnAttack = true;
+
 	sf::Vector2i toCoord(sf::Vector2f pos) {
-		pos -= sf::Vector2f(kBoardOffset, kBoardOffset);
-		pos = pos + sf::Vector2f(kPieceMeshSize / 2, kPieceMeshSize / 2);
-		pos /= kPieceMeshSize;
+		pos = (pos - kBoardOffset /*+ (kPieceSize/2) pentru 'withOrigin/centru'*/) / kPieceSize;
 		return sf::Vector2i(pos.x, pos.y);
 	}
 
 	sf::Vector2f toPos(sf::Vector2i coord) {
-		return sf::Vector2f{ coord.x * kPieceMeshSize, coord.y * kPieceMeshSize } + sf::Vector2f(kBoardOffset, kBoardOffset);
+		return sf::Vector2f{ coord.x * kPieceSize, coord.y * kPieceSize } + kBoardOffset;
 	}
 
-	sf::Vector2f roundPos(sf::Vector2f vec) {
-		return toPos(toCoord(vec));
-	}
-
-	bool isCoordInBounds(sf::Vector2i vec) {
-		return vec.x >= 0 && vec.x < kBoardLength && vec.y >= 0 && vec.y < kBoardLength;
+	bool isOutOfBounds(sf::Vector2i coord) {
+		return coord.x < 0 || coord.y < 0 || coord.x >= kBoardLength || coord.y >= kBoardLength;
 	}
 
 	void nextPlayerTurn() {
+		if (!rulePlayerTurn) {
+			systemManager.getSystem<MousePickUpSystem>()->setFilter(0);
+			return;
+		}
 		auto it = std::find(playersQuery.begin(), playersQuery.end(), playerInTurn);
 		if (it == playersQuery.end() - 1)
 			playerInTurn = *playersQuery.begin();
@@ -882,54 +1176,308 @@ public:
 
 		playersQuery.connect(entityManager);
 
+		netSystem = systemManager.getSystem<NetworkSystem>();
+		netSystem->addHandle(Operation::Move, [this](sf::Packet& packet) {
+			sf::Vector2i newCoord;
+			packet >> newCoord.x >> newCoord.y;
+			GameLog("[Move]: %d, %d", newCoord.x, newCoord.y);
+			this->handlePieceMove(newCoord);
+		});
+		netSystem->addHandle(Operation::Select, [this](sf::Packet& packet) {
+			sf::Vector2i coord;
+			packet >> coord.x >> coord.y;
+			GameLog("[Select]: %d, %d", coord.x, coord.y);
+			this->handlePieceSelect(board[coord.x][coord.y]);
+		});
+		netSystem->addHandle(Operation::UnSelect, [this](sf::Packet& packet) {
+			selectedPiece.reset();
+			GameLog("[de-select]");
+		});
+
 		entityManager.onAdd<ChessPieceComponent>().connect([this](ark::EntityManager& man, ark::EntityId entity) {
 			auto& piece = man.get<ChessPieceComponent>(entity);
-			this->board[piece.coord.x][piece.coord.y] = Entity{ entity, man };
+			board[piece.coord.x][piece.coord.y] = Entity{ entity, man };
 		});
 
 		auto* pickSystem = systemManager.getSystem<MousePickUpSystem>();
 		entityManager.onAdd<ChessPlayerComponent>().connect([this, pickSystem](ark::EntityManager& man, ark::EntityId entity) {
 			auto& player = man.get<ChessPlayerComponent>(entity);
 			player.id = pickSystem->generateBitFlag();
-			if (!this->playerInTurn) {
-				this->playerInTurn = this->playersQuery.entities().back();
+			if (!playerInTurn) {
+				playerInTurn = playersQuery.entities().back();
 				pickSystem->setFilter(player.id);
 			}
 		});
 	}
 
-	void handleMessage(const ark::Message& msg) override {
-		if (auto* data = msg.tryData<MessagePickUp>(); data && data->isReleased) {
-			ark::Entity selectedPiece = data->entity;
-			auto [trans, piece] = selectedPiece.get<Transform, ChessPieceComponent>();
-			sf::Vector2i newCoord = toCoord(trans.getPosition());
-			// is on table
-			if (!isCoordInBounds(newCoord)) {
-				trans.setPosition(toPos(piece.coord));
-				return;
-			}
-			// is move legal
-			if (auto hereEnt = board[newCoord.x][newCoord.y]; hereEnt) {
-				if (hereEnt.get<ChessPieceComponent>().player == piece.player) {
-					// reset, can't move on top of your piece
-					trans.setPosition(toPos(piece.coord));
-					return;
+	enum class BoxType {
+		Empty,
+		Ally,
+		Enemy,
+		OutOfBounds
+	};
+
+	//
+	// note: returneaza ally si pentru propria piesa
+	BoxType typeOfBox(sf::Vector2i coord) {
+		if (isOutOfBounds(coord))
+			return BoxType::OutOfBounds;
+		else if (auto entity = board[coord.x][coord.y]; !entity)
+			return BoxType::Empty;
+		else if (auto& piece = entity.get<ChessPieceComponent>(); piece.player != playerInTurn)
+			return BoxType::Enemy;
+		else
+			return BoxType::Ally;
+	}
+
+	// push for empty or enemy
+	// break on non empty
+	template <class R, class V, class F>
+	void forDirection(R& moves, V coord, F dir) {
+		dir(coord);
+		for (int i = 0; i < board.size(); i++, dir(coord)) {
+			auto type = typeOfBox(coord);
+			if (type == BoxType::Empty || type == BoxType::Enemy)
+				moves.push_back(coord);
+			if (type != BoxType::Empty)
+				break;
+		}
+	}
+
+	void handlePieceMove(sf::Vector2i newCoord) {
+		auto [trans, piece] = selectedPiece.get<Transform, ChessPieceComponent>();
+		// reset if move is ilegal
+		if (ruleLegalMoves && movesToDraw.end() == std::find(movesToDraw.begin(), movesToDraw.end(), newCoord)) {
+			selectedPiece = {};
+			trans.setPosition(toPos(piece.coord));
+			return;
+		}
+		//using enum BoxType;
+		switch (auto type = typeOfBox(newCoord); type) {
+		// reset
+		case BoxType::OutOfBounds:
+		case BoxType::Ally:
+			trans.setPosition(toPos(piece.coord));
+			break;
+
+		case BoxType::Enemy:
+			entityManager.destroyEntity(board[newCoord.x][newCoord.y]);
+		[[fallthrough]];
+		// move
+		case BoxType::Empty:
+			entityManager.view<ChessEnPassantTag>().each([&](ark::Entity markedEntity, ChessEnPassantTag& enpass) {
+				if (selectedPiece.get<ChessPieceComponent>().player != markedEntity.get<ChessPieceComponent>().player) {
+					if (newCoord == enpass.behindCoord) // daca am pus pionul in spate
+						entityManager.destroyEntity(markedEntity);
+					else
+						markedEntity.remove<ChessEnPassantTag>();
 				}
-				else {
-					// take piece
-					entityManager.destroyEntity(hereEnt);
-				}
-			}
-			// move
+			});
 			trans.setPosition(toPos(newCoord));
 			board[piece.coord.x][piece.coord.y] = {};
 			board[newCoord.x][newCoord.y] = selectedPiece;
 			piece.coord = newCoord;
 			nextPlayerTurn();
+			break;
 		}
+		selectedPiece = {};
 	}
 
-	void update() override { }
+	void handlePieceSelect(ark::Entity entity) {
+		selectedPiece = entity;
+		auto& piece = selectedPiece.get<const ChessPieceComponent>();
+		origianlPosToDraw = piece.coord;
+		// ca typeOfBox sa returneze corect Enemy sau Ally
+		if (!rulePlayerTurn) {
+			playerInTurn = piece.player;
+		}
+		if(ruleLegalMoves || ruleShowMoves)
+			movesToDraw = piece.generateMoves(piece.coord);
+	}
+
+	void handleMessage(const ark::Message& msg) override {
+		if (auto* data = msg.tryData<MessagePickUp>(); !data) {
+			return;
+		}
+		// un-select
+		else if (data->isSameSpot) {
+			// dispather.publish(Operation::UnSelect)
+			selectedPiece = {};
+			netSystem->send([&](sf::Packet& packet) {
+				packet << (int)Operation::UnSelect;
+			});
+		}
+		else if (!data->isReleased) { // selected
+			// dispather.publish(Operation::Select, coord)
+			handlePieceSelect(data->entity);
+			auto [x, y] = data->entity.get<ChessPieceComponent>().coord;
+			netSystem->send([&](sf::Packet& packet) {
+				packet << (int)Operation::Select << x << y;
+			});
+		}
+		else if (data->isReleased) { // try to moves
+			sf::Vector2i newCoord = toCoord(data->mousePosition);
+			handlePieceMove(newCoord);
+			netSystem->send([&](sf::Packet& packet) {
+				packet << (int)Operation::Move << newCoord.x << newCoord.y;
+			});
+		} 
+	}
+
+	void update() override {
+	}
+
+	void render(sf::RenderTarget& win) override {
+		if (selectedPiece) {
+			sf::CircleShape circle;
+			const auto ksize = kPieceSize / 8;
+			const auto kcenter = kPieceSize / 2;
+			circle.setOrigin(ksize, ksize);
+			circle.setPosition(toPos(origianlPosToDraw));
+			circle.move(kcenter, kcenter);
+			circle.setRadius(ksize);
+			auto red = sf::Color::Red;
+			red.a = 200;
+			circle.setFillColor(red);
+			win.draw(circle);
+
+			if (ruleShowMoves) {
+				auto yellow = sf::Color::Yellow;
+				yellow.a = 200;
+				circle.setFillColor(yellow);
+				for (auto move : this->movesToDraw) {
+					circle.setPosition(toPos(move));
+					circle.move(kcenter, kcenter);
+					win.draw(circle);
+				}
+			}
+		}
+	}
+};
+
+auto generateMovesDiagonal(ChessSystem* sys, sf::Vector2i coord) {
+	auto moves = std::vector<sf::Vector2i>();
+	sys->forDirection(moves, coord, [](auto& coord) { coord.x--; coord.y--; });
+	sys->forDirection(moves, coord, [](auto& coord) { coord.x++; coord.y++; });
+	sys->forDirection(moves, coord, [](auto& coord) { coord.x--; coord.y++; });
+	sys->forDirection(moves, coord, [](auto& coord) { coord.x++; coord.y--; });
+	return moves;
+}
+
+auto generateMovesLine(ChessSystem* sys, sf::Vector2i coord) {
+	auto moves = std::vector<sf::Vector2i>();
+	sys->forDirection(moves, coord, [](auto& coord) { coord.x++; });
+	sys->forDirection(moves, coord, [](auto& coord) { coord.x--; });
+	sys->forDirection(moves, coord, [](auto& coord) { coord.y++; });
+	sys->forDirection(moves, coord, [](auto& coord) { coord.y--; });
+	return moves;
+}
+
+auto generateMovesQueen(ChessSystem* sys, sf::Vector2i coord) {
+	auto vec = generateMovesDiagonal(sys, coord);
+	auto vec2 = generateMovesLine(sys, coord);
+	vec.insert(vec.end(), vec2.begin(), vec2.end());
+	return vec;
+}
+
+template <typename R>
+auto generateMovesWithPredef(ChessSystem* sys, const R& predef, sf::Vector2i coord) {
+	auto moves = std::vector<sf::Vector2i>();
+	for (sf::Vector2i move : predef) {
+		if (auto type = sys->typeOfBox(move); type == ChessSystem::BoxType::Empty || type == ChessSystem::BoxType::Enemy)
+			moves.push_back(move);
+	}
+	return moves;
+}
+
+auto generateMovesHorse(ChessSystem* sys, sf::Vector2i coord) {
+	const auto predef = std::array{
+		coord + sf::Vector2i{2, 1},
+		coord + sf::Vector2i{2, -1},
+		coord + sf::Vector2i{-2, 1},
+		coord + sf::Vector2i{-2, -1},
+		coord + sf::Vector2i{1, 2}, 
+		coord + sf::Vector2i{1, -2}, 
+		coord + sf::Vector2i{-1, 2}, 
+		coord + sf::Vector2i{-1, -2}, 
+	};
+	return generateMovesWithPredef(sys, predef, coord);
+}
+
+auto generateMovesKing(ChessSystem* sys, sf::Vector2i coord) {
+	const auto predef = std::array{
+		coord + sf::Vector2i{0, 1},
+		coord + sf::Vector2i{0, -1},
+		coord + sf::Vector2i{1, 0},
+		coord + sf::Vector2i{-1, 0},
+		coord + sf::Vector2i{1, 1},
+		coord + sf::Vector2i{1, -1},
+		coord + sf::Vector2i{-1, 1},
+		coord + sf::Vector2i{-1, -1},
+	};
+	return generateMovesWithPredef(sys, predef, coord);
+}
+
+auto generateMovesPawn = 
+	[](ChessSystem* sys, ark::EntityManager& manager, ark::Entity entity, sf::Vector2i firstCoord, 
+		auto dir, const auto origCoord) mutable 
+{
+	auto moves = std::vector<sf::Vector2i>();
+	auto coord = origCoord;
+	auto pushIf = [&](auto boxType) {
+		if (auto type = sys->typeOfBox(coord); type == boxType)
+			moves.push_back(coord);
+	};
+	// prima casuta/fata
+	dir(coord);
+	pushIf(ChessSystem::BoxType::Empty);
+	// note: pentru sah in 4 tre sa fac si {coord.y -=1; coord.y += 2}
+	// stanga
+	coord.x -= 1;
+	pushIf(ChessSystem::BoxType::Enemy);
+	// dreapta
+	coord.x += 2;
+	pushIf(ChessSystem::BoxType::Enemy);
+
+	// vezi daca poate face en-passant la o piesa marcata
+	for (auto [markedEntity, enpass, markedPiece] : manager.view<ChessEnPassantTag, ChessPieceComponent>().each()) {
+		auto coord = origCoord;
+		// daca n-a miscat doua patratele
+		if (enpass.behindCoord == markedPiece.coord) {
+			markedEntity.remove<ChessEnPassantTag>();
+			continue;
+		}
+		// stanga
+		coord.x -= 1;
+		if (markedPiece.coord == coord && sys->typeOfBox(coord) == ChessSystem::BoxType::Enemy) {
+			dir(coord);
+			moves.push_back(coord);
+		}
+		// dreapta
+		coord.x += 2;
+		if (markedPiece.coord == coord && sys->typeOfBox(coord) == ChessSystem::BoxType::Enemy) {
+			dir(coord);
+			moves.push_back(coord);
+		}
+	}
+	// la prima mutare pot muta doua
+	if (firstCoord == entity.get<ChessPieceComponent>().coord) {
+		auto coord = origCoord;
+		dir(coord);
+		if (sys->typeOfBox(coord) == ChessSystem::BoxType::Empty) {
+			// este tag-uit chiar daca nu a facut miscarea de doua patratele,
+			// si-i ok, merge si asa.
+			// nu-i ok, am un bug.
+			// care era bug-ul? cand incepe negru?
+			auto prevCoord = coord;
+			dir(coord);
+			if (sys->typeOfBox(coord) == ChessSystem::BoxType::Empty) {
+				entity.add<ChessEnPassantTag>().behindCoord = prevCoord;
+				moves.push_back(coord);
+			}
+		}
+	}
+	return moves;
 };
 
 void createChessPiece(ark::EntityManager& manager, sf::Vector2i coord, ChessSystem* sys, int meshX, bool playerAlb, ark::Entity alb, ark::Entity negru)
@@ -937,77 +1485,198 @@ void createChessPiece(ark::EntityManager& manager, sf::Vector2i coord, ChessSyst
 	Entity entity = manager.createEntity();
 
 	auto& trans = entity.get<Transform>();
-	trans.setPosition(coord.x * sys->kPieceMeshSize, coord.y * sys->kPieceMeshSize);
-	trans.move(sys->kBoardOffset, sys->kBoardOffset);
-	//trans.setOrigin(0, 0);
-
-	int size = sys->kPieceMeshSize;
+	trans.setPosition(coord.x * sys->kPieceSize, coord.y * sys->kPieceSize);
+	trans.move(sys->kBoardOffset);
 
 	auto& mesh = manager.add<MeshComponent>(entity, "chess_pieces.png");
-	mesh.setTextureRect(sf::IntRect{ size * meshX, size * playerAlb, size, size });
+	int meshSize = mesh.getMeshSize().x / 6;
+	mesh.setTextureRect(sf::IntRect{ meshSize * meshX, meshSize * (!playerAlb), meshSize, meshSize });
+	trans.setScale(sys->kPieceSize / meshSize, sys->kPieceSize / meshSize);
 
 	ark::Entity player = playerAlb ? alb : negru;
 
 	entity.add<MousePickUpComponent>({
-		.selectArea = sf::FloatRect(trans.getPosition().x, trans.getPosition().y, size, size),
-		.filter = player.get<ChessPlayerComponent>().id
+		.selectArea = sf::FloatRect(trans.getPosition().x, trans.getPosition().y, sys->kPieceSize, sys->kPieceSize),
+		.filter = player.get<ChessPlayerComponent>().id,
+		.setTransform = false,
+		.drag = false
 	});
 
-	entity.add<ChessPieceComponent>(player, coord);
+	auto& piece = entity.add<ChessPieceComponent>(player, coord);
+
+	auto generateMovesPawnLocal = [sys, &manager, entity, firstCoord = piece.coord](auto dir, const auto origCoord) mutable {
+		return generateMovesPawn(sys, manager, entity, firstCoord, dir, origCoord);
+	};
+
+	auto pieceType = meshX + 1;
+	piece.type = pieceType;
+	if (pieceType == 1)
+		piece.generateMoves = ark::bind_front(generateMovesKing, sys); // TODO: add rocada
+	else if (pieceType == 2)
+		piece.generateMoves = ark::bind_front(generateMovesQueen, sys);
+	else if (pieceType == 3)
+		piece.generateMoves = ark::bind_front(generateMovesDiagonal, sys);
+	else if (pieceType == 4)
+		piece.generateMoves = ark::bind_front(generateMovesHorse, sys);
+	else if (pieceType == 5)
+		piece.generateMoves = ark::bind_front(generateMovesLine, sys);
+	else if (playerAlb)
+		piece.generateMoves = ark::bind_front(generateMovesPawnLocal, [](auto& coord) {coord.y--; });
+	else
+		piece.generateMoves = ark::bind_front(generateMovesPawnLocal, [](auto& coord) {coord.y++; });
 }
 
-/* de implementat moduri */
+struct FilterComponent {
+	int flagsAll;
+	int flagsNone;
+};
+
+template <typename F>
+void forFilter(ark::EntityManager& man, FilterComponent filter, F&& fun) {
+	man.view<FilterComponent>().each([&](ark::Entity entity, FilterComponent& comp) {
+		const bool all = (comp.flagsAll & filter.flagsAll) == filter.flagsAll;
+		const bool exc = !(comp.flagsNone & filter.flagsNone);
+		if (all & exc) {
+			fun(entity);
+		}
+	});
+}
+
+auto& getTrackRes() {
+	static MallocResource mallocRes;
+	static TrackingResource trackRes(&mallocRes);
+	return trackRes;
+}
+
+/* TODO(chess): de implementat moduri */
 class ChessState : public BasicState {
 	LoggerEntityManager managerLogger;
 public:
 	ChessState(ark::MessageBus& mb) : BasicState(mb) {}
 
 	std::vector<std::vector<int>> board = 
-	{	{-1, -2, -3, -4, -5, -3, -2, -1},
+	{	{-5, -4, -3, -2, -1, -3, -4, -5},
 		{-6, -6, -6, -6, -6, -6, -6, -6},
 		{0, 0, 0, 0, 0, 0, 0, 0},
 		{0, 0, 0, 0, 0, 0, 0, 0},
 		{0, 0, 0, 0, 0, 0, 0, 0},
 		{0, 0, 0, 0, 0, 0, 0, 0},
 		{6, 6, 6, 6, 6, 6, 6, 6},
-		{1, 2, 3, 4, 5, 3, 2, 1}
+		{5, 4, 3, 2, 1, 3, 4, 5},
 	};
 
-	Entity cloneEnt(ark::Entity entity) {
-		Entity clone = manager.createEntity();
-		for (auto comp : entity.eachComponent()) {
-			clone.add(comp.type, entity);
-		}
-		return clone;
-	}
 
 	void init() override {
 		managerLogger.connect(manager);
-		manager.onCreate().connect<&EntityManager::add<Transform>>();
+		//manager.addType<ark::TagComponent>();
+		//manager.addType<ark::Transform>();
 		manager.onCreate().connect<&EntityManager::add<TagComponent>>();
+		manager.onCreate().connect<&EntityManager::add<Transform>>();
 		manager.onAdd<TagComponent>().connect(TagComponent::onAdd);
 
+		systems.addSystem<NetworkSystem>();
+		systems.addSystem<MousePickUpSystem>();
 		systems.addSystem<MeshSystem>();
 		systems.addSystem<SceneInspector>();
 		systems.addSystem<FpsCounterDirector>();
 		systems.addSystem<ScriptingSystem>();
 		systems.addSystem<RenderSystem>();
-		systems.addSystem<MousePickUpSystem>();
+		//systems.addSystem<LuaScriptingSystem>();
 		ChessSystem* chessSys = systems.addSystem<ChessSystem>();
 
 		manager.onAdd<ScriptingComponent>().connect(ScriptingComponent::onAdd);
-		manager.onCopy<ScriptingComponent>().connect(ScriptingComponent::onClone);
-		manager.onAdd<LuaScriptingComponent>().connect(LuaScriptingComponent::onAdd, systems.addSystem<LuaScriptingSystem>());
+		manager.onClone<ScriptingComponent>().connect(ScriptingComponent::onClone);
+		manager.onAdd<LuaScriptingComponent>().connect(LuaScriptingComponent::onAdd, systems.getSystem<LuaScriptingSystem>());
 
-		auto* imgui = getState<ImGuiLayer>();
-		imgui->addTab({ "chess-vars", [chess = chessSys]() {
-			// TODO: sa modific si entitatile o data cu ele
-			ImGui::DragFloat("board-offset", &chess->kBoardOffset, 0.01f, 0, 0, "%.1f");
-			ImGui::InputInt("board-length", &chess->kBoardLength);
-			ImGui::DragFloat("piece-mesh-size in pixels", &chess->kPieceMeshSize, 0.01f, 0, 0, "%.1f");
-		}});
+		Entity boardEntity = makeEntity("chess-board");
+		boardEntity.add<MeshComponent>("chess_board.png");
+		auto setBoardSize = [=, this](float pieceSize) mutable {
+			const auto& mesh = boardEntity.get<const MeshComponent>();
+			auto& trans = boardEntity.get<ark::Transform>();
+			auto scale = (pieceSize * chessSys->kBoardLength) / mesh.getMeshSize().x;
+			trans.setPosition(chessSys->kBoardOffset);
+			trans.setScale(scale, scale);
+		};
+		setBoardSize(chessSys->kPieceSize);
 
-		const int size = chessSys->kPieceMeshSize;
+		getState<ImGuiLayer>()->addTab("chess settings", [=, this]() mutable {
+			{
+				//auto bytes = getTrackRes().getBytes();
+				//auto str = getTrackRes().formatSummary();
+				//auto str = getTrackRes().formatSummary();
+				//std::cout << str;
+				//getTrackRes().clearLogs();
+				//ImGui::Text("Game Allocations %s", str.c_str());
+				//auto nowBytes = getTrackRes().getBytes();
+				//ImGui::Text("Allocs per frame %s", str.c_str());
+			}
+
+			auto setPiecesPosition = [&] {
+				for (auto [trans, mesh, piece, pickup] : manager.view<ark::Transform, MeshComponent, ChessPieceComponent, MousePickUpComponent>()) {
+					pickup.selectArea.height = chessSys->kPieceSize;
+					pickup.selectArea.width = chessSys->kPieceSize;
+					auto scale = chessSys->kPieceSize / mesh.getMeshSize().x;
+					trans.setPosition(piece.coord.x * chessSys->kPieceSize, piece.coord.y * chessSys->kPieceSize);
+					trans.move(chessSys->kBoardOffset);
+					trans.setScale(scale, scale);
+				}
+			};
+
+			// pieces and board size
+			if (ImGui::DragFloat("pieces size in pixels", &chessSys->kPieceSize, 0.1f, 0, 0, "%.1f")) {
+				setBoardSize(chessSys->kPieceSize);
+				setPiecesPosition();
+			}
+
+			// board position
+			float vec[2] = { chessSys->kBoardOffset.x, chessSys->kBoardOffset.y };
+			if (ImGui::DragFloat2("board-position", vec, 0.2f, 0, 0, "%.1f")) {
+				chessSys->kBoardOffset = { vec[0], vec[1] };
+				setPiecesPosition();
+				auto& trans = boardEntity.get<ark::Transform>();
+				trans.setPosition(chessSys->kBoardOffset);
+			}
+
+			// drag-and-drop or select-release pieces
+			bool drag = false;
+			manager.view<MousePickUpComponent>().each([&](auto& pickup) {
+				drag = pickup.drag;
+				return false;
+			});
+			if (ImGui::Checkbox("drag-and-drop/select-release", &drag)) {
+				for (auto& pickup : manager.view<MousePickUpComponent>()) {
+					systems.getSystem<MousePickUpSystem>()->reset();
+					pickup.drag = drag;
+					pickup.setTransform = drag;
+				}
+			}
+
+			// rules
+			ImGui::Text("Rules to enforce");
+			if (ImGui::Checkbox("player turns", &chessSys->rulePlayerTurn)) {
+				if (!chessSys->rulePlayerTurn)
+					systems.getSystem<MousePickUpSystem>()->setFilter(0);
+				else
+					systems.getSystem<MousePickUpSystem>()->setFilter(chessSys->playerInTurn.get<ChessPlayerComponent>().id);
+			}
+			ImGui::Checkbox("enforce legal moves", &chessSys->ruleLegalMoves);
+			ImGui::Checkbox("show legal moves", &chessSys->ruleShowMoves);
+			ImGui::Checkbox("warn king if attacked", &chessSys->ruleWarnKingOnAttack);
+			ImGui::Checkbox("move king if attacked", &chessSys->ruleMoveKingOnAttack);
+
+			// multiplayer stuff
+			auto netSystem = systems.getSystem<NetworkSystem>();
+			ImGui::InputText("IPv4", netSystem->buffIpAddr, sizeof(netSystem->buffIpAddr));
+			if (ImGui::Button("connect", ImVec2(100, 50))) {
+				netSystem->sock.connect(netSystem->buffIpAddr, netSystem->port, sf::seconds(1.5));
+			}
+			sf::IpAddress addr = netSystem->sock.getRemoteAddress();
+			auto s = addr.toString();
+			if (addr != addr.None)
+				ImGui::Text("connected to: %s", s);
+			else
+				ImGui::Text("not connected");
+		});
 
 		Entity playerAlb = manager.createEntity();
 		playerAlb.add<ChessPlayerComponent>();
@@ -1020,13 +1689,37 @@ public:
 				if (board[i][j] == 0)
 					continue;
 				int x = std::abs(board[i][j]) - 1;
-				int y = board[i][j] > 0 ? 1 : 0;
-				createChessPiece(manager, sf::Vector2i{ j, i }, chessSys, x, /*alb*/y, playerAlb, playerNegru);
+				int alb = board[i][j] > 0 ? 1 : 0; // y
+				createChessPiece(manager, sf::Vector2i{ j, i }, chessSys, x, alb, playerAlb, playerNegru);
 			}
 		}
 	}
 };
 /**/
+
+class NetTestState : public BasicState {
+
+public:
+	NetTestState(ark::MessageBus& mb) : BasicState(mb) {}
+
+	void init() override {
+		systems.addSystem<NetworkSystem>();
+		systems.addSystem<FpsCounterDirector>();
+		getState<ImGuiLayer>()->addTab("net-conn", [=, this]() mutable {
+			auto netSystem = systems.getSystem<NetworkSystem>();
+			ImGui::InputText("IPv4", netSystem->buffIpAddr, sizeof(netSystem->buffIpAddr));
+			if (ImGui::Button("connect", ImVec2(100, 50))) {
+				netSystem->sock.connect(netSystem->buffIpAddr, netSystem->port);
+			}
+			sf::IpAddress addr = netSystem->sock.getRemoteAddress();
+			auto s = addr.toString();
+			if (addr != addr.None)
+				ImGui::Text("connected to: %s", s);
+			else
+				ImGui::Text("not connected");
+		});
+	}
+};
 
 //template<typename... Component>
 //[[nodiscard]] bool has(const entity_type entity) const {
@@ -1074,54 +1767,32 @@ int test(int i) { return i + i; }
 		//		});
 		//}
 
-//template <typename F, typename...Args>
-//auto bind_args(F&& fun, Args&&... capt) {
-//	return[fun = std::forward<F>(fun), ...capt = std::forward<Args>(capt)](auto&&... args) -> decltype(auto) { 
-//		return fun(std::forward<Args>(capt)..., std::forward<decltype(args)>(args)...);
-//	};
+//void* operator new(std::size_t size) {
+//	return getTrackRes().allocate(size);
 //}
-
-//void nush() {
-//	std::tuple<int, float> tup;
-//	std::visit(template<size_t... Index>[](std::index_sequence<Index...>{}, auto&&... vals) {
 //
-//	}, std::make_index_sequence<std::tuple_size_v<decltype(tup)>>{}, tup);
+//void operator delete(void* p){
+//	// n-avem nevoie de size si align ca avem malloc
+//	getTrackRes().deallocate(p, 8);
 //}
 
 int main() // are nevoie de c++17 si SFML 2.5.1
 {
+	GameLog("Static Allocations");
+	getTrackRes().printSummary();
+	getTrackRes().clearLogs();
+
 	auto default_memory_res = makePrintingMemoryResource("Rogue PMR Allocation!", std::pmr::null_memory_resource());
 	std::pmr::set_default_resource(&default_memory_res);
 	any_function fun = any_function::make<int>(test);
 	auto res = fun(48);
 	std::cout << std::any_cast<int>(res) << '\n';
-
 	{
-		auto signal = Signal<bool(Entity*)>();
-		auto sink = Sink{ signal };
-		sink.connect<&Entity::isValid>();
-		std::cout << signal.size();
-		sink.disconnect<&Entity::isValid>();
-		std::cout << signal.size();
-	}
-
-	{
-		auto signal = Signal<bool()>();
-		auto sink = Sink{ signal };
-		Entity e;
-		{
-			ScopedConnection conn = sink.connect(&Entity::isValid, &e);
-			std::cout << signal.size();
-		}
-		//conn.release();
-		std::cout << signal.size();
-	}
-
-	{
-		auto* type = ark::meta::getMetadata(typeid(ScriptingComponent));
+		auto* type = ark::meta::type<ScriptingComponent>();
 		type->func(ark::SceneInspector::serviceName, renderScriptComponents);
 		type->func(ark::serde::serviceSerializeName, serializeScriptComponents);
 		type->func(ark::serde::serviceDeserializeName, deserializeScriptComponents);
+		//type->func("onClone", ScriptingComponent::onClone);
 	}
 
 	sf::ContextSettings settings = sf::ContextSettings();
@@ -1134,10 +1805,15 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	Engine::registerState<TestingState>();
 	Engine::registerState<ImGuiLayer>();
 	Engine::registerState<ChessState>();
+	Engine::registerState<NetTestState>();
 
 	Engine::pushOverlay<ImGuiLayer>();
-	Engine::pushFirstState<ChessState>();
+	//Engine::pushFirstState<ChessState>();
+	Engine::pushFirstState<TestingState>();
 
+	GameLog("Main allocs");
+	getTrackRes().printSummary();
+	getTrackRes().clearLogs();
 	Engine::run();
 
 	return 0;

@@ -164,7 +164,7 @@ namespace ark
 
 ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, addSerdeFunctions<ark::Transform>())
 {
-	auto* type = ark::meta::getMetadata(typeid(ark::Transform));
+	auto* type = ark::meta::type<ark::Transform>();
 	type->func(ark::serde::serviceSerializeName, ark::serde::serialize_value<ark::Transform>);
 	type->func(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<ark::Transform>);
 	type->data(ark::SceneInspector::serviceOptions, std::vector<ark::EditorOptions>{

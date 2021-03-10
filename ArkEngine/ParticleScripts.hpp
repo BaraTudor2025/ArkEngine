@@ -104,27 +104,6 @@ namespace ParticleScripts {
 		}
 	};
 
-	auto __IMPL__readColorDistributionFromStream = [](std::istream& is, PointParticles* p)
-	{
-		int r1, r2, g1, g2, b1, b2;
-		is >> r1 >> r2 >> g1 >> g2 >> b1 >> b2;
-		p->getColor = [=]() {
-			auto r = RandomNumber<int>(r1, r2);
-			auto g = RandomNumber<int>(g1, g2);
-			auto b = RandomNumber<int>(b1, b2);
-			return sf::Color(r, g, b);
-		};
-	};
-
-	auto __IMPL__readColorFromStream = [](std::istream& is, PointParticles* p)
-	{
-		int r, g, b;
-		is >> r >> g >> b;
-		p->getColor = [=]() {
-			return sf::Color(r, g, b);
-		};
-	};
-
 
 	class RotateEmitter : public ScriptT<RotateEmitter> {
 		sf::Transform t;

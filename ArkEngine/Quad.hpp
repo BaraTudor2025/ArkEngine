@@ -26,23 +26,14 @@ struct Quad {
 		vertices[1].position = sf::Vector2f(0, h);
 		vertices[2].position = sf::Vector2f(w, 0);
 		vertices[3].position = sf::Vector2f(w, h);
-
-		float left = uvRect.left;
-		float right = left + uvRect.width;
-		float top = uvRect.top;
-		float bottom = top + uvRect.height;
-
-		vertices[0].texCoords = sf::Vector2f(left, top);
-		vertices[1].texCoords = sf::Vector2f(left, bottom);
-		vertices[2].texCoords = sf::Vector2f(right, top);
-		vertices[3].texCoords = sf::Vector2f(right, bottom);
+		this->updateTexCoords(uvRect);
 	}
 
 	void move(sf::Vector2f pos) {
 		for (auto& v : vertices)
 			v.position += pos;
 	}
-	
+
 	void setColor(sf::Color a) {
 		for (auto& v : vertices)
 			v.color = a;
@@ -76,7 +67,8 @@ struct Quad {
 		vertices[3].position = sf::Vector2f(right, bottom);
 	}
 
-	void updateTexCoords(sf::FloatRect rect)
+	template <typename T>
+	void updateTexCoords(sf::Rect<T> rect)
 	{
 		float left = rect.left;
 		float right = left + rect.width;

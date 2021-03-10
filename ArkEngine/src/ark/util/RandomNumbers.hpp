@@ -199,29 +199,30 @@ namespace detail {
 
 //static inline std::mt19937 __Random_Number_Generator__{ std::random_device()() };
 static inline std::random_device _ark_rng_device;
-static inline detail::splitmix __Random_Number_Generator__{_ark_rng_device};
+static inline ::detail::splitmix __Random_Number_Generator__{_ark_rng_device};
 
 template <typename T>
 static T RandomNumber(Distribution<T> arg) noexcept
 {
 	static_assert(std::is_integral_v<T> || std::is_floating_point_v<T>);
 
-	if constexpr (std::is_floating_point_v<T>)
+	if constexpr (std::is_floating_point_v<T>) {
 		if (arg.type == DistributionType::normal) {
 			std::normal_distribution<T> dist(arg.a, arg.b);
 			return dist(__Random_Number_Generator__);
-		} else {
+		}
+		else {
 			std::uniform_real_distribution<T> dist(arg.a, arg.b);
 			return dist(__Random_Number_Generator__);
 		}
-	else if constexpr (std::is_integral_v<T>) {
+	}
+	else {
 		if (arg.type == DistributionType::uniform) {
 			std::uniform_int_distribution<T> dist(arg.a, arg.b);
 			return dist(__Random_Number_Generator__);
 		}
 	}
 	// daca am ajuns aici ceva nu e in regula
-	std::abort();
 }
 
 template <typename T>

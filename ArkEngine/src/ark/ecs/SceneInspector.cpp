@@ -280,7 +280,7 @@ namespace ark {
 			ImGui::BeginChild("ark_entity_editor_left_pane", ImVec2(150, 0), true);
 			if (ImGui::SmallButton("+ entity"))
 				auto _ = entityManager.createEntity();
-			for (const auto entity : entityManager.each()) {
+			for (const ark::Entity entity : entityManager.each()) {
 				const auto& name = entity.get<ark::TagComponent>().name;
 				if (ImGui::Selectable(name.c_str(), selectedEntity == entity))
 					selectedEntity = entity;

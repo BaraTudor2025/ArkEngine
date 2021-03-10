@@ -491,9 +491,8 @@ namespace ark::meta
 				return nullptr;
 		}
 
-		template <typename F>
-		void func(std::string_view name, F fun) {
-			m_funcs.emplace(name, std::any{ std::function<std::remove_pointer_t<detail::make_func_ptr_t<F>>>{ fun } });
+		void func(std::string_view name, auto fun) {
+			m_funcs.emplace(name, std::any{ std::function<std::remove_pointer_t<detail::make_func_ptr_t<decltype(fun)>>>{ fun } });
 		}
 
 		template <typename F>

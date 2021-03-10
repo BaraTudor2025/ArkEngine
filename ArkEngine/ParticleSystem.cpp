@@ -89,7 +89,19 @@ void PointParticleSystem::respawnPointParticle(const PointParticles& ps, sf::Ver
 	float speedMag = RandomNumber(ps.speedDistribution);
 
 	vertex.position = ps.emitter;
-	vertex.color = ps.getColor();
+
+	auto makeColor = [&](auto member) {
+		if (ps.colorLowerBound.*member == ps.colorUpperBound.*member)
+			vertex.color.*member = ps.colorLowerBound.*member;
+		else if (ps.colorLowerBound.*member < ps.colorUpperBound.*member)
+			vertex.color.*member = RandomNumber<uint32_t>(ps.colorLowerBound.*member, ps.colorUpperBound.*member);
+		else
+			vertex.color.*member = RandomNumber<uint32_t>(ps.colorUpperBound.*member, ps.colorLowerBound.*member);
+	};
+	makeColor(&sf::Color::r);
+	makeColor(&sf::Color::g);
+	makeColor(&sf::Color::b);
+
 	speed = Util::toCartesian({ speedMag, angle });
 
 	if (ps.fireworks) {

@@ -35,27 +35,21 @@
 #include "Allocators.hpp"
 #include "DrawableSystem.hpp"
 
+//import std.core;
+
 using namespace std::literals;
 using namespace ark;
 
-#if 0
-
-struct HitBox : public Component<HitBox> {
-	std::vector<sf::IntRect> hitBoxes;
-	std::function<void(Entity&, Entity&)> onColide = nullptr;
-	std::optional<int> mass; // if mass is undefined object is imovable
+enum YellowPlayerAnimations {
+	Run = 0,
+	Stand
 };
-
-class ColisionSystem : public System {
-
-};
-
-#endif
 
 class MoveAnimatedPlayer : public ScriptT<MoveAnimatedPlayer, true> {
-	Animation* animation;
+	AnimationController* animation;
 	Transform* transform;
 	PixelParticles* runningParticles;
+	MeshComponent* mesh;
 	float rotationSpeed = 180;
 	sf::Vector2f particleEmitterOffsetLeft;
 	sf::Vector2f particleEmitterOffsetRight;
@@ -92,8 +86,9 @@ public:
 	void bind() noexcept override
 	{
 		transform = getComponent<Transform>();
-		animation = getComponent<Animation>();
+		animation = getComponent<AnimationController>();
 		runningParticles = getComponent<PixelParticles>();
+		mesh = getComponent<MeshComponent>();
 		setScale(transform->getScale());
 	}
 
@@ -109,22 +104,24 @@ public:
 			runningParticles->angleDistribution = { PI + PI / 4, PI / 10, DistributionType::normal };
 			runningParticles->emitter = transform->getPosition() + particleEmitterOffsetLeft;
 			moved = true;
-			animation->flipX = false;
+			mesh->flipX = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
 			transform->move(-dx * std::cos(angle), -dx * std::sin(angle));
 			runningParticles->angleDistribution = { -PI / 4, PI / 10, DistributionType::normal };
 			runningParticles->emitter = transform->getPosition() + particleEmitterOffsetRight;
 			moved = true;
-			animation->flipX = true;
+			mesh->flipX = true;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
 			transform->move(dx * std::sin(angle), -dx * std::cos(angle));
 			moved = true;
+			mesh->flipY = false;
 		}
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
 			transform->move(-dx * std::sin(angle), dx * std::cos(angle));
 			moved = true;
+			mesh->flipY = true;
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
@@ -133,13 +130,11 @@ public:
 			transform->rotate(-rotationSpeed * dt);
 
 		if (moved) {
-			animation->row = 0;
-			animation->frameTime = sf::milliseconds(75);
+			animation->play(YellowPlayerAnimations::Run);
 			runningParticles->spawn = true;
 		}
 		else {
-			animation->frameTime = sf::milliseconds(125);
-			animation->row = 1;
+			animation->play(YellowPlayerAnimations::Stand);
 			runningParticles->spawn = false;
 		}
 	}
@@ -337,19 +332,6 @@ public:
 	}
 };
 
-class EmittFromMouseTest : public ScriptT<EmittFromMouseTest> {
-	PointParticles* p;
-public:
-	void bind() noexcept override
-	{
-		p = getComponent<PointParticles>();
-	}
-	void update() noexcept override
-	{
-		p->emitter = Engine::mousePositon();
-	}
-};
-
 class SaveEntityScript : public ScriptT<SaveEntityScript> {
 public:
 	SaveEntityScript() = default;
@@ -405,12 +387,11 @@ ARK_REGISTER_COMPONENT(CameraComponent, registerServiceDefault<CameraComponent>(
 }
 
 class CameraSystem : public ark::SystemT<CameraSystem>, public ark::Renderer {
-
 public:
-
 	void init() override {
-		entityManager.onAdd<CameraComponent>().connect([](ark::EntityManager& man, ark::EntityId entity) {
-			man.get<CameraComponent>(entity).view = ark::Engine::getWindow().getView();;
+		entityManager.onAdd<CameraComponent>().connect([](ark::EntityManager& manager, ark::EntityId entity) {
+			// init with current view
+			manager.get<CameraComponent>(entity).view = ark::Engine::getWindow().getView();
 		});
 	}
 
@@ -449,10 +430,13 @@ private:
 		manager.onAdd<ScriptingComponent>().connect(ScriptingComponent::onAdd);
 		manager.onClone<ScriptingComponent>().connect(ScriptingComponent::onClone);
 
+		manager.onAdd<AnimationController>().connect(AnimationController::onAdd);
+
 		systems.addSystem<PointParticleSystem>();
 		systems.addSystem<PixelParticleSystem>();
 		systems.addSystem<ButtonSystem>();
 		systems.addSystem<TextSystem>();
+		systems.addSystem<MeshSystem>();
 		systems.addSystem<AnimationSystem>();
 		systems.addSystem<DelayedActionSystem>();
 		systems.addSystem<ScriptingSystem>();
@@ -463,7 +447,8 @@ private:
 		auto* imguiState = getState<ImGuiLayer>();
 		imguiState->addTab({ "registry inspector", [=]() { inspector->renderSystemInspector(); } });
 
-		manager.onAdd<LuaScriptingComponent>().connect(LuaScriptingComponent::onAdd, systems.addSystem<LuaScriptingSystem>());
+		auto luaSys = systems.addSystem<LuaScriptingSystem>();
+		manager.onAdd<LuaScriptingComponent>().connect(LuaScriptingComponent::onAdd, luaSys);
 
 		button = makeEntity("button");
 		mouseTrail = makeEntity("mouse_trail");
@@ -473,34 +458,40 @@ private:
 		rotatingParticles = makeEntity("rotating_ps");
 
 		player = makeEntity("player");
-		ark::serde::deserializeEntity(player);
-		
-		//player.addComponent<Animation>("chestie.png", std::initializer_list<uint32_t>{2, 6}, sf::milliseconds(100), 1, false);
-		/*
-		auto& transform = player.addComponent<Transform>();
-		auto& animation = player.addComponent<Animation>("chestie.png", sf::Vector2u{6, 2}, sf::milliseconds(100), 1, false);
-		auto& pp = player.addComponent<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
-		auto& playerScripting = player.addComponent<ScriptingComponent>();
-		auto moveScript = playerScripting.addScript<MoveAnimatedPlayer>(400, 180);
+		//ark::serde::deserializeEntity(player);
+		{
+			player.add<MeshComponent>("chestie.png");
+			player.add<AnimationController>(2, 6);
+			makeAnimation(player, YellowPlayerAnimations::Stand, 6).framerate = sf::milliseconds(125);
+			makeAnimation(player, YellowPlayerAnimations::Run, 6).framerate = sf::milliseconds(75);
 
-		transform.move(Engine::center());
-		transform.setOrigin(animation.frameSize() / 2.f);
+			player.get<AnimationController>().play(1);
 
-		pp.particlesPerSecond = pp.getParticleNumber() / 2;
-		pp.size = { 60, 30 };
-		pp.speed = moveScript->speed;
-		pp.emitter = transform.getPosition() + sf::Vector2f{ 50, 40 };
-		pp.gravity = { 0, moveScript->speed };
-		auto[w, h] = Engine::windowSize();
-		pp.platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
+			/**/
+			auto& pp = player.add<PixelParticles>(100, sf::seconds(7), sf::Vector2f{ 5, 5 }, std::pair{ sf::Color::Yellow, sf::Color::Red });
+			auto& playerScripting = player.add<ScriptingComponent>();
+			auto moveScript = playerScripting.addScript<MoveAnimatedPlayer>(400, 180);
 
-		moveScript->setScale({0.1, 0.1});
+			auto& trans = player.get<ark::Transform>();
+			trans.move(Engine::center());
+			trans.setOrigin(player.get<MeshComponent>().getMeshSize() / 2.f);
 
-		player.addComponent<DelayedAction>(sf::seconds(4), [](Entity e) {
-			GameLog("just serialized entity %s", e.getComponent<TagComponent>().name);
-			ark::serde::serializeEntity(e);
-		});
-		/**/
+			pp.particlesPerSecond = pp.getParticleNumber() / 2;
+			pp.size = { 60, 30 };
+			pp.speed = moveScript->speed;
+			pp.emitter = trans.getPosition() + sf::Vector2f{ 50, 40 };
+			pp.gravity = { 0, moveScript->speed };
+			auto [w, h] = Engine::windowSize();
+			pp.platform = { Engine::center() + sf::Vector2f{w / -2.f, 50}, {w * 1.f, 10} };
+
+			moveScript->setScale({ 0.2f, 0.2f });
+
+			//player.add<DelayedAction>(sf::seconds(4), [](Entity e) {
+			//	GameLog("just serialized entity %s", e.getComponent<TagComponent>().name);
+			//	ark::serde::serializeEntity(e);
+			//});
+			/**/
+		}
 
 		button.add<Button>(sf::FloatRect{ 100, 100, 200, 100 });
 		auto& b = button.get<Button>();
@@ -581,13 +572,14 @@ private:
 		//mouseTrail.addComponent<PointParticles>(1000, sf::seconds(5), Distribution{ 0.f, 2.f }, Distribution{ 0.f,0.f }, DistributionType::normal);
 		mouseTrail.add(typeid(PointParticles));
 		auto& mouseParticles = mouseTrail.get<PointParticles>();
+		mouseParticles.colorLowerBound = mouseParticles.colorUpperBound = sf::Color::White;
 		mouseParticles.setParticleNumber(1000);
 		mouseParticles.setLifeTime(sf::seconds(5), DistributionType::normal);
 		mouseParticles.speedDistribution = { 0.f, 2.f };
 		mouseParticles.angleDistribution = { 0.f, 0.f };
 		{
 			auto& scripts = mouseTrail.add<ScriptingComponent>();
-			scripts.addScript<EmittFromMouseTest>();
+			scripts.addScript<EmittFromMouse>();
 			scripts.addScript<TraillingEffect>();
 			scripts.addScript<DeSpawnOnMouseClick<TraillingEffect>>();
 		}
@@ -623,40 +615,6 @@ private:
 	}
 };
 
-#if 0
-class ChildTestScene : public TemplateScene {
-
-	void init()
-	{
-		this->setup();
-		createEntities({ parent, child1, child2, grandson });
-
-		parent.addChild(child1);
-		parent.addChild(child2);
-		child1.addChild(grandson);
-
-		child1.addComponent<PointParticles>(getFireParticles());
-		child2.addComponent<PointParticles>(getGreenParticles());
-		grandson.addComponent<PointParticles>(getRainbowParticles());
-		grandson.addComponent<Transform>();
-
-		std::vector<PointParticles*> pps = parent->getChildrenComponents<PointParticles>();
-		std::cout << pps.m_size() << std::endl; // 3
-		auto cs = parent->getChildrenComponents<Transform>();
-		std::cout << cs.m_size() << std::endl; // 1
-		auto none = parent->getChildrenComponents<MeshComponent>();
-		std::cout << none.m_size() << std::endl; // 0
-		auto none2 = child2->getChildrenComponents<PointParticles>();
-		std::cout << none2.m_size() << std::endl; // 0
-	}
-
-	Entity* parent;
-	Entity* child1;
-	Entity* child2;
-	Entity* grandson;
-};
-#endif
-
 class LoggerEntityManager {
 	std::vector<ScopedConnection> m_conns;
 public:
@@ -677,10 +635,6 @@ public:
 		//m_conns.push_back(man.onRemove().connect([](ark::EntityManager&, ark::EntityId entity, std::type_index type) {
 		//	EngineLog(LogSource::EntityM, LogLevel::Info, "remove component (%s) on entity-id(%d)", type.name(), entity);
 		//}));
-	}
-	void disconnect() {
-		for (auto& con : m_conns)
-			con.release();
 	}
 };
 
@@ -805,8 +759,8 @@ struct MousePickUpComponent {
 	int dx, dy;
 	bool setTransform = true;
 	// pentru drag: tine apasat si dai drumul
-	// pentru pickup(drag=false): click sa selectezi, click sa i dai drumul
-	bool drag = true; // or pickup-drop
+	// pentru pickup(drag=false): click sa selectezi, click sa-i dai drumul
+	bool drag = true;
 };
 
 ARK_REGISTER_COMPONENT(MousePickUpComponent, registerServiceDefault<MousePickUpComponent>()) { 
@@ -861,7 +815,7 @@ public:
 						.isSameSpot = isSameSpot
 					});
 					selectedEntity = {};
-					// ca sa nu intre in for-each
+					// ca sa nu intre in for-each-view
 					if (isSameSpot)
 						return;
 				}
@@ -1230,7 +1184,7 @@ public:
 			return BoxType::Ally;
 	}
 
-	// push for empty or enemy
+	// legal move for empty or enemy
 	// break on non empty
 	template <class R, class V, class F>
 	void forDirection(R& moves, V coord, F dir) {
@@ -1301,21 +1255,21 @@ public:
 		}
 		// un-select
 		else if (data->isSameSpot) {
-			// dispather.publish(Operation::UnSelect)
 			selectedPiece = {};
 			netSystem->send([&](sf::Packet& packet) {
 				packet << (int)Operation::UnSelect;
 			});
 		}
-		else if (!data->isReleased) { // selected
-			// dispather.publish(Operation::Select, coord)
+		// selected
+		else if (!data->isReleased) { 
 			handlePieceSelect(data->entity);
 			auto [x, y] = data->entity.get<ChessPieceComponent>().coord;
 			netSystem->send([&](sf::Packet& packet) {
 				packet << (int)Operation::Select << x << y;
 			});
 		}
-		else if (data->isReleased) { // try to moves
+		// try to moves
+		else if (data->isReleased) { 
 			sf::Vector2i newCoord = toCoord(data->mousePosition);
 			handlePieceMove(newCoord);
 			netSystem->send([&](sf::Packet& packet) {
@@ -1418,9 +1372,7 @@ auto generateMovesKing(ChessSystem* sys, sf::Vector2i coord) {
 	return generateMovesWithPredef(sys, predef, coord);
 }
 
-auto generateMovesPawn = 
-	[](ChessSystem* sys, ark::EntityManager& manager, ark::Entity entity, sf::Vector2i firstCoord, 
-		auto dir, const auto origCoord) mutable 
+auto generateMovesPawn(ChessSystem* sys, ark::EntityManager& manager, ark::Entity entity, sf::Vector2i firstCoord, auto dir, const auto origCoord)
 {
 	auto moves = std::vector<sf::Vector2i>();
 	auto coord = origCoord;
@@ -1489,7 +1441,7 @@ void createChessPiece(ark::EntityManager& manager, sf::Vector2i coord, ChessSyst
 	trans.move(sys->kBoardOffset);
 
 	auto& mesh = manager.add<MeshComponent>(entity, "chess_pieces.png");
-	int meshSize = mesh.getMeshSize().x / 6;
+	int meshSize = mesh.getMeshSize().x / 6; /* 6 = numarul de piese in mesh */
 	mesh.setTextureRect(sf::IntRect{ meshSize * meshX, meshSize * (!playerAlb), meshSize, meshSize });
 	trans.setScale(sys->kPieceSize / meshSize, sys->kPieceSize / meshSize);
 
@@ -1502,28 +1454,33 @@ void createChessPiece(ark::EntityManager& manager, sf::Vector2i coord, ChessSyst
 		.drag = false
 	});
 
-	auto& piece = entity.add<ChessPieceComponent>(player, coord);
-
-	auto generateMovesPawnLocal = [sys, &manager, entity, firstCoord = piece.coord](auto dir, const auto origCoord) mutable {
+	auto generateMovesPawnLocal = [sys, &manager, entity, firstCoord = coord](auto dir, const auto origCoord) mutable {
 		return generateMovesPawn(sys, manager, entity, firstCoord, dir, origCoord);
 	};
 
 	auto pieceType = meshX + 1;
-	piece.type = pieceType;
-	if (pieceType == 1)
-		piece.generateMoves = ark::bind_front(generateMovesKing, sys); // TODO: add rocada
-	else if (pieceType == 2)
-		piece.generateMoves = ark::bind_front(generateMovesQueen, sys);
-	else if (pieceType == 3)
-		piece.generateMoves = ark::bind_front(generateMovesDiagonal, sys);
-	else if (pieceType == 4)
-		piece.generateMoves = ark::bind_front(generateMovesHorse, sys);
-	else if (pieceType == 5)
-		piece.generateMoves = ark::bind_front(generateMovesLine, sys);
-	else if (playerAlb)
-		piece.generateMoves = ark::bind_front(generateMovesPawnLocal, [](auto& coord) {coord.y--; });
-	else
-		piece.generateMoves = ark::bind_front(generateMovesPawnLocal, [](auto& coord) {coord.y++; });
+
+	entity.add<ChessPieceComponent>({
+		.player = player,
+		.coord = coord,
+		.type = pieceType,
+		.generateMoves = [&] () mutable -> std::function<std::vector<sf::Vector2i>(sf::Vector2i coord)> { 
+			if (pieceType == 1)
+				return ark::bind_front(generateMovesKing, sys); // TODO: add rocada
+			else if (pieceType == 2)
+				return ark::bind_front(generateMovesQueen, sys);
+			else if (pieceType == 3)
+				return ark::bind_front(generateMovesDiagonal, sys);
+			else if (pieceType == 4)
+				return ark::bind_front(generateMovesHorse, sys);
+			else if (pieceType == 5)
+				return ark::bind_front(generateMovesLine, sys);
+			else if (playerAlb)
+				return ark::bind_front(generateMovesPawnLocal, [](auto& coord) {coord.y--; });
+			else
+				return ark::bind_front(generateMovesPawnLocal, [](auto& coord) {coord.y++; });
+		}()
+	});
 }
 
 struct FilterComponent {
@@ -1781,6 +1738,14 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	GameLog("Static Allocations");
 	getTrackRes().printSummary();
 	getTrackRes().clearLogs();
+
+	//LVector<VectorLayout::SOA, int, float> vec;
+	//vec.push_back(10, 5.5);
+	//vec.push_back(11, 9.5);
+	//vec.push_back(19, 34.5);
+	//for (auto [pp, i] : vec.each()) {
+	//	std::cout << pp << ' ' << i << ' ';
+	//}
 
 	auto default_memory_res = makePrintingMemoryResource("Rogue PMR Allocation!", std::pmr::null_memory_resource());
 	std::pmr::set_default_resource(&default_memory_res);

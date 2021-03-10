@@ -9,6 +9,7 @@
 #include <set>
 #include <array>
 #include <span>
+#include <ranges>
 
 #include "ark/ecs/Component.hpp"
 #include "ark/ecs/Entity.hpp"
@@ -275,14 +276,14 @@ namespace ark {
 					fun(entity.components[i]);
 		}
 
-		//auto eachComponent(Entity entity) {
-		//	return this->entities[entity.id].components
+		//auto eachComponent(EntityId entity) {
+		//	return this->m_entities[entity].components
 		//		| std::views::filter([](const auto& compData) { return compData.ptr != nullptr; })
 		//		| std::views::transform([](auto& compData) {return RuntimeComponent(compData.type, compData.ptr); }); // poate nu am nevoie de asta
 		//}
 
 		//auto each() {
-		//	return this->entities
+		//	return this->m_entities
 		//		| std::views::filter([this](const auto& entityData) { return !this->m_isFree[entityData.id]; })
 		//		| std::views::transform([this](auto& data) { return ark::Entity(data.id, this); });
 		//}
@@ -896,7 +897,7 @@ namespace ark {
 		manager->remove(*this, type);
 	}
 
-	inline auto Entity::eachComponent() -> ProxyRuntimeComponentView
+	inline auto Entity::eachComponent() //-> ProxyRuntimeComponentView
 	{
 		return manager->eachComponent(*this);
 	}

@@ -49,7 +49,7 @@ namespace ark::serde
 		}
 
 		// then initialize
-		for (auto component : entity.eachComponent()) {
+		for (ark::RuntimeComponent component : entity.eachComponent()) {
 			auto mdata = ark::meta::resolve(component.type);
 			if (auto deserialize = mdata->func<void(Entity&, const nlohmann::json&, void*)>(serviceDeserializeName)) {
 				if (auto it = jsonComps.find(mdata->name); it != jsonComps.end())

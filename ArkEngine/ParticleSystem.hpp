@@ -31,8 +31,7 @@ struct PointParticles final {
 	    : count(count),
 	    lifeTime(lifeTime),
 	    speedDistribution(speedArgs),
-	    angleDistribution(angleArgs),
-	    getColor(getColor)
+	    angleDistribution(angleArgs)
 	{ 
 		lifeTimeDistribution.type = lifeTimeDistType;
 		setParticleNumber(count);
@@ -69,7 +68,9 @@ struct PointParticles final {
 	Distribution<float> angleDistribution{0.f, 2 * 3.14159f};
 
 	sf::Vector2f emitter{ 0.f, 0.f };
-	std::function<sf::Color()> getColor = []() { return sf::Color::White; };
+
+	sf::Color colorLowerBound = sf::Color::Cyan;
+	sf::Color colorUpperBound = sf::Color::Magenta;
 
 	bool spawn = false;
 	bool fireworks = false;
@@ -119,7 +120,9 @@ ARK_REGISTER_COMPONENT(PointParticles, registerServiceDefault<PointParticles>())
 		member_property("fireworks", &PP::fireworks),
 		member_property("emitter", &PP::emitter),
 		member_property("speedDistribution", &PP::speedDistribution),
-		member_property("angleDistribution", &PP::angleDistribution)
+		member_property("angleDistribution", &PP::angleDistribution),
+		member_property("colorLowerBound", &PP::colorLowerBound),
+		member_property("colorUpperBound", &PP::colorUpperBound)
 	);
 }
 
@@ -220,56 +223,49 @@ ARK_REGISTER_COMPONENT(PixelParticles, registerServiceDefault<PixelParticles>())
 	);
 }
 
-
-static auto makeRed = []() {
-	auto green = RandomNumber<uint32_t>(0, 200);
-	return sf::Color(255, green, 0);
-};
-
-static auto makeGreen = []() {
-	auto red = RandomNumber<uint32_t>(0, 200);
-	return sf::Color(red, 255, 0);
-};
-
-static auto makeBrightBlue = []() {
-	auto green = RandomNumber<uint32_t>(100, 255);
-	return sf::Color(0, green, 255);
-};
-
-static auto makeDarkBlue = []() {
-	auto green = RandomNumber<uint32_t>(20, 150);
-	return sf::Color(10, green, 240);
-};
-
-static auto makeColor = []() {
-	return sf::Color(RandomNumber<uint32_t>(0x000000ff, 0xffffffff));
-};
-
-static auto makeBlue = []() {
-	auto green = RandomNumber<uint32_t>(20, 250);
-	return sf::Color(10, green, 240);
-};
-
-static inline std::vector<std::function<sf::Color()>> makeColorsVector{ makeRed, makeGreen, makeBlue, makeColor };
+inline void colorRangeRed(PointParticles& ps) {
+	ps.colorLowerBound = sf::Color(255, 0, 0);
+	ps.colorUpperBound = sf::Color(255, 200, 0);
+}
+inline void colorRangeGreen(PointParticles& ps) {
+	ps.colorLowerBound = sf::Color(0, 255, 0);
+	ps.colorUpperBound = sf::Color(200, 255, 0);
+}
+inline void colorRangeBrightBlue(PointParticles& ps) {
+	ps.colorLowerBound = sf::Color(0, 100, 255);
+	ps.colorUpperBound = sf::Color(0, 255, 255);
+}
+inline void colorRangeDarkBlue(PointParticles& ps) {
+	ps.colorLowerBound = sf::Color(10, 20, 240);
+	ps.colorUpperBound = sf::Color(10, 150, 240);
+}
+inline void colorRangeAll(PointParticles& ps) {
+	ps.colorLowerBound = sf::Color(0, 0, 0);
+	ps.colorUpperBound = sf::Color(255, 255, 255);
+}
+inline void colorRangeBlue(PointParticles& ps) {
+	ps.colorLowerBound = sf::Color(10, 20, 240);
+	ps.colorUpperBound = sf::Color(10, 250, 240);
+}
 
 inline PointParticles getFireParticles(int count=1000) 
 {
 	PointParticles fireParticles = { count, sf::seconds(3), { 1, 100 } };
-	fireParticles.getColor = makeRed;
+	colorRangeRed(fireParticles);
 	return fireParticles;
 }
 
 inline PointParticles getRainbowParticles()
 {
 	PointParticles rainbowParticles(2000, sf::seconds(3), { 1, 100 , DistributionType::normal});
-	rainbowParticles.getColor = makeColor;
+	colorRangeAll(rainbowParticles);
 	return rainbowParticles;
 }
 
 inline PointParticles getGreenParticles()
 {
 	auto greenParticles = getFireParticles();
-	greenParticles.getColor = makeGreen;
+	colorRangeGreen(greenParticles);
 	return greenParticles;
 }
 

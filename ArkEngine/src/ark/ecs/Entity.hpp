@@ -85,7 +85,7 @@ namespace ark {
 		requires std::invocable<F, RuntimeComponent>
 		void eachComponent(F&& f);
 
-		auto eachComponent() -> ProxyRuntimeComponentView;
+		auto eachComponent();
 
 		template <ConceptComponent T>
 		void remove();

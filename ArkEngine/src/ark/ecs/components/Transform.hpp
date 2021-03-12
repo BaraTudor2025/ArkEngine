@@ -167,9 +167,11 @@ ARK_REGISTER_COMPONENT_WITH_NAME_TAG(ark::Transform, "Transform", transform, add
 	auto* type = ark::meta::type<ark::Transform>();
 	type->func(ark::serde::serviceSerializeName, ark::serde::serialize_value<ark::Transform>);
 	type->func(ark::serde::serviceDeserializeName, ark::serde::deserialize_value<ark::Transform>);
-	type->data(ark::SceneInspector::serviceOptions, std::vector<ark::EditorOptions>{
-		{ .property_name = "scale", .drag_speed = 0.001f, .format = "%.3f" },
-		{ .property_name = "rotation", .drag_speed = 0.1f }
+	type->data<ark::EditorOptions>(ark::RENDER_EDITOR_OPTIONS, {
+		.options = {
+			{.property_name = "scale", .drag_speed = 0.001f, .format = "%.3f" },
+			{.property_name = "rotation", .drag_speed = 0.1f }
+		}
 	});
 	return members<ark::Transform>(
 		member_property("position", &ark::Transform::getPosition, &ark::Transform::setPosition),

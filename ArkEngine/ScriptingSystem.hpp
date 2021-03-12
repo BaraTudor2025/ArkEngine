@@ -188,7 +188,7 @@ private:
 	std::vector<std::unique_ptr<Script>> mScripts;
 	std::vector<Script*> mToBeDeleted;
 
-	friend bool renderScriptComponents(int* widgetId, void* pvScriptComponent);
+	friend bool renderScriptComponents(std::type_index type, void* instance, int* widgetID, std::string_view label, ark::EditorOptions* parentOptions);
 	friend nlohmann::json serializeScriptComponents(const void* p);
 	friend void deserializeScriptComponents(ark::Entity&, const nlohmann::json& obj, void* p);
 	friend class ScriptingSystem;
@@ -199,9 +199,9 @@ static nlohmann::json serializeScriptComponents(const void* pvScriptComponent)
 	nlohmann::json jsonScripts;
 	const ScriptingComponent* scriptingComp = static_cast<const ScriptingComponent*>(pvScriptComponent);
 	for (const auto& script : scriptingComp->mScripts) {
-		const auto* mdata = ark::meta::resolve(script->type);
-		if (auto serialize = mdata->func<nlohmann::json(const void*)>(ark::serde::serviceSerializeName)) {
-			jsonScripts[mdata->name] = serialize(script.get());
+		const auto* type = ark::meta::resolve(script->type);
+		if (auto serialize = type->func<nlohmann::json(const void*)>(ark::serde::serviceSerializeName)) {
+			jsonScripts[type->name] = serialize(script.get());
 		}
 	}
 	return jsonScripts;
@@ -228,9 +228,9 @@ static void deserializeScriptComponents(ark::Entity& entity, const nlohmann::jso
 	}
 }
 
-static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
+static bool renderScriptComponents(std::type_index, void* instance, int* widgetID, std::string_view, ark::EditorOptions*)
 {
-	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(pvScriptComponent);
+	ScriptingComponent* scriptingComp = static_cast<ScriptingComponent*>(instance);
 	for (auto& script : scriptingComp->mScripts) {
 		const auto* mdata = ark::meta::resolve(script->type);
 
@@ -240,15 +240,21 @@ static bool renderScriptComponents(int* widgetId, void* pvScriptComponent)
 				scriptingComp->removeScript(script->type);
 			});
 			if (!deleted) {
-				ImGui::PushID(*widgetId);
+				ImGui::PushID(*widgetID);
 				ark::ArkSetFieldName("is-active");
 				bool bIsActive = script->isActive();
 				if (ImGui::Checkbox("", &bIsActive))
 					script->setActive(bIsActive);
-				ark::SceneInspector::renderPropertiesOfType(script->type, widgetId, script.get());
+				if (auto edit = mdata->func<ark::RenderTypeEditor>(ark::RENDER_EDITOR)) {
+					(*widgetID)++;
+					ImGui::PushID(*widgetID);
+					edit(script->type, script.get(), widgetID, "", nullptr);
+					ImGui::PopID();
+				}
 				ImGui::PopID();
 			}
 			ImGui::TreePop();
+			(*widgetID)++;
 		}
 		ImGui::Separator();
 

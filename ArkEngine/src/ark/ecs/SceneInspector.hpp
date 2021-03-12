@@ -14,9 +14,11 @@ namespace ark
 {
 	// TODO(editor): serialize options
 	struct EditorOptions {
-		std::string_view property_name;
+		std::string_view property_name = "";
 
-		/* cu cat se schimba valoarea(cat adaug/scad la valoare) pe pixel miscat cu mouse-ul */
+		/* cu cat se schimba valoarea(cat adaug/scad la valoare) pe pixel miscat cu mouse-ul 
+		 * daca e '0'(zero) foloseste widgetu-ul InputInt/Float in loc de DragInt/Float
+		*/
 		float drag_speed = 0.5;
 
 		/* 0 pentru ambele inseanma ca nu are limita */
@@ -25,28 +27,40 @@ namespace ark
 
 		/* merge doar pentru float-uri */
 		float drag_power = 1;
+
+		/* float precision */
+		int precision = 2;
+
 		const char* format = "%.2f";
 
-		/* 
-		 * -sub-optiuni pentru un membru compus la randul lui din proprietati
-		 * evident, optiunile de mai sus sunt ignorate
-		 * -daca nu este definit, atunci editorul incearca sa foloseasca optiunule definite la nivelul de type
-		*/ 
-		std::vector<EditorOptions> options;
+		/* flags passed down to ImGui widget if this is a primitive *and* the widget supports the flags */
+		int flags = 0;
 
-		// folosit intern, nu umbla la el
-		// declarat public ca struct-ul sa ramana un aggregate
-		bool privateOpenPopUp = false;
+		/* sub-options for sub-properties that override the properties' type's own options */
+		std::vector<EditorOptions> options;
 	};
 
-	class EntityManager;
+	/*
+	 * Legend: parent type = the type which has this type as a property
+	 * instance: pointer to the value to edit
+	 * widgetID: id used by ImGui to make widgets unique in case they have the same name
+	 * label: the string to display, usually the property name of the parent type
+	 * parentOptions: options given by the parent type to this property, if it's null then you may use the types own options
+	 * type: type of instance, used when the function is a runtime template and it doesn't know the static type(see renderProperties from SceneInscpetor)
+	 * returns: true if the value has chaged, false otherwise
+	*/
+	using RenderTypeEditor = bool(std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions);
+
+	static inline constexpr std::string_view RENDER_EDITOR = "editor";
+	static inline constexpr std::string_view RENDER_EDITOR_OPTIONS = "editor_options";
+
 
 	class SceneInspector : public SystemT<SceneInspector>, public Renderer {
-
 	public:
 		SceneInspector() = default;
 		~SceneInspector() = default;
 
+		void init() override;
 		void update() override {}
 		void renderSystemInspector();
 		void renderEntityEditor();
@@ -56,17 +70,23 @@ namespace ark
 			//renderSystemInspector();
 			renderEntityEditor();
 		}
-
-		static bool renderPropertiesOfType(std::type_index type, int* widgetId, void* pValue, 
-			std::type_index parentType = typeid(void), std::string_view thisPropertyName = "");
-
-		static inline constexpr std::string_view serviceName = "INSPECTOR";
-		static inline constexpr std::string_view serviceOptions = "ark_inspector_options";
-		using VectorOptions = std::vector<EditorOptions>;
-
-		using RenderPropFunc = std::function<std::any(std::string_view, const void*, EditorOptions&)>;
-		static std::unordered_map<std::type_index, RenderPropFunc> s_renderPropertyTable;
 	};
+
+	// returns the 'value' if present, 
+	// otherwise return the type's options, declare it to default if the type doesn't have them
+	inline EditorOptions* assureEditorOptions(std::type_index type, EditorOptions* value = nullptr) {
+		if (value) {
+			return value;
+		}
+		else {
+			if (auto opt = ark::meta::resolve(type)->data<EditorOptions>(RENDER_EDITOR_OPTIONS)) {
+				return opt;
+			}
+			else {
+				return ark::meta::resolve(type)->data(RENDER_EDITOR_OPTIONS, EditorOptions{});
+			}
+		}
+	}
 }
 
 namespace ark

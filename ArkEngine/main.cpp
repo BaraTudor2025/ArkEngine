@@ -143,9 +143,9 @@ public:
 ARK_REGISTER_TYPE(gScriptGroupName, MoveAnimatedPlayer, registerServiceDefault<MoveAnimatedPlayer>())
 {
 	auto* type = ark::meta::type<MoveAnimatedPlayer>();
-	type->data<ark::SceneInspector::VectorOptions>(ark::SceneInspector::serviceOptions, {
+	type->data<ark::EditorOptions>(ark::RENDER_EDITOR_OPTIONS, { .options = {
 			{.property_name = "scale", .drag_speed = 0.001f}
-		});
+		} });
 	return members<MoveAnimatedPlayer>(
 		member_property("speed", &MoveAnimatedPlayer::speed),
 		member_property("scale", &MoveAnimatedPlayer::getScale, &MoveAnimatedPlayer::setScale)
@@ -360,17 +360,18 @@ struct CameraComponent {
 
 ARK_REGISTER_COMPONENT_WITH_TAG(sf::View, sfView, registerServiceDefault<sf::View>()) {
 	auto type = ark::meta::type<sf::View>();
-	type->data(ark::SceneInspector::serviceOptions, std::vector<ark::EditorOptions>{
-		{ .property_name = "center", .drag_speed = 0.4f },
-		{ .property_name = "rotation", .drag_speed = 0.05f },
-		{ .property_name = "size", .drag_speed = 0.4f },
-		{ .property_name = "viewport", .options = {
-			{.property_name = "top", . drag_speed = 0.00075f, .format = "%.4f" },
-			{.property_name = "left", . drag_speed = 0.00075f, .format = "%.4f"},
-			{.property_name = "height", . drag_speed = 0.001f, .drag_min = 0.01f, .drag_max = 1, .format = "%.3f"},
-			{.property_name = "width", . drag_speed = 0.001f, .drag_min = 0.01f, .drag_max = 1, .format = "%.3f"}
-		} }
-	});
+	type->data<ark::EditorOptions>(ark::RENDER_EDITOR_OPTIONS, {
+		.options = {
+			{.property_name = "center", .drag_speed = 0.4f },
+			{.property_name = "rotation", .drag_speed = 0.05f },
+			{.property_name = "size", .drag_speed = 0.4f },
+			{.property_name = "viewport", .options = {
+				{.property_name = "top", . drag_speed = 0.00075f, .format = "%.4f" },
+				{.property_name = "left", . drag_speed = 0.00075f, .format = "%.4f"},
+				{.property_name = "height", . drag_speed = 0.001f, .drag_min = 0.01f, .drag_max = 1, .format = "%.3f"},
+				{.property_name = "width", . drag_speed = 0.001f, .drag_min = 0.01f, .drag_max = 1, .format = "%.3f"}
+			} }
+	} });
 
 	return ark::meta::members<sf::View>(
 		ark::meta::member_property("center", &sf::View::getCenter, &sf::View::setCenter),
@@ -1754,7 +1755,7 @@ int main() // are nevoie de c++17 si SFML 2.5.1
 	std::cout << std::any_cast<int>(res) << '\n';
 	{
 		auto* type = ark::meta::type<ScriptingComponent>();
-		type->func(ark::SceneInspector::serviceName, renderScriptComponents);
+		type->func<ark::RenderTypeEditor>(ark::RENDER_EDITOR, renderScriptComponents);
 		type->func(ark::serde::serviceSerializeName, serializeScriptComponents);
 		type->func(ark::serde::serviceDeserializeName, deserializeScriptComponents);
 		//type->func("onClone", ScriptingComponent::onClone);

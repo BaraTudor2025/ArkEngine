@@ -247,7 +247,7 @@ namespace ark::meta
 		void get(const void* instance, std::any& out_value) const {
 			m_getter_any(instance, out_value);
 		}
-		auto get(const void* instance) const -> std::any {
+		std::any get(const void* instance) const {
 			auto value = std::any{};
 			get(instance, value);
 			return value;
@@ -380,27 +380,35 @@ namespace ark::meta
 	};
 
 	template <typename F>
-	class meta_function {
-		const std::function<F>* m_fun;
+	class meta_function;
+
+	template <typename Ret, typename... Args>
+	class meta_function<Ret(Args...)> {
+		using FunctionType = std::function<Ret(Args...)>;
+		const FunctionType* m_fun;
 	public:
 
-		meta_function(const std::function<F>* fun) noexcept : m_fun(fun) {}
+		meta_function(const FunctionType* fun) noexcept : m_fun(fun) {}
 		meta_function(std::nullptr_t) noexcept : m_fun(nullptr) {}
 
-		template <typename... Args>
-		decltype(auto) operator()(Args&&... args) const noexcept(noexcept((*m_fun)(std::forward<Args>(args)...))) {
-			return (*m_fun)(std::forward<Args>(args)...);
+		//template <typename... Args>
+		//decltype(auto) operator()(Args&&... args) const noexcept(noexcept((*m_fun)(std::forward<Args>(args)...))) {
+		//	return (*m_fun)(std::forward<Args>(args)...);
+		//}
+
+		Ret operator()(Args... args) const noexcept {
+			return (*m_fun)(args...);
 		}
 
 		operator bool() const noexcept {
 			return m_fun != nullptr;
 		}
 
-		auto get() const noexcept -> const std::function<F>* {
+		auto get() const noexcept -> const FunctionType* {
 			return m_fun;
 		}
 
-		auto operator*() const noexcept -> const std::function<F>& {
+		auto operator*() const noexcept -> const FunctionType& {
 			return *m_fun;
 		}
 	};
@@ -436,6 +444,7 @@ namespace ark::meta
 		const std::type_index type;
 		const std::size_t size;
 		const std::size_t align;
+		int flags;
 
 		const std::string& getName() const { return m_name; }
 		__declspec(property(get=getName, put=setName))
@@ -476,10 +485,13 @@ namespace ark::meta
 			return m_props;
 		}
 
+		// inserts only if not present
 		template <typename T>
 		requires std::is_object_v<T>
-		void data(std::string_view name, T&& value) {
-			m_data.emplace(name, std::forward<T>(value));
+		T* data(std::string_view name, T&& value) {
+			auto [it, success] = m_data.emplace(name, std::forward<T>(value));
+			std::any& val = it->second;
+			return &std::any_cast<T&>(val);
 		}
 
 		template <typename T>
@@ -694,6 +706,13 @@ namespace ark::meta
 		};
 
 	} // detail
+
+	template <std::invocable<ark::meta::Metadata&> F>
+	void forTypes(F&& f) {
+		for (auto& type : detail::fsTypeTable()) {
+			f(type.second);
+		}
+	}
 
 	// register type T if not registered and return its Metadata
 	// if no name is passed then prettifyTypeName will generate a name from typeid(T).name()

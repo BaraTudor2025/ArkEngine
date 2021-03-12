@@ -144,110 +144,113 @@ namespace ark {
 	}
 #endif
 
-	bool SceneInspector::renderPropertiesOfType(std::type_index type, int* widgetId, void* pInstance, std::type_index parentType, std::string_view thisPropertyName)
-	{
-		auto* mdata = ark::meta::resolve(type);
-		// ma doare
-		// TODO(meta): poate combin RuntimeProperty cu Metadata + ark::any care se ocupa de conversii automat(cu specializare pe int-enum)? 
-		// asta ca sa fac codul asta mai clean, ew
-		auto* options = [&] {
-			if (parentType != typeid(void)) {
-				// foloseste optiunile speciale pentru proprietatea asta
-				if (const auto parent = ark::meta::resolve(parentType)) {
-					if (const auto opts = parent->data<SceneInspector::VectorOptions>(SceneInspector::serviceOptions)) {
-						if (const auto prop = parent->prop(thisPropertyName)) {
-							auto it2 = std::find_if(opts->begin(), opts->end(), [&](const auto& opt) { return opt.property_name == prop->name; });
-							if (it2 != opts->end()) {
-								if (auto& opt = *it2; !opt.options.empty())
-									return &opt.options;
-							}
-						}
-					}
-				}
-			}
-			// altfel folosestele pe cele din type-ul proprietatii
-			return mdata->data<SceneInspector::VectorOptions>(SceneInspector::serviceOptions);
-		}();
+	// returns new value if any
 
-		bool modified = false; // used in recursive call to check if the property was modified
+	bool renderTypeEnumEditor(std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions*) {
+		//auto type = ark::meta::resolve(info);
 
-		for(const auto& property : mdata->prop()) {
-			ImGui::PushID(*widgetId);
+		// //std::any enumValue = property.get(pInstance);
+		//auto enumType = ark::meta::resolve(property.type);
+		//const char* preview = [&] { 
+		//	for (auto [ename, evalue] : enumType->data())
+		//		if (property.isEqual(pInstance, evalue))
+		//		//if (evalue == property.fromAny(propValue))
+		//			return ename;
+		//	return "";
+		//}();
+		//// render enum values in a list
+		//ArkSetFieldName(property.name);
+		//if (ImGui::BeginCombo("", preview, 0)) {
+		//	for (auto [ename, evalue] : enumType->data()) { // enumType->data() -> vector<{std::string_view name, ark::any value}>
+		//		if (ImGui::Selectable(ename.data(), property.isEqual(pInstance, evalue))) {
+		//			property.set(pInstance, evalue);
+		//			modified = true;
+		//			break;
+		//		}
+		//	}
+		//	ImGui::EndCombo();
+		//}
 
-			if (ark::meta::hasProperties(property.type)) {
-				// recursively render members that are registered
-				std::any propValue = property.get(pInstance);
-				ImGui::Text("--%s:", property.name.data());
-				if (renderPropertiesOfType(property.type, widgetId, property.fromAny(propValue), type, property.name)) {
-					property.set(pInstance, propValue);
-					modified = true;
-				}
-			}
-			else if (property.isEnum) {
-				//std::any enumValue = property.get(pInstance);
-				//auto enumType = ark::meta::resolve(property.type);
-				//const char* preview = [&] { 
-				//	for (auto [ename, evalue] : enumType->data())
-				//		if (property.isEqual(pInstance, evalue))
-				//		//if (evalue == property.fromAny(propValue))
-				//			return ename;
-				//	return "";
-				//}();
 
-				//// render enum values in a list
-				//ArkSetFieldName(property.name);
-				//if (ImGui::BeginCombo("", preview, 0)) {
-				//	for (auto [ename, evalue] : enumType->data()) { // enumType->data() -> vector<{std::string_view name, ark::any value}>
-				//		if (ImGui::Selectable(ename.data(), property.isEqual(pInstance, evalue))) {
-				//			property.set(pInstance, evalue);
-				//			modified = true;
-				//			break;
-				//		}
-				//	}
-				//	ImGui::EndCombo();
+		//std::any propValue = property.get(pInstance);
+		const auto* enumFields = meta::getEnumValues(info);
+		auto previewValue = *static_cast<ark::meta::EnumValue::value_type*>(instance);
+		const char* preview = meta::getNameOfEnumValue(info, previewValue).data();
+
+		// render enum values in a list
+		ArkSetFieldName(label, nullptr);
+		if (ImGui::BeginCombo("", preview, 0)) {
+			for (const auto& field : *enumFields) {
+				//if (ImGui::Selectable(field.name.data(), property.isEqual(propValue, &field.value))) {
+				//	propValue = field.value;
+				//	property.set(pInstance, propValue);
+				//	modified = true;
+				//	break;
 				//}
-				std::any propValue = property.get(pInstance);
+			}
+			ImGui::EndCombo();
+		}
+		return false;
+	}
+
+	bool renderTypePropertiesEditor(std::type_index info, void* instance, int* widgetID, std::string_view, EditorOptions*) 
+	{
+		auto* type = ark::meta::resolve(info);
+		auto* typeOptions = type->data<EditorOptions>(RENDER_EDITOR_OPTIONS);
+
+		bool modified = false;
+		for (const auto& property : type->prop()) {
+
+			if (property.isEnum) {
+				std::any propValue = property.get(instance);
 				const auto& values = meta::getEnumValues(property.type);
 				auto previewValue = *static_cast<ark::meta::EnumValue::value_type*>(property.fromAny(propValue));
 				const char* preview = meta::getNameOfEnumValue(property.type, previewValue).data();
 
 				// render enum values in a list
-				ArkSetFieldName(property.name);
+				ArkSetFieldName(property.name, nullptr);
+				ImGui::PushID(*widgetID);
 				if (ImGui::BeginCombo("", preview, 0)) {
 					for (const auto& field : *values) {
 						if (ImGui::Selectable(field.name.data(), property.isEqual(propValue, &field.value))) {
 							propValue = field.value;
-							property.set(pInstance, propValue);
+							property.set(instance, propValue);
 							modified = true;
 							break;
 						}
 					}
 					ImGui::EndCombo();
 				}
+				ImGui::PopID();
+
 			}
 			else {
-				// render field using predefined table
-				auto& renderProperty = SceneInspector::s_renderPropertyTable.at(property.type);
-
-				// find custom editor options for field
-				auto defaultOpt = EditorOptions{};
-				auto& editopt = [&]() -> auto& {
-					if (options) {
-						for (auto& opt : *options)
+				std::any value = property.get(instance);
+				auto propOptions = [&] {
+					if (typeOptions) {
+						for (auto& opt : typeOptions->options) {
 							if (opt.property_name == property.name)
-								return opt;
-					} 
-					return defaultOpt;
-				}(); 
+								return &opt;
+						}
+					}
+					return (EditorOptions*)nullptr;
+				}();
 
-				std::any local = property.get(pInstance);
-				if (auto newValue = renderProperty(property.name, property.fromAny(local), editopt); newValue.has_value()) {
-					property.set(pInstance, newValue);
-					modified = true;
+				auto mdataProp = ark::meta::resolve(property.type);
+				if (auto edit = mdataProp->func<RenderTypeEditor>(RENDER_EDITOR)) {
+
+					if(!mdataProp->prop().empty())
+						ImGui::Text("--%s:", property.name.data());
+					std::any value = property.get(instance);
+					ImGui::PushID(*widgetID);
+					if (edit(property.type, property.fromAny(value), widgetID, property.name, propOptions)) {
+						property.set(instance, value);
+						modified = true;
+					}
+					ImGui::PopID();
 				}
 			}
-			ImGui::PopID();
-			*widgetId += 1;
+			*widgetID += 1;
 		}
 		return modified;
 	}
@@ -311,11 +314,9 @@ namespace ark {
 							});
 						}
 						if (!deleted) {
-							// maybe use custom function
-							if (auto render = mdata->func<bool(int*, void*)>(serviceName))
-								render(&widgetId, component.ptr);
-							else if (ark::meta::hasProperties(component.type))
-								renderPropertiesOfType(component.type, &widgetId, component.ptr);
+							if (auto edit = mdata->func<RenderTypeEditor>(RENDER_EDITOR)) {
+								edit(component.type, component.ptr, &widgetId, "", nullptr);
+							}
 						}
 						ImGui::TreePop();
 					}
@@ -344,20 +345,21 @@ namespace ark {
 	{
 		ImGui::AlignTextToFramePadding();
 		ImGui::TextUnformatted(name.data());
+		// selected options
+		static EditorOptions* c_options = nullptr;
+		if (opt && ImGui::IsItemHovered())
+			c_options = opt;
+		if (c_options) {
+			if (ImGui::BeginPopupContextWindow()) {
 
-		if (opt && ImGui::IsItemHovered()) {
-			opt->privateOpenPopUp = true;
-		}
-		if (opt && opt->privateOpenPopUp) {
-			if (ImGui::BeginPopupContextWindow(name.data())) {
+				auto* opt = c_options;
+				auto min = opt->drag_min;
+				if (ImGui::InputFloat("drag-min", &min, 0, 0, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue))
+					opt->drag_min = min;
 
 				auto max = opt->drag_max;
 				if (ImGui::InputFloat("drag-max", &max, 0, 0, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue))
 					opt->drag_max = max;
-
-				auto min = opt->drag_min;
-				if (ImGui::InputFloat("drag-min", &min, 0, 0, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue))
-					opt->drag_min = min;
 				
 				auto speed = opt->drag_speed;
 				if (ImGui::InputFloat("drag-speed", &speed, 0, 0, "%.3f", ImGuiInputTextFlags_EnterReturnsTrue))
@@ -366,8 +368,9 @@ namespace ark {
 				ImGui::EndPopup();
 			}
 			else {
-				//if(!ImGui::IsPopupOpen(name.data()))
-				opt->privateOpenPopUp = false;
+				// un-select if Popup is closed
+				if(!ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+					c_options = nullptr;
 			}
 		}
 		// align
@@ -378,131 +381,172 @@ namespace ark {
 		ImGui::SetNextItemWidth(-1);
 	}
 
-	void ArkFocusHere(int i = -1)
-	{
-		ImGui::SetKeyboardFocusHere(i);
-	}
+	void SceneInspector::init() {
 
-	std::unordered_map<std::type_index, SceneInspector::RenderPropFunc> SceneInspector::s_renderPropertyTable = {
-
-		{ typeid(int), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			int field = *static_cast<const int*>(pField);
-			ArkSetFieldName(name, &opt);
-			if (ImGui::DragInt("", &field, opt.drag_speed, opt.drag_min, opt.drag_max)) {
-				return std::any{field};
+		// if the type doesn't have a renderer and has properties, then the default one calls the renderer for the properties
+		ark::meta::forTypes([&](ark::meta::Metadata& type) {
+			if (auto fun = type.func<RenderTypeEditor>(RENDER_EDITOR); !fun) {
+				if (!type.prop().empty())
+					type.func<RenderTypeEditor>(RENDER_EDITOR, renderTypePropertiesEditor);
 			}
-			return std::any{};
-		} },
+		});
 
-		{ typeid(float), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			float field = *static_cast<const float*>(pField);
-			ArkSetFieldName(name, &opt);
-			if (ImGui::DragFloat("", &field, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
-				return std::any{field};
+		ark::meta::type<int>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			int& value = *static_cast<int*>(instance);
+			auto& opt = *assureEditorOptions(typeid(value), parentOptions);
+			ArkSetFieldName(label, &opt);
+			if (opt.drag_speed == 0) {
+				int copy = value;
+				if (ImGui::InputInt("", &copy, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue | opt.flags)) {
+					value = copy;
+					return true;
+				}
 			}
-			return std::any{};
-		} },
-
-		{ typeid(bool), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			bool field = *static_cast<const bool*>(pField);
-			ArkSetFieldName(name, &opt);
-			if (ImGui::Checkbox("", &field)) {
-				return std::any{field};
+			else {
+				return ImGui::DragInt("", &value, opt.drag_speed, opt.drag_min, opt.drag_max);
 			}
-			return std::any{};
-		} },
+			return false;
+		});
 
-		{ typeid(std::string), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			std::string field = *static_cast<const std::string*>(pField);
-			char buff[40];
-			std::memset(buff, 0, sizeof(buff));
-			strcpy_s(buff, field.c_str());
-			ArkSetFieldName(name, &opt);
+		ark::meta::type<float>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			float& value = *static_cast<float*>(instance);
+			auto& opt = *assureEditorOptions(typeid(value), parentOptions);
+			ArkSetFieldName(label, &opt);
+			if (opt.drag_speed == 0) {
+				float copy = value;
+				if (ImGui::InputFloat("", &copy, 0, 0, opt.precision, ImGuiInputTextFlags_EnterReturnsTrue | opt.flags)) {
+					value = copy;
+					return true;
+				}
+			}
+			else {
+				return ImGui::DragFloat("", &value, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power);
+			}
+			return false;
+		});
+
+		ark::meta::type<bool>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			bool& value = *(bool*)instance;
+			ArkSetFieldName(label, nullptr);
+			return ImGui::Checkbox("", &value);
+		});
+
+		ark::meta::type<char>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			char& value = *static_cast<char*>(instance);
+			char buff[2] = { value, 0 };
+			ArkSetFieldName(label, nullptr);
 			if (ImGui::InputText("", buff, sizeof(buff), ImGuiInputTextFlags_EnterReturnsTrue)) {
-				return std::any{std::string(buff, std::strlen(buff))};
+				value = buff[0];
+				return true;
 			}
-			return std::any{};
-		} },
+			return false;
+		});
 
-		{ typeid(char), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			char field = *static_cast<const char*>(pField);
-			char buff[2] = { field, 0};
-			ArkSetFieldName(name, &opt);
-			if (ImGui::InputText("", buff, 2, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				return std::any{buff[0]};
+		ark::meta::type<std::string>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			std::string& value = *static_cast<std::string*>(instance);
+			char buff[50];
+			std::memset(buff, 0, sizeof(buff));
+			strcpy_s(buff, value.c_str());
+			ArkSetFieldName(label, nullptr);
+			if (ImGui::InputText("", buff, sizeof(buff), ImGuiInputTextFlags_EnterReturnsTrue)) {
+				value.assign(buff);
+				return true;
 			}
-			return std::any{};
-		} },
+			return false;
+		});
 
-		{ typeid(sf::Vector2f), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			sf::Vector2f vec = *static_cast<const sf::Vector2f*>(pField);
-			ArkSetFieldName(name, &opt);
-			if (ImGui::DragFloat2("", &vec.x, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
-				return std::any{vec};
+		ark::meta::type<sf::Vector2f>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			auto& value = *(sf::Vector2f*)instance;
+			auto& opt = *assureEditorOptions(typeid(value), parentOptions);
+			ArkSetFieldName(label, &opt);
+			//GameLog("name(%s) drag_speed(%d)", opt.property_name, opt.drag_speed);
+			return ImGui::DragFloat2("", &value.x, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power);
+		});
+
+		ark::meta::type<sf::Vector2i>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			auto& value = *(sf::Vector2i*)instance;
+			auto& opt = *assureEditorOptions(info, parentOptions);
+			ArkSetFieldName(label, &opt);
+			return ImGui::DragInt2("", &value.x, opt.drag_speed, opt.drag_min, opt.drag_max);
+		});
+
+		ark::meta::type<sf::Vector2u>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			auto& value = *(sf::Vector2i*)instance;
+			auto& opt = *assureEditorOptions(info, parentOptions);
+			ArkSetFieldName(label, &opt);
+			sf::Vector2i vec = { value.x, value.y };
+			if (ImGui::DragInt2("", &vec.x, opt.drag_speed, opt.drag_min < 0 ? 0 : opt.drag_min, opt.drag_max)) {
+				value = {
+					vec.x < 0 ? 0 : vec.x,
+					vec.y < 0 ? 0 : vec.y
+				};
+				return true;
 			}
-			return std::any{};
-		} },
+			return false;
+		});
 
-		{ typeid(sf::Vector2i), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			sf::Vector2i vec = *static_cast<const sf::Vector2i*>(pField);
-			ArkSetFieldName(name, &opt);
-			if (ImGui::DragInt2("", &vec.x, opt.drag_speed, opt.drag_min, opt.drag_max)) {
-				return std::any{vec};
-			}
-			return std::any{};
-		} },
-
-		{ typeid(sf::IntRect), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			sf::IntRect rect = *static_cast<const sf::IntRect*>(pField);
-			auto extname = std::string(name) + " L/T/W/H";
+		ark::meta::type<sf::IntRect>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			sf::IntRect& value = *(sf::IntRect*)(instance);
+			auto extname = std::string(label) + " L/T/W/H";
+			auto& opt = *assureEditorOptions(info, parentOptions);
 			ArkSetFieldName({ extname.c_str(), extname.size() }, &opt);
-			if (ImGui::DragInt4("", (int*)&rect, opt.drag_speed, opt.drag_min, opt.drag_max)) {
-				return std::any{rect};
-			}
-			return std::any{};
-		} },
+			return ImGui::DragInt4("", (int*)&value, opt.drag_speed, opt.drag_min, opt.drag_max);
+		});
 
-		{ typeid(sf::Vector2u), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			sf::Vector2u vec = *static_cast<const sf::Vector2u*>(pField);
-			ArkSetFieldName(name, &opt);
-			int v[2] = {(int)vec.x, (int)vec.y};
-			if (ImGui::InputInt2("", v, ImGuiInputTextFlags_EnterReturnsTrue)) {
-				vec.x = v[0] >= 0? v[0] : 0;
-				vec.y = v[1] >= 0? v[1] : 0;
-				return std::any{vec};
-			}
-			return std::any{};
-		} },
-
-		{ typeid(sf::Color), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			sf::Color color = *static_cast<const sf::Color*>(pField);
-			ArkSetFieldName(name, &opt);
-			float v[4] = {
-				static_cast<float>(color.r) / 255.f,
-				static_cast<float>(color.g) / 255.f,
-				static_cast<float>(color.b) / 255.f,
-				static_cast<float>(color.a) / 255.f
+		ark::meta::type<sf::Color>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			sf::Color& color = *(sf::Color*)instance;
+			auto& opt = *assureEditorOptions(info, parentOptions);
+			ArkSetFieldName(label, nullptr);
+			float vec[4] = {
+				float(color.r) / 255.f,
+				float(color.g) / 255.f,
+				float(color.b) / 255.f,
+				float(color.a) / 255.f
 			};
 
-			if (ImGui::ColorEdit4("", v)) {
-				color.r = static_cast<uint8_t>(v[0] * 255.f);
-				color.g = static_cast<uint8_t>(v[1] * 255.f);
-				color.b = static_cast<uint8_t>(v[2] * 255.f);
-				color.a = static_cast<uint8_t>(v[3] * 255.f);
-				return std::any{color};
+			if (ImGui::ColorEdit4("", vec, opt.flags)) {
+				color.r = static_cast<uint8_t>(vec[0] * 255.f);
+				color.g = static_cast<uint8_t>(vec[1] * 255.f);
+				color.b = static_cast<uint8_t>(vec[2] * 255.f);
+				color.a = static_cast<uint8_t>(vec[3] * 255.f);
+				return true;
 			}
-			return std::any{};
-		} },
+			return false;
+		});
 
-		{ typeid(sf::Time), [](std::string_view name, const void* pField, EditorOptions& opt) {
-			sf::Time time = *static_cast<const sf::Time*>(pField);
-			std::string label = std::string(name) + " (as seconds)";
-			ArkSetFieldName(label, &opt);
-			float sec = time.asSeconds();
-			if (ImGui::DragFloat("", &sec, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
-				return std::any{sf::seconds(sec)};
+		ark::meta::type<sf::Time>()->func<RenderTypeEditor>(RENDER_EDITOR,
+			[](std::type_index info, void* instance, int* widgetID, std::string_view label, EditorOptions* parentOptions)
+		{
+			sf::Time& value = *(sf::Time*)instance;
+			std::string name = std::string(label) + " (as seconds)";
+			auto& opt = *assureEditorOptions(info, parentOptions);
+			ArkSetFieldName(name, &opt);
+			float seconds = value.asSeconds();
+			if (ImGui::DragFloat("", &seconds, opt.drag_speed, opt.drag_min, opt.drag_max, opt.format, opt.drag_power)) {
+				value = sf::seconds(seconds);
+				return true;
 			}
-			return std::any{};
-		} }
-	};
+			return false;
+		});
+	}
 }
